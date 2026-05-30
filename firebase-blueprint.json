@@ -1,0 +1,311 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Represents the authenticated user profile details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "createdAt", "updatedAt"]
+    },
+    "Topic": {
+      "title": "Topic Card",
+      "description": "Represents research or review topics on standard revision curves.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Not Started", "Learning", "Practicing", "Revising", "Interview Ready", "Mastered"] },
+        "confidenceScore": { "type": "integer" },
+        "recallScore": { "type": "integer" },
+        "revisionCount": { "type": "integer" },
+        "lastRevisionDate": { "type": "string" },
+        "nextRevisionDate": { "type": "string" },
+        "forgotCount": { "type": "integer" },
+        "notes": { "type": "string" },
+        "dependencyIds": { "type": "array"}
+      },
+      "required": ["id", "userId", "name", "category", "description", "status", "confidenceScore", "recallScore", "revisionCount", "forgotCount", "notes", "dependencyIds"]
+    },
+    "Question": {
+      "title": "Practice Flashcard",
+      "description": "Standard review question nested within specific topics.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "topicId": { "type": "string" },
+        "tags": { "type": "array" },
+        "source": { "type": "string" },
+        "askedCount": { "type": "integer" },
+        "lastAskedDate": { "type": "string" },
+        "lastRevisedDate": { "type": "string" }
+      },
+      "required": ["id", "userId", "question", "answer", "difficulty", "topicId", "tags", "source", "askedCount"]
+    },
+    "Interview": {
+      "title": "Job Interview Detail",
+      "description": "Represents live scheduled or logged interview sessions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["Scheduled", "Completed", "Cancelled"] },
+        "questionsAsked": { "type": "array" },
+        "questionsMissed": { "type": "array" },
+        "feedback": { "type": "string" },
+        "result": { "type": "string", "enum": ["Selected", "Rejected", "Pending"] }
+      },
+      "required": ["id", "userId", "companyName", "date", "status", "questionsAsked", "questionsMissed", "feedback", "result"]
+    },
+    "Mistake": {
+      "title": "Mistake Log Entry",
+      "description": "Representations of failed patterns or questions logged in standard revision cycles.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "date": { "type": "string" },
+        "missedQuestions": { "type": "array" },
+        "reason": { "type": "string" }
+      },
+      "required": ["id", "userId", "companyName", "date", "missedQuestions", "reason"]
+    },
+    "JobApplication": {
+      "title": "Job Submission Tracking",
+      "description": "Submissions or interviews status trackers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "company": { "type": "string" },
+        "position": { "type": "string" },
+        "appliedDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["Applied", "Interview Scheduled", "Rejected", "Offer Received", "Joined"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "userId", "company", "position", "appliedDate", "status"]
+    },
+    "StudySession": {
+      "title": "Stopwatch study session log",
+      "description": "Captured dynamic timestamp stopwatch intervals.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "topicId": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "duration": { "type": "integer" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "userId", "topicId", "startTime", "endTime", "duration"]
+    },
+    "VoiceRecording": {
+      "title": "Recorded Concept Recitation",
+      "description": "Audio clips tracking voice-over explanations of core concepts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "topicId": { "type": "string" },
+        "title": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "duration": { "type": "integer" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "userId", "topicId", "title", "audioUrl", "duration", "date"]
+    },
+    "AppNotification": {
+      "title": "System Spacing Notification Alert",
+      "description": "Representing alerts or warning tags generated across study curves.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["revision", "weakness", "interview", "daily"] },
+        "date": { "type": "string" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "title", "message", "type", "date", "read"]
+    },
+    "InterviewIntelligenceQuestion": {
+      "title": "Interview Intelligence Question",
+      "description": "Real questions logged for permanent corporate intelligence retrieval.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "company": { "type": "string" },
+        "question": { "type": "string" },
+        "topic": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "dateAsked": { "type": "string" },
+        "answer": { "type": "string" },
+        "result": { "type": "string", "enum": ["Answered Correctly", "Struggled", "Failed"] }
+      },
+      "required": ["id", "userId", "company", "question", "topic", "difficulty", "dateAsked", "answer", "result"]
+    },
+    "ActivityPlan": {
+      "title": "Activity Plan",
+      "description": "Represents recurring daily habits and training plans defined over a selected date range.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "targetHours": { "type": "number" },
+        "category": { "type": "string", "enum": ["Technical", "Communication", "Interview Preparation", "DSA", "Reading", "Writing", "Speaking", "Listening", "Fitness", "Custom"] },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "repeatType": { "type": "string", "enum": ["Daily", "Weekly", "Custom"] }
+      },
+      "required": ["id", "userId", "title", "targetHours", "category", "startDate", "endDate", "repeatType"]
+    },
+    "DailyTask": {
+      "title": "Daily Task instance",
+      "description": "Autogenerated daily task instances tied to habits or global recall/revision cycles.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Completed", "Skipped"] },
+        "completedAt": { "type": "string" },
+        "title": { "type": "string" },
+        "targetHours": { "type": "number" },
+        "category": { "type": "string" }
+      },
+      "required": ["id", "userId", "planId", "date", "status", "title", "targetHours", "category"]
+    },
+    "ActivityLog": {
+      "title": "Activity Log entry",
+      "description": "Logged work hours and self-assessment remarks for particular task tasks.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "taskId": { "type": "string" },
+        "actualHours": { "type": "number" },
+        "notes": { "type": "string" },
+        "loggedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "taskId", "actualHours"]
+    },
+    "Journal": {
+      "title": "Personal Reflections Log",
+      "description": "Daily thoughts, session review sheets, interview lessons and plans",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["Daily Reflection", "Interview Reflection", "Learning Journal", "Weekly Review Journal"] },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "tags": { "type": "array" },
+        "relatedTopicId": { "type": "string" },
+        "relatedInterviewId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "attachments": { "type": "array" }
+      },
+      "required": ["id", "userId", "type", "title", "content", "tags", "createdAt", "updatedAt"]
+    },
+    "Roadmap": {
+      "title": "Structured Learning Path",
+      "description": "Goal-oriented track listing specific topics, ordering, and completion records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "topics": { "type": "array" },
+        "isPrebuilt": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "prebuiltId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "description", "topics", "isPrebuilt", "isActive", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile store"
+    },
+    "/topics/{topicId}": {
+      "schema": "Topic",
+      "description": "User specific revision topic cards"
+    },
+    "/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Dynamic flashcard database"
+    },
+    "/interviews/{interviewId}": {
+      "schema": "Interview",
+      "description": "Job interview loggers"
+    },
+    "/mistakes/{mistakeId}": {
+      "schema": "Mistake",
+      "description": "Failed patterns journal"
+    },
+    "/jobApplications/{applicationId}": {
+      "schema": "JobApplication",
+      "description": "Submission tracks"
+    },
+    "/studySessions/{sessionId}": {
+      "schema": "StudySession",
+      "description": "Captured stopwatch details"
+    },
+    "/voiceRecordings/{recordingId}": {
+      "schema": "VoiceRecording",
+      "description": "Audio clips storage records"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "AppNotification",
+      "description": "Interval alerts trackers"
+    },
+    "/intelliQuestions/{intelliQuestionId}": {
+      "schema": "InterviewIntelligenceQuestion",
+      "description": "Permanent question telemetry"
+    },
+    "/activityPlans/{planId}": {
+      "schema": "ActivityPlan",
+      "description": "Habits or preparation rules"
+    },
+    "/dailyTasks/{taskId}": {
+      "schema": "DailyTask",
+      "description": "Concrete date-specific performance elements"
+    },
+    "/activityLogs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Detailed habit output records"
+    },
+    "/journals/{journalId}": {
+      "schema": "Journal",
+      "description": "Personal research and experience reflections journals"
+    },
+    "/roadmaps/{roadmapId}": {
+      "schema": "Roadmap",
+      "description": "Interactive prep roadmaps tracking"
+    }
+  }
+}

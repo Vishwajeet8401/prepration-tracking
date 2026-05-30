@@ -1,0 +1,6 @@
+{
+  "name": "Preparation Tracker",
+  "description": "A comprehensive system to study, schedule, and measure interview readiness with spacing recall, question tracking, and mistake journals.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

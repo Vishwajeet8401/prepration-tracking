@@ -1,0 +1,342 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Catch-all safety net default-deny rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Zero-Trust Identity and State Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn();
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isDocOwner(data) {
+      return isVerifiedUser() && request.auth.uid == data.userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Schema Validation Helpers (Anti-Update-Gap)
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.email is string && data.email.size() <= 200
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && data.updatedAt is string && data.updatedAt.size() <= 60;
+    }
+
+    function isValidTopic(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'category', 'description', 'status', 'confidenceScore', 'recallScore', 'revisionCount', 'forgotCount', 'notes', 'dependencyIds'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 200
+        && data.category is string && data.category.size() <= 100
+        && data.description is string && data.description.size() <= 2000
+        && data.status is string && data.status.size() <= 50
+        && data.confidenceScore is int && data.confidenceScore >= 0 && data.confidenceScore <= 100
+        && data.recallScore is int && data.recallScore >= 0 && data.recallScore <= 100
+        && data.revisionCount is int && data.revisionCount >= 0
+        && data.forgotCount is int && data.forgotCount >= 0
+        && data.notes is string && data.notes.size() <= 15000
+        && data.dependencyIds is list;
+    }
+
+    function isValidQuestion(data) {
+      return data.keys().hasAll(['id', 'userId', 'question', 'answer', 'difficulty', 'topicId', 'tags', 'source', 'askedCount'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.question is string && data.question.size() <= 2000
+        && data.answer is string && data.answer.size() <= 10000
+        && data.difficulty is string && (data.difficulty == 'Easy' || data.difficulty == 'Medium' || data.difficulty == 'Hard')
+        && data.topicId is string && data.topicId.size() <= 128
+        && data.tags is list && data.tags.size() <= 30
+        && data.source is string && data.source.size() <= 100
+        && data.askedCount is int && data.askedCount >= 0;
+    }
+
+    function isValidInterview(data) {
+      return data.keys().hasAll(['id', 'userId', 'companyName', 'date', 'status', 'questionsAsked', 'questionsMissed', 'feedback', 'result'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.companyName is string && data.companyName.size() <= 200
+        && data.date is string && data.date.size() <= 60
+        && data.status is string && (data.status == 'Scheduled' || data.status == 'Completed' || data.status == 'Cancelled')
+        && data.questionsAsked is list && data.questionsAsked.size() <= 100
+        && data.questionsMissed is list && data.questionsMissed.size() <= 100
+        && data.feedback is string && data.feedback.size() <= 10000
+        && data.result is string && (data.result == 'Selected' || data.result == 'Rejected' || data.result == 'Pending');
+    }
+
+    function isValidMistake(data) {
+      return data.keys().hasAll(['id', 'userId', 'companyName', 'date', 'missedQuestions', 'reason'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.companyName is string && data.companyName.size() <= 200
+        && data.date is string && data.date.size() <= 60
+        && data.missedQuestions is list && data.missedQuestions.size() <= 100
+        && data.reason is string && data.reason.size() <= 10000;
+    }
+
+    function isValidJobApplication(data) {
+      return data.keys().hasAll(['id', 'userId', 'company', 'position', 'appliedDate', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.company is string && data.company.size() <= 200
+        && data.position is string && data.position.size() <= 200
+        && data.appliedDate is string && data.appliedDate.size() <= 60
+        && data.status is string && (data.status == 'Applied' || data.status == 'Interview Scheduled' || data.status == 'Rejected' || data.status == 'Offer Received' || data.status == 'Joined');
+    }
+
+    function isValidStudySession(data) {
+      return data.keys().hasAll(['id', 'userId', 'topicId', 'startTime', 'endTime', 'duration'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.topicId is string && data.topicId.size() <= 128
+        && data.startTime is string && data.startTime.size() <= 60
+        && data.endTime is string && data.endTime.size() <= 60
+        && data.duration is int && data.duration >= 0;
+    }
+
+    function isValidVoiceRecording(data) {
+      return data.keys().hasAll(['id', 'userId', 'topicId', 'title', 'audioUrl', 'duration', 'date'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.topicId is string && data.topicId.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.audioUrl is string && data.audioUrl.size() <= 20000000
+        && data.duration is int && data.duration >= 0
+        && data.date is string && data.date.size() <= 60;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'message', 'type', 'date', 'read'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 300
+        && data.message is string && data.message.size() <= 5000
+        && data.type is string && (data.type == 'revision' || data.type == 'weakness' || data.type == 'interview' || data.type == 'daily')
+        && data.date is string && data.date.size() <= 60
+        && data.read is bool;
+    }
+
+    function isValidIntelliQuestion(data) {
+      return data.keys().hasAll(['id', 'userId', 'company', 'question', 'topic', 'difficulty', 'dateAsked', 'answer', 'result'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.company is string && data.company.size() <= 200
+        && data.question is string && data.question.size() <= 2000
+        && data.topic is string && data.topic.size() <= 200
+        && data.difficulty is string && (data.difficulty == 'Easy' || data.difficulty == 'Medium' || data.difficulty == 'Hard')
+        && data.dateAsked is string && data.dateAsked.size() <= 60
+        && data.answer is string && data.answer.size() <= 10000
+        && data.result is string && (data.result == 'Answered Correctly' || data.result == 'Struggled' || data.result == 'Failed');
+    }
+
+    function isValidActivityPlan(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'targetHours', 'category', 'startDate', 'endDate', 'repeatType'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 300
+        && (data.targetHours is float || data.targetHours is int) && data.targetHours >= 0
+        && data.category is string && data.category.size() <= 100
+        && data.startDate is string && data.startDate.size() <= 60
+        && data.endDate is string && data.endDate.size() <= 60
+        && data.repeatType is string && (data.repeatType == 'Daily' || data.repeatType == 'Weekly' || data.repeatType == 'Custom');
+    }
+
+    function isValidDailyTask(data) {
+      return data.keys().hasAll(['id', 'planId', 'userId', 'date', 'status', 'title', 'targetHours', 'category'])
+        && data.id is string && data.id.size() <= 128
+        && data.planId is string && data.planId.size() <= 128
+        && data.userId == request.auth.uid
+        && data.date is string && data.date.size() <= 60
+        && data.status is string && (data.status == 'Pending' || data.status == 'Completed' || data.status == 'Skipped')
+        && data.title is string && data.title.size() <= 300
+        && (data.targetHours is float || data.targetHours is int) && data.targetHours >= 0
+        && data.category is string && data.category.size() <= 100
+        && (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 60));
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll(['id', 'taskId', 'userId', 'actualHours'])
+        && data.id is string && data.id.size() <= 128
+        && data.taskId is string && data.taskId.size() <= 128
+        && data.userId == request.auth.uid
+        && (data.actualHours is float || data.actualHours is int) && data.actualHours >= 0
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 10000))
+        && (!('loggedAt' in data) || (data.loggedAt is string && data.loggedAt.size() <= 60));
+    }
+
+    function isValidJournal(data) {
+      return data.keys().hasAll(['id', 'userId', 'type', 'title', 'content', 'tags', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.type is string && (data.type == 'Daily Reflection' || data.type == 'Interview Reflection' || data.type == 'Learning Journal' || data.type == 'Weekly Review Journal')
+        && data.title is string && data.title.size() <= 300
+        && data.content is string && data.content.size() <= 200000
+        && data.tags is list && data.tags.size() <= 30
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && data.updatedAt is string && data.updatedAt.size() <= 60
+        && (!('relatedTopicId' in data) || (data.relatedTopicId is string && data.relatedTopicId.size() <= 128))
+        && (!('relatedInterviewId' in data) || (data.relatedInterviewId is string && data.relatedInterviewId.size() <= 128))
+        && (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 10));
+    }
+
+    function isValidRoadmap(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'description', 'topics', 'isPrebuilt', 'isActive', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 300
+        && data.description is string && data.description.size() <= 2000
+        && data.topics is list && data.topics.size() <= 100
+        && data.isPrebuilt is bool
+        && data.isActive is bool
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && (!('prebuiltId' in data) || (data.prebuiltId is string && data.prebuiltId.size() <= 128));
+    }
+
+    // Collection Security Declarations
+    match /users/{userId} {
+      allow get, write: if isVerifiedUser() && isOwner(userId) && isValidUser(incoming());
+    }
+
+    match /topics/{topicId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(topicId) && isValidTopic(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidTopic(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /questions/{questionId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(questionId) && isValidQuestion(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidQuestion(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /interviews/{interviewId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(interviewId) && isValidInterview(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidInterview(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /mistakes/{mistakeId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(mistakeId) && isValidMistake(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidMistake(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /jobApplications/{applicationId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(applicationId) && isValidJobApplication(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidJobApplication(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /studySessions/{sessionId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(sessionId) && isValidStudySession(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidStudySession(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /voiceRecordings/{recordingId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(recordingId) && isValidVoiceRecording(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidVoiceRecording(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(notificationId) && isValidNotification(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidNotification(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /intelliQuestions/{intelliQuestionId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(intelliQuestionId) && isValidIntelliQuestion(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidIntelliQuestion(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /activityPlans/{planId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(planId) && isValidActivityPlan(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidActivityPlan(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /dailyTasks/{taskId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(taskId) && isValidDailyTask(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidDailyTask(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /activityLogs/{logId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(logId) && isValidActivityLog(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidActivityLog(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /journals/{journalId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(journalId) && isValidJournal(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidJournal(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /roadmaps/{roadmapId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(roadmapId) && isValidRoadmap(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidRoadmap(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /mockInterviews/{mockId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(mockId) && incoming().userId == request.auth.uid;
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+  }
+}
