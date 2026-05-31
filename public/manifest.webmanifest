@@ -1,32 +1,73 @@
 {
-  "name": "Interview Preparation Tracker",
-  "short_name": "PrepTracker",
-  "description": "Track interview preparation, practice questions, schedules, mistakes, and readiness in one focused workspace.",
+  "name": "PrepMaster — Intelligent Interview Tracker",
+  "short_name": "PrepMaster",
+  "description": "Your intelligent interview preparation command center. Track topics, practice questions, manage interviews, build habits, and get AI-powered coaching — all in one workspace.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
   "background_color": "#0f172a",
-  "theme_color": "#0f172a",
-  "categories": ["education", "productivity"],
+  "theme_color": "#6366f1",
+  "categories": ["education", "productivity", "utilities"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "id": "prepmaster-app",
+  "prefer_related_applications": false,
+  "screenshots": [
+    {
+      "src": "/og-preview.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "label": "PrepMaster Dashboard — Interview Preparation Command Center"
+    }
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open your preparation dashboard",
+      "url": "/?tab=dashboard",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Topic Bank",
+      "short_name": "Topics",
+      "description": "Review and practice your topics",
+      "url": "/?tab=topics",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -1,20 +1,143 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
   <head>
+    <!-- ===================== CHARACTER SET & VIEWPORT ===================== -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- ===================== PRIMARY SEO META ===================== -->
+    <title>PrepMaster — Intelligent Interview Preparation Tracker</title>
     <meta
       name="description"
-      content="Track interview preparation, practice questions, schedules, mistakes, and readiness in one focused workspace."
+      content="PrepMaster is your all-in-one interview preparation command center. Track topics with spaced repetition, practice questions, manage interviews, log mistakes, build daily habits, and get AI-powered coaching — all in one stunning workspace."
     />
+    <meta name="keywords" content="interview preparation, interview tracker, spaced repetition, question bank, job preparation, coding interview, DSA tracker, habit tracker, study planner, PrepMaster" />
+    <meta name="author" content="PrepMaster" />
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://tracking-prep.web.app/" />
+
+    <!-- ===================== OPEN GRAPH (Facebook, LinkedIn, WhatsApp) ===================== -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://tracking-prep.web.app/" />
+    <meta property="og:site_name" content="PrepMaster" />
+    <meta property="og:title" content="PrepMaster — Intelligent Interview Preparation Tracker" />
+    <meta
+      property="og:description"
+      content="Ace your next technical interview. PrepMaster tracks your topics, practice questions, mistake patterns, and daily habits using spaced repetition and AI coaching — built for serious candidates."
+    />
+    <meta property="og:image" content="https://tracking-prep.web.app/og-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="PrepMaster dashboard showing study topics, interview tracker, and habit streaks" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- ===================== TWITTER / X CARD ===================== -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@PrepMasterApp" />
+    <meta name="twitter:creator" content="@PrepMasterApp" />
+    <meta name="twitter:title" content="PrepMaster — Intelligent Interview Preparation Tracker" />
+    <meta
+      name="twitter:description"
+      content="Ace your next technical interview. Track topics, practice questions, and daily habits using spaced repetition and AI coaching."
+    />
+    <meta name="twitter:image" content="https://tracking-prep.web.app/og-preview.png" />
+    <meta name="twitter:image:alt" content="PrepMaster — Interview Preparation Command Center" />
+
+    <!-- ===================== PWA & THEME ===================== -->
     <meta name="theme-color" content="#0f172a" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="msapplication-TileColor" content="#0f172a" />
+    <meta name="msapplication-navbutton-color" content="#6366f1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PrepMaster" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="PrepMaster" />
+
+    <!-- ===================== ICONS ===================== -->
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <title>Preparation Tracker</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
+    <link rel="shortcut icon" href="/icons/icon.svg" />
+
+    <!-- ===================== PWA MANIFEST ===================== -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- ===================== STRUCTURED DATA (JSON-LD) ===================== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "PrepMaster",
+      "alternateName": "Interview Preparation Tracker",
+      "url": "https://tracking-prep.web.app/",
+      "logo": "https://tracking-prep.web.app/icons/icon-512.png",
+      "image": "https://tracking-prep.web.app/og-preview.png",
+      "description": "PrepMaster is an intelligent interview preparation workspace that uses spaced repetition, AI coaching, habit tracking, and analytics to help candidates ace technical and behavioral interviews.",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Spaced Repetition Topic Tracking",
+        "Question Bank with Active Recall",
+        "Interview Scheduler & Analytics",
+        "Mistake Pattern Journal",
+        "Habit & Reminder System",
+        "Daily Study Planner",
+        "Preparation Roadmaps",
+        "Cloud Sync & Backup"
+      ],
+      "screenshot": "https://tracking-prep.web.app/og-preview.png",
+      "author": {
+        "@type": "Organization",
+        "name": "PrepMaster Team"
+      }
+    }
+    </script>
+
+    <!-- ===================== PRECONNECT FOR PERFORMANCE ===================== -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://firebaseapp.com" />
+    <link rel="dns-prefetch" href="https://googleapis.com" />
+
+    <!-- ===================== PERFORMANCE HINTS ===================== -->
+    <link rel="preload" href="/icons/icon.svg" as="image" type="image/svg+xml" />
+    <meta name="format-detection" content="telephone=no" />
   </head>
+
   <body>
-    <div id="root"></div>
+    <!-- ===================== NO-SCRIPT FALLBACK ===================== -->
+    <noscript>
+      <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 2rem; }
+        .ns-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 2.5rem; max-width: 480px; }
+        .ns-card h1 { color: #a5b4fc; font-size: 1.5rem; margin: 0 0 0.75rem; }
+        .ns-card p { color: #94a3b8; line-height: 1.6; margin: 0; }
+        .ns-card a { color: #818cf8; text-decoration: underline; }
+      </style>
+      <div class="ns-card">
+        <h1>PrepMaster</h1>
+        <p>
+          PrepMaster requires JavaScript to run. Please enable JavaScript in your browser settings, or try a modern browser like
+          <a href="https://www.google.com/chrome/" rel="noopener">Chrome</a>,
+          <a href="https://www.mozilla.org/firefox/" rel="noopener">Firefox</a>, or
+          <a href="https://www.microsoft.com/edge" rel="noopener">Edge</a>.
+        </p>
+      </div>
+    </noscript>
+
+    <!-- ===================== REACT ROOT ===================== -->
+    <div id="root" role="main" aria-label="PrepMaster Application"></div>
+
+    <!-- ===================== APP ENTRY POINT ===================== -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
