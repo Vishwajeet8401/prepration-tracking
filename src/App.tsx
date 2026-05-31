@@ -1199,6 +1199,7 @@ export default function App() {
           if (matchesMissed) {
             batch.set(doc(db, 'topics', t.id), {
               ...t,
+              userId: user.uid,
               forgotCount: t.forgotCount + 1,
               confidenceScore: Math.max(5, t.confidenceScore - 10)
             });
@@ -1320,11 +1321,14 @@ export default function App() {
   const handleActionPersonalReminder = async (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => {
     if (!user) return;
     const todayStr = new Date().toISOString().split('T')[0];
-    const logId = `log-${reminderId}-${todayStr}-${Date.now()}`;
-    const logRef = doc(db, 'reminderLogs', logId);
 
     const targetRem = personalReminders.find(r => r.id === reminderId);
     if (!targetRem) return;
+
+    // Upsert strategy: reuse today's existing log if it exists to avoid duplicate accumulation
+    const existingLog = reminderLogs.find(l => l.reminderId === reminderId && l.date === todayStr);
+    const logId = existingLog ? existingLog.id : `log-${reminderId}-${todayStr}-${Date.now()}`;
+    const logRef = doc(db, 'reminderLogs', logId);
 
     let snoozedUntil: string | undefined = undefined;
     if (status === 'Snoozed' && snoozeMinutes) {
@@ -1424,12 +1428,10 @@ export default function App() {
 
   const handleUpdateReminderSettings = async (updatedSettings: PersonalReminderSettings) => {
     if (!user) return;
+    const settingsWithUserId = { ...updatedSettings, userId: user.uid };
     try {
-      await setDoc(doc(db, 'reminderSettings', user.uid), {
-        ...updatedSettings,
-        userId: user.uid
-      });
-      setReminderSettings(updatedSettings);
+      await setDoc(doc(db, 'reminderSettings', user.uid), settingsWithUserId);
+      setReminderSettings(settingsWithUserId); // store the userId-corrected version locally
     } catch (err) {
       console.error("Error updating reminder settings:", err);
     }
@@ -1770,8 +1772,12 @@ export default function App() {
 
   const handleMarkRead = async (id: string) => {
     if (!user) return;
+    // Find the notification in local state and use setDoc with the full object
+    // (updateDoc partial patch fails the isValidNotification rule which requires all fields)
+    const notif = notifications.find(n => n.id === id);
+    if (!notif) return;
     try {
-      await updateDoc(doc(db, 'notifications', id), { read: true });
+      await setDoc(doc(db, 'notifications', id), { ...notif, read: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `notifications/${id}`);
     }

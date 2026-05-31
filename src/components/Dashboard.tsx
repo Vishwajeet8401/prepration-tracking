@@ -236,7 +236,7 @@ export default function Dashboard({
     const cats = new Set<string>();
     personalReminders.forEach(r => cats.add(r.category));
     return ['All', ...Array.from(cats)];
-  }, [personalReminders, matrixCategory]);
+  }, [personalReminders]);
 
   const filteredReminders = useMemo(() => {
     return personalReminders.filter(rem => {

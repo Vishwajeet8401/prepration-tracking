@@ -133,7 +133,7 @@ service cloud.firestore {
         && data.userId == request.auth.uid
         && data.title is string && data.title.size() <= 300
         && data.message is string && data.message.size() <= 5000
-        && data.type is string && (data.type == 'revision' || data.type == 'weakness' || data.type == 'interview' || data.type == 'daily')
+        && data.type is string && (data.type == 'revision' || data.type == 'weakness' || data.type == 'interview' || data.type == 'daily' || data.type == 'streak')
         && data.date is string && data.date.size() <= 60
         && data.read is bool;
     }
