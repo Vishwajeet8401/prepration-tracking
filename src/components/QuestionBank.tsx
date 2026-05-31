@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Question, Topic, VoiceRecording } from '../types';
+import { createLocalObjectUrl, parseLocalFileRef } from '../localFileStore';
 import { 
   Layers, HelpCircle, Check, Play, Eye, RotateCcw, AlertTriangle, 
   Trash2, Plus, Edit2, Search, Mic, Square, Volume2, Save, Sparkles, HelpCircle as HelpIcon, Calendar, ArrowRight
@@ -71,6 +72,8 @@ export default function QuestionBank({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingSecondsRef = useRef(0);
+  const [localAudioUrls, setLocalAudioUrls] = useState<Record<string, string>>({});
 
   // Computed Topics switcher lists
   const filteredQuestions = useMemo(() => {
@@ -82,6 +85,36 @@ export default function QuestionBank({
       return matchSearch && matchDifficulty && matchTopic;
     });
   }, [questions, searchQuery, difficultyFilter, topicFilter]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const generatedUrls: string[] = [];
+
+    const loadLocalAudio = async () => {
+      const entries = await Promise.all(
+        voiceRecordings
+          .filter(rec => parseLocalFileRef(rec.audioUrl))
+          .map(async rec => {
+            const objectUrl = await createLocalObjectUrl(rec.audioUrl);
+            if (objectUrl) generatedUrls.push(objectUrl);
+            return objectUrl ? [rec.audioUrl, objectUrl] as const : null;
+          })
+      );
+
+      if (isMounted) {
+        setLocalAudioUrls(Object.fromEntries(entries.filter(Boolean) as Array<readonly [string, string]>));
+      } else {
+        generatedUrls.forEach(url => URL.revokeObjectURL(url));
+      }
+    };
+
+    loadLocalAudio();
+
+    return () => {
+      isMounted = false;
+      generatedUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [voiceRecordings]);
 
   // Handle create Q&A triggering
   const handleOpenCreate = () => {
@@ -193,7 +226,9 @@ export default function QuestionBank({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
+      recordingSecondsRef.current = 0;
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined;
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -203,7 +238,7 @@ export default function QuestionBank({
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
         const audioUrl = URL.createObjectURL(audioBlob);
         
         // Save recording
@@ -211,7 +246,7 @@ export default function QuestionBank({
           topicId: recordingTopicId,
           title: recordingTitle || `Verbal study session #${voiceRecordings.length + 1}`,
           audioUrl,
-          duration: recordingSeconds,
+          duration: recordingSecondsRef.current,
           date: new Date().toISOString()
         });
 
@@ -226,7 +261,11 @@ export default function QuestionBank({
 
       // Start tick timer
       timerRef.current = setInterval(() => {
-        setRecordingSeconds(sec => sec + 1);
+        setRecordingSeconds(sec => {
+          const next = sec + 1;
+          recordingSecondsRef.current = next;
+          return next;
+        });
       }, 1000);
 
     } catch (err) {
@@ -817,7 +856,7 @@ export default function QuestionBank({
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
-                        <audio src={rec.audioUrl} controls className="h-8 max-w-44 lg:max-w-xs scale-90 invert opacity-80" />
+                        <audio src={localAudioUrls[rec.audioUrl] || rec.audioUrl} controls className="h-8 max-w-44 lg:max-w-xs scale-90 invert opacity-80" />
                         <button 
                           onClick={() => onDeleteVoiceRecording(rec.id)}
                           className="p-1.5 text-slate-450 hover:text-rose-400 hover:bg-white/5 rounded-lg border border-white/10 transition cursor-pointer"

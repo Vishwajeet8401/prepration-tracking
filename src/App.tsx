@@ -30,13 +30,13 @@ import MobileOfflineHub from './components/MobileOfflineHub';
 import BulkImportExportCenter from './components/BulkImportExportCenter';
 
 // Firebase core integrations
-import { auth, db, handleFirestoreError, OperationType, storage } from './firebase';
+import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { 
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, 
   onSnapshot, query, where, writeBatch, getDocs
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { saveLocalFile } from './localFileStore';
 
 // Lucide Icon assets
 import { 
@@ -49,6 +49,7 @@ export default function App() {
   // Navigation tabs state
   const [activeTab, setActiveTab] = useState<string>('Dashboard & Priorities');
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const isHandlingHistoryRef = React.useRef(false);
 
   // Authenticated State tracking
   const [user, setUser] = useState<User | null>(null);
@@ -71,6 +72,45 @@ export default function App() {
   const [journals, setJournals] = useState<Journal[]>([]);
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
   const [mockInterviews, setMockInterviews] = useState<MockInterview[]>([]);
+
+  useEffect(() => {
+    const currentState = window.history.state;
+    if (!currentState?.prepTracker?.activeTab) {
+      window.history.replaceState(
+        { ...currentState, prepTracker: { ...(currentState?.prepTracker || {}), activeTab } },
+        '',
+        window.location.href,
+      );
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const nextTab = event.state?.prepTracker?.activeTab;
+      if (typeof nextTab === 'string') {
+        isHandlingHistoryRef.current = true;
+        setActiveTab(nextTab);
+        setIsNavOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (isHandlingHistoryRef.current) {
+      isHandlingHistoryRef.current = false;
+      return;
+    }
+
+    const currentState = window.history.state;
+    if (currentState?.prepTracker?.activeTab === activeTab) return;
+
+    window.history.pushState(
+      { ...currentState, prepTracker: { ...(currentState?.prepTracker || {}), activeTab } },
+      '',
+      window.location.href,
+    );
+  }, [activeTab]);
 
   // 1. Session state detection and recovery
   useEffect(() => {
@@ -620,6 +660,14 @@ export default function App() {
     }
   };
 
+  const handleUploadJournalAttachment = async (file: File): Promise<string> => {
+    if (!user) {
+      throw new Error('You must be signed in to attach files.');
+    }
+
+    return saveLocalFile(file, file.name);
+  };
+
   const handleDeleteJournal = async (id: string) => {
     if (!user) return;
     try {
@@ -809,13 +857,12 @@ export default function App() {
       if (rec.audioUrl.startsWith('data:') || rec.audioUrl.startsWith('blob:')) {
         const response = await fetch(rec.audioUrl);
         const blob = await response.blob();
-        
-        const audioRef = ref(storage, `users/${user.uid}/recordings/${recId}.webm`);
-        await uploadBytes(audioRef, blob);
-        finalAudioUrl = await getDownloadURL(audioRef);
+        finalAudioUrl = await saveLocalFile(blob, `${recId}.webm`);
       }
     } catch (err) {
-      console.warn("Storage upload failed, falling back to local encoding:", err);
+      console.error("Local audio save failed.", err);
+      alert('Audio save failed. Your browser may have blocked local storage or private mode storage.');
+      return;
     }
 
     const created: VoiceRecording = {
@@ -829,7 +876,7 @@ export default function App() {
       await setDoc(doc(db, 'voiceRecordings', recId), created);
       await pushNotification({
         title: 'Verbal Study Track Saved',
-        message: `Audio track "${created.title}" successfully compiled and persisted securely in Cloud.`,
+        message: `Audio track "${created.title}" was saved locally on this device.`,
         type: 'daily'
       });
     } catch (err) {
@@ -1466,7 +1513,7 @@ export default function App() {
       
       {/* 2. Top Navigation header layout block */}
       {user && (
-      <header className="glass-card !border-t-0 !border-x-0 !rounded-none text-white sticky top-0 z-50">
+      <header className="app-header text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           
           {/* Logo with clean typography */}
@@ -1477,9 +1524,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-1.5 leading-none">
                 <span className="font-black text-base tracking-tight text-white font-sans">Preparation Tracker</span>
-                <span className="text-[10px] bg-emerald-600 text-emerald-100 font-mono font-bold px-1.5 py-0.2 rounded-sm border border-emerald-500/20 leading-none">
-                  AI-POWERED
-                </span>
+               
               </div>
               <span className="text-[10px] text-slate-400 font-mono block mt-0.5 leading-none">
                 Focused Interview Readiness
@@ -1656,6 +1701,17 @@ export default function App() {
                 notifications={notifications}
                 onMarkRead={handleMarkRead}
                 onClearAll={handleClearAll}
+                topics={topics}
+                questions={questions}
+                interviews={interviews}
+                applications={applications}
+                sessions={sessions}
+                tasks={tasks}
+                journals={journals}
+                mockInterviews={mockInterviews}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                pushNotification={pushNotification}
               />
             </div>
 
@@ -1846,6 +1902,7 @@ export default function App() {
               onAddJournal={handleAddJournal}
               onUpdateJournal={handleUpdateJournal}
               onDeleteJournal={handleDeleteJournal}
+              onUploadAttachment={handleUploadJournalAttachment}
             />
           )}
 

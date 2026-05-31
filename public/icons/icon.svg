@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Interview Preparation Tracker</title>
+  <rect width="512" height="512" rx="108" fill="#0f172a"/>
+  <circle cx="386" cy="126" r="58" fill="#22c55e" opacity="0.95"/>
+  <rect x="112" y="112" width="242" height="288" rx="36" fill="#f8fafc"/>
+  <rect x="148" y="164" width="132" height="22" rx="11" fill="#4f46e5"/>
+  <rect x="148" y="218" width="170" height="18" rx="9" fill="#64748b"/>
+  <rect x="148" y="266" width="136" height="18" rx="9" fill="#64748b"/>
+  <rect x="148" y="314" width="158" height="18" rx="9" fill="#64748b"/>
+  <path d="M355 331c0 39-32 71-71 71s-71-32-71-71 32-71 71-71 71 32 71 71Z" fill="#4f46e5"/>
+  <path d="m252 331 23 23 47-54" fill="none" stroke="#f8fafc" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

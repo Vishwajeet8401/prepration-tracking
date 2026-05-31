@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Topic } from '../types';
+import { useStackedPanelHistory } from '../hooks/useStackedPanelHistory';
 import { 
   Plus, Edit2, Trash2, Search, Link2, AlertTriangle, Book, HelpCircle, 
   Check, Save, Eye, ArrowRight, ShieldAlert, Sparkles, BookOpen, Layers
@@ -46,6 +47,17 @@ export default function TopicManagement({
 
   // Teach Me Again selected topic
   const [teachMeTopicId, setTeachMeTopicId] = useState<string>(topics[0]?.id || '');
+
+  const closeEditor = () => {
+    setIsEditing(false);
+    setEditingTopicId(null);
+  };
+
+  useStackedPanelHistory({
+    active: isEditing,
+    key: 'topic-editor',
+    onBack: closeEditor,
+  });
   
   // Unique Categories computed dynamically
   const categories = useMemo(() => {
@@ -111,8 +123,7 @@ export default function TopicManagement({
         dependencyIds: formDependencies
       });
     }
-    setIsEditing(false);
-    setEditingTopicId(null);
+    closeEditor();
   };
 
   // Check dependent warnings
@@ -223,25 +234,25 @@ export default function TopicManagement({
         
         <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-lg text-xs font-semibold border border-white/5">
           <button 
-            onClick={() => { setActiveSubTab('all'); setIsEditing(false); }}
+            onClick={() => { setActiveSubTab('all'); closeEditor(); }}
             className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'all' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
             All Topics
           </button>
           <button 
-            onClick={() => { setActiveSubTab('dependencies'); setIsEditing(false); }}
+            onClick={() => { setActiveSubTab('dependencies'); closeEditor(); }}
             className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'dependencies' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
             Dependency Map
           </button>
           <button 
-            onClick={() => { setActiveSubTab('quick-revision'); setIsEditing(false); }}
+            onClick={() => { setActiveSubTab('quick-revision'); closeEditor(); }}
             className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'quick-revision' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
             5-Min Revision
           </button>
           <button 
-            onClick={() => { setActiveSubTab('teach-me'); setIsEditing(false); }}
+            onClick={() => { setActiveSubTab('teach-me'); closeEditor(); }}
             className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'teach-me' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
             Teach Me Again
@@ -283,7 +294,7 @@ export default function TopicManagement({
                 <h3 className="font-bold text-white">{editingTopicId ? 'Edit Studied Topic' : 'Register New Topic'}</h3>
                 <button 
                   type="button" 
-                  onClick={() => { setIsEditing(false); setEditingTopicId(null); }}
+                  onClick={closeEditor}
                   className="text-xs text-slate-400 hover:text-white font-sans cursor-pointer"
                 >
                   Cancel
@@ -411,7 +422,7 @@ export default function TopicManagement({
               <div className="flex justify-end gap-2 pt-2">
                 <button 
                   type="button" 
-                  onClick={() => setIsEditing(false)}
+                  onClick={closeEditor}
                   className="px-4 py-2 border border-white/10 text-slate-300 rounded-lg text-xs font-medium hover:bg-white/5 transition cursor-pointer"
                 >
                   Cancel

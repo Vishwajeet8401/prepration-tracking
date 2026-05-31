@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Journal, Topic, Interview, JournalType } from '../types';
+import { openLocalFile, parseLocalFileRef } from '../localFileStore';
 import { 
   BookOpen, Plus, Calendar, Search, Tag, Heading, Trash2, Edit3, 
   Paperclip, ArrowRight, Check, AlertCircle, FileText, CheckCircle, 
@@ -13,6 +14,7 @@ interface PersonalJournalProps {
   onAddJournal: (journal: Omit<Journal, 'id' | 'userId'>) => Promise<void>;
   onUpdateJournal: (journal: Journal) => Promise<void>;
   onDeleteJournal: (id: string) => Promise<void>;
+  onUploadAttachment: (file: File) => Promise<string>;
 }
 
 export default function PersonalJournal({
@@ -21,7 +23,8 @@ export default function PersonalJournal({
   interviews,
   onAddJournal,
   onUpdateJournal,
-  onDeleteJournal
+  onDeleteJournal,
+  onUploadAttachment
 }: PersonalJournalProps) {
 
   // Search, category & tags filters
@@ -43,7 +46,7 @@ export default function PersonalJournal({
   const [relatedTopicId, setRelatedTopicId] = useState<string>('');
   const [relatedInterviewId, setRelatedInterviewId] = useState<string>('');
   const [attachments, setAttachments] = useState<string[]>([]);
-  const [newAttachmentName, setNewAttachmentName] = useState('');
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 
   // Active dates navigation for Journal Calendar (month selection)
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date("2026-05-30T15:14:00Z"));
@@ -67,13 +70,52 @@ export default function PersonalJournal({
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
-  // Attachments Mock Handler
-  const handleAddAttachment = () => {
-    const trimmed = newAttachmentName.trim();
-    if (trimmed && !attachments.includes(trimmed)) {
-      setAttachments([...attachments, trimmed]);
+  const getAttachmentLabel = (attachment: string) => {
+    const localRef = parseLocalFileRef(attachment);
+    if (localRef) return localRef.name;
+
+    try {
+      const url = new URL(attachment);
+      const filePath = decodeURIComponent(url.pathname.split('/o/')[1] || url.pathname);
+      return filePath.split('/').pop()?.replace(/^\d+-/, '') || 'attachment';
+    } catch {
+      return attachment;
     }
-    setNewAttachmentName('');
+  };
+
+  const renderAttachmentLink = (attachment: string, label: string) => {
+    if (parseLocalFileRef(attachment)) {
+      return (
+        <button
+          type="button"
+          onClick={() => openLocalFile(attachment)}
+          className="hover:text-sky-300 hover:underline text-left"
+        >
+          {label}
+        </button>
+      );
+    }
+
+    return (
+      <a href={attachment} target="_blank" rel="noreferrer" className="hover:text-sky-300 hover:underline">
+        {label}
+      </a>
+    );
+  };
+
+  const handleAttachmentFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setIsUploadingAttachment(true);
+    try {
+      const uploadedUrls = await Promise.all(Array.from(files).map(file => onUploadAttachment(file)));
+      setAttachments(prev => [...prev, ...uploadedUrls.filter(url => !prev.includes(url))]);
+    } catch (err) {
+      console.error("Attachment upload error:", err);
+      alert('Attachment save failed. Your browser may have blocked local storage or private mode storage.');
+    } finally {
+      setIsUploadingAttachment(false);
+    }
   };
 
   const handleRemoveAttachment = (attToRemove: string) => {
@@ -453,31 +495,30 @@ export default function PersonalJournal({
 
             </div>
 
-            {/* Attachments UI mockup */}
+            {/* Attachments upload */}
             <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-3">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Simulated Attachments & Supporting Materials</span>
-              <div className="flex gap-2 max-w-md">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Attachments & Supporting Materials</span>
+              <div className="max-w-md">
                 <input
-                  type="text"
-                  placeholder="Supporting filename or bookmark (e.g. spring_spec.pdf)"
-                  value={newAttachmentName}
-                  onChange={(e) => setNewAttachmentName(e.target.value)}
-                  className="flex-1 bg-[#1e293b]/70 border border-white/10 text-xs text-slate-300 rounded-xl px-2.5 py-2 outline-none focus:border-indigo-505"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    handleAttachmentFiles(e.currentTarget.files);
+                    e.currentTarget.value = '';
+                  }}
+                  disabled={isUploadingAttachment}
+                  className="w-full bg-[#1e293b]/70 border border-white/10 text-xs text-slate-300 rounded-xl px-2.5 py-2 outline-none focus:border-indigo-505 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-1 file:text-xs file:font-bold file:text-slate-200 disabled:opacity-50"
                 />
-                <button
-                  type="button"
-                  onClick={handleAddAttachment}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl"
-                >
-                  Attach File
-                </button>
+                {isUploadingAttachment && (
+                  <span className="mt-2 block text-[10px] font-mono text-sky-400">Uploading attachment...</span>
+                )}
               </div>
               {attachments.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {attachments.map(att => (
                     <span key={att} className="inline-flex items-center gap-1.5 text-[9px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/15 px-2 py-1 rounded">
                       <Paperclip className="w-3 h-3 shrink-0" />
-                      <span>{att}</span>
+                      {renderAttachmentLink(att, getAttachmentLabel(att))}
                       <button 
                         type="button" 
                         onClick={() => handleRemoveAttachment(att)}
@@ -650,7 +691,7 @@ export default function PersonalJournal({
                             {journal.attachments && journal.attachments.length > 0 && (
                               <div className="flex items-center gap-1 font-mono text-[8px] text-sky-400">
                                 <Paperclip className="w-2.5 h-2.5" />
-                                <span>{journal.attachments.length} attachment(s) linked</span>
+                                {renderAttachmentLink(journal.attachments[0], `${journal.attachments.length} attachment(s) linked`)}
                               </div>
                             )}
                           </div>

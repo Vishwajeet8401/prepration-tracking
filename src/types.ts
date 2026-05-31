@@ -115,9 +115,14 @@ export interface AppNotification {
   userId?: string;
   title: string;
   message: string;
-  type: 'revision' | 'weakness' | 'interview' | 'daily';
+  type: 'revision' | 'weakness' | 'interview' | 'daily' | 'streak' | 'journal' | 'mock';
   date: string;
   read: boolean;
+  priority?: 'high' | 'medium' | 'low';
+  status?: 'active' | 'snoozed' | 'completed' | 'overdue' | 'dismissed';
+  snoozedUntil?: string;
+  actionText?: string;
+  actionUrl?: string;
 }
 
 export interface InterviewIntelligenceQuestion {
