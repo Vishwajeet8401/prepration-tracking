@@ -237,5 +237,80 @@ export interface MockInterview {
   createdAt: string; // ISO string
 }
 
+export type ReminderCategory =
+  | 'Study'
+  | 'Revision'
+  | 'Health'
+  | 'Medicine'
+  | 'Fitness'
+  | 'Reading'
+  | 'Speaking'
+  | 'Writing'
+  | 'Job Search'
+  | 'Interview Preparation'
+  | 'Personal Development'
+  | 'Custom';
+
+export type ReminderRepeatType = 'Daily' | 'Weekly' | 'Monthly' | 'Interval Based';
+
+export type ReminderStatus = 'Pending' | 'Completed' | 'Snoozed' | 'Skipped' | 'Missed';
+
+export interface PersonalReminder {
+  id: string;
+  userId: string;
+  title: string;
+  category: ReminderCategory;
+  description: string;
+  reminderTime: string; // "09:00 AM" or "HH:MM"
+  repeatType: ReminderRepeatType;
+  intervalHours?: number; // for Interval Based e.g. 1, 2, 4, 6
+  weeklyDays?: string[]; // e.g. ["Monday", "Wednesday", "Friday"] for Weekly
+  monthlyDay?: number; // e.g. 1 for Monthly
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  priority: 'High' | 'Medium' | 'Low';
+  active: boolean;
+  notificationMessage: string;
+
+  // Medicine Reminder System specialized fields
+  medicineName?: string;
+  dosage?: string;
+  frequency?: string;
+  notes?: string;
+
+  // Water Intake Reminder specialized fields
+  targetGlasses?: number;
+
+  // Habit Tracking Integration
+  isHabit?: boolean;
+  habitStreak?: number;
+  habitBestStreak?: number;
+  habitCompletedDates?: string[]; // list of YYYY-MM-DD completion dates
+}
+
+export interface ReminderLog {
+  id: string;
+  reminderId: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  status: ReminderStatus;
+  completedAt?: string; // ISO string
+  snoozedUntil?: string; // ISO string
+  snoozeDurationMinutes?: number;
+  notes?: string;
+}
+
+export interface PersonalReminderSettings {
+  userId: string;
+  notificationSound: boolean;
+  reminderDuration: number; // minutes
+  defaultSnoozeTime: number; // minutes
+  weekendMode: boolean; // active on weekends
+  dndEnabled: boolean;
+  dndStart: string; // "23:00"
+  dndEnd: string; // "07:00"
+}
+
+
 
 

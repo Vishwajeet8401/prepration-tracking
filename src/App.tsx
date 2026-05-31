@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview } from './types';
+import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   initialTopics, initialQuestions, initialJobApplications, 
@@ -18,6 +18,7 @@ import QuestionBank from './components/QuestionBank';
 import InterviewTracker from './components/InterviewTracker';
 import Analytics from './components/Analytics';
 import NotificationCenter from './components/NotificationCenter';
+import FuturisticToaster from './components/FuturisticToaster';
 import IntelligenceHub from './components/IntelligenceHub';
 import AuthScreen from './components/AuthScreen';
 import CloudBackupControls from './components/CloudBackupControls';
@@ -28,6 +29,7 @@ import AchievementsView from './components/AchievementsView';
 import MockInterviewWorkspace from './components/MockInterviewWorkspace';
 import MobileOfflineHub from './components/MobileOfflineHub';
 import BulkImportExportCenter from './components/BulkImportExportCenter';
+import PersonalReminders from './components/PersonalReminders';
 
 // Firebase core integrations
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
@@ -72,6 +74,56 @@ export default function App() {
   const [journals, setJournals] = useState<Journal[]>([]);
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
   const [mockInterviews, setMockInterviews] = useState<MockInterview[]>([]);
+  const [personalReminders, setPersonalReminders] = useState<PersonalReminder[]>([]);
+  const [reminderLogs, setReminderLogs] = useState<ReminderLog[]>([]);
+  const [reminderSettings, setReminderSettings] = useState<PersonalReminderSettings | null>(null);
+
+  const [activeToasts, setActiveToasts] = useState<AppNotification[]>([]);
+  const processedToastsRef = React.useRef<Set<string>>(new Set());
+  const initialLoadTimeRef = React.useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (notifications.length === 0) return;
+
+    const newNotifications = notifications.filter(n => {
+      const isNew = !processedToastsRef.current.has(n.id);
+      const isRecent = new Date(n.date).getTime() > initialLoadTimeRef.current - 5050;
+      return isNew && isRecent && !n.read;
+    });
+
+    if (newNotifications.length > 0) {
+      newNotifications.forEach(notif => {
+        processedToastsRef.current.add(notif.id);
+
+        setActiveToasts(prev => {
+          if (prev.some(t => t.id === notif.id)) return prev;
+          return [...prev, notif];
+        });
+
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification(notif.title, {
+              body: notif.message,
+              icon: '/favicon.ico'
+            });
+          } catch (e) {
+            console.warn("Desktop notification triggered error:", e);
+          }
+        }
+
+        setTimeout(() => {
+          setActiveToasts(prev => prev.filter(t => t.id !== notif.id));
+        }, 6000);
+      });
+    }
+  }, [notifications]);
+
+  const handleExecuteToastAction = (toast: AppNotification) => {
+    setActiveToasts(prev => prev.filter(t => t.id !== toast.id));
+    if (toast.actionUrl) {
+      setActiveTab(toast.actionUrl);
+    }
+  };
 
   useEffect(() => {
     const currentState = window.history.state;
@@ -117,25 +169,44 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          const snap = await getDoc(userDocRef);
-          if (snap.exists()) {
-            setUserProfile(snap.data());
-          } else {
-            const initialProfile = {
-              id: currentUser.uid,
-              email: currentUser.email || '',
-              name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Candidate',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-            await setDoc(userDocRef, initialProfile);
-            setUserProfile(initialProfile);
+        const fetchUserProfileWithRetry = async (retries = 3, delay = 250) => {
+          try {
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            const snap = await getDoc(userDocRef);
+            if (snap.exists()) {
+              setUserProfile(snap.data());
+            } else {
+              const initialProfile = {
+                id: currentUser.uid,
+                email: currentUser.email || '',
+                name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Candidate',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+              await setDoc(userDocRef, initialProfile);
+              setUserProfile(initialProfile);
+            }
+          } catch (err: any) {
+            if (retries > 0 && (err.code === 'permission-denied' || err.message?.includes('permission'))) {
+              console.warn(`Profile fetch permission-denied. Retrying in ${delay}ms... (${retries} attempts left)`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return fetchUserProfileWithRetry(retries - 1, delay * 2);
+            } else {
+              throw err;
+            }
           }
-        } catch (err) {
-          console.error("Error setting/getting user profile:", err);
-        }
+        };
+
+        fetchUserProfileWithRetry().catch((err) => {
+          console.warn("Firestore user profile document is restricted (deploying firestore.rules is pending). Falling back to client-side auth profile details.");
+          setUserProfile({
+            id: currentUser.uid,
+            email: currentUser.email || '',
+            name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Active Candidate',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        });
       } else {
         setUserProfile(null);
       }
@@ -405,6 +476,76 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
+  // Personal Reminders Sync
+  useEffect(() => {
+    if (!user) {
+      setPersonalReminders([]);
+      return;
+    }
+    const q = query(collection(db, 'personalReminders'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: PersonalReminder[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as PersonalReminder);
+      });
+      setPersonalReminders(list);
+    }, (error) => {
+      console.error("PersonalReminders snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Reminder Logs Sync
+  useEffect(() => {
+    if (!user) {
+      setReminderLogs([]);
+      return;
+    }
+    const q = query(collection(db, 'reminderLogs'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: ReminderLog[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as ReminderLog);
+      });
+      setReminderLogs(list);
+    }, (error) => {
+      console.error("ReminderLogs snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Reminder Settings Sync
+  useEffect(() => {
+    if (!user) {
+      setReminderSettings(null);
+      return;
+    }
+    const docRef = doc(db, 'reminderSettings', user.uid);
+    const unsubscribe = onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setReminderSettings(snapshot.data() as PersonalReminderSettings);
+      } else {
+        // Seed default settings
+        const defaultSettings: PersonalReminderSettings = {
+          userId: user.uid,
+          notificationSound: true,
+          reminderDuration: 5,
+          defaultSnoozeTime: 15,
+          weekendMode: true,
+          dndEnabled: false,
+          dndStart: '23:00',
+          dndEnd: '07:00'
+        };
+        setDoc(docRef, defaultSettings).then(() => {
+          setReminderSettings(defaultSettings);
+        }).catch(err => console.error("Error seeding default reminder settings:", err));
+      }
+    }, (error) => {
+      console.error("ReminderSettings snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   // Auto-generation of daily tasks for active plans (Feature 2)
   useEffect(() => {
     if (!user || plans.length === 0) return;
@@ -480,6 +621,92 @@ export default function App() {
 
     generateTodayTasks();
   }, [user, plans, tasks]);
+
+  // Real-time reminders background daemon checking loop
+  useEffect(() => {
+    if (!user || personalReminders.length === 0) return;
+
+    const checkDueReminders = async () => {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const isWeekendDay = now.getDay() === 0 || now.getDay() === 6; // 0=Sun, 6=Sat
+
+      // If weekend and weekendMode is disabled, return
+      if (isWeekendDay && reminderSettings && !reminderSettings.weekendMode) return;
+
+      // Handle Do Not Disturb Boundaries
+      if (reminderSettings && reminderSettings.dndEnabled) {
+        const dndStartMins = parseTimeToMinutes(reminderSettings.dndStart);
+        const dndEndMins = parseTimeToMinutes(reminderSettings.dndEnd);
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+
+        const inDND = dndStartMins <= dndEndMins
+          ? (currentMins >= dndStartMins && currentMins <= dndEndMins)
+          : (currentMins >= dndStartMins || currentMins <= dndEndMins);
+
+        if (inDND) return;
+      }
+
+      personalReminders.forEach(async (rem) => {
+        if (!rem.active) return;
+
+        // Check date range limits
+        if (todayStr < rem.startDate || todayStr > rem.endDate) return;
+
+        // Parse reminder time to HH:MM (handles 12h or 24h input from user forms)
+        const remTime24 = convertTo24h(rem.reminderTime);
+        const [remH, remM] = remTime24.split(':').map(Number);
+        
+        if (now.getHours() === remH && now.getMinutes() === remM) {
+          // Check if already triggered today
+          const alreadyLogged = reminderLogs.some(l => l.reminderId === rem.id && l.date === todayStr && (l.status === 'Completed' || l.status === 'Skipped' || l.status === 'Missed'));
+          
+          if (!alreadyLogged) {
+            // Push alert to Firestore notification tray so it pops instantly
+            await pushNotification({
+              title: `Reminder Alert: ${rem.title}`,
+              message: rem.notificationMessage || `It is time for your task: "${rem.title}".`,
+              type: 'daily'
+            });
+
+            // Also seed a pending log to track occurrence if not exists
+            const hasPending = reminderLogs.some(l => l.reminderId === rem.id && l.date === todayStr);
+            if (!hasPending) {
+              const logId = `log-${rem.id}-${todayStr}-${Date.now()}`;
+              await setDoc(doc(db, 'reminderLogs', logId), {
+                id: logId,
+                reminderId: rem.id,
+                userId: user.uid,
+                date: todayStr,
+                status: 'Pending'
+              });
+            }
+          }
+        }
+      });
+    };
+
+    const parseTimeToMinutes = (timeStr: string) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const convertTo24h = (timeStr: string) => {
+      if (timeStr.includes('AM') || timeStr.includes('PM')) {
+        const [time, modifier] = timeStr.split(' ');
+        let [hours, minutes] = time.split(':');
+        if (hours === '12') hours = '00';
+        if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
+        return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+      }
+      return timeStr.padStart(5, '0');
+    };
+
+    const interval = setInterval(checkDueReminders, 60000); // Check every minute
+    checkDueReminders(); // Initial check on load
+
+    return () => clearInterval(interval);
+  }, [user, personalReminders, reminderLogs, reminderSettings]);
 
   // Seeding engine to prep sandbox for new users
   const handleSeedSandbox = async () => {
@@ -1019,6 +1246,184 @@ export default function App() {
       await deleteDoc(doc(db, 'mockInterviews', id));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `mockInterviews/${id}`);
+    }
+  };
+
+  // ==========================================
+  // PERSONAL REMINDERS & HABITS MUTATIONS
+  // ==========================================
+  const handleAddPersonalReminder = async (rem: Omit<PersonalReminder, 'id' | 'userId'>) => {
+    if (!user) return;
+    const remId = 'reminder-' + Date.now();
+    const created: PersonalReminder = {
+      ...rem,
+      id: remId,
+      userId: user.uid
+    };
+    try {
+      await setDoc(doc(db, 'personalReminders', remId), created);
+      await pushNotification({
+        title: 'New Personal Goal Registered',
+        message: `Goal "${rem.title}" created under Category: ${rem.category}.`,
+        type: 'daily'
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `personalReminders/${remId}`);
+    }
+  };
+
+  const handleUpdatePersonalReminder = async (updated: PersonalReminder) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'personalReminders', updated.id), {
+        ...updated,
+        userId: user.uid
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `personalReminders/${updated.id}`);
+    }
+  };
+
+  const handleDeletePersonalReminder = async (id: string) => {
+    if (!user) return;
+    if (confirm("Decommissioning this reminder will also clear all linked consistency log records. Proceed?")) {
+      try {
+        await deleteDoc(doc(db, 'personalReminders', id));
+        
+        // Cascade delete logs
+        const orphans = reminderLogs.filter(l => l.reminderId === id);
+        const batch = writeBatch(db);
+        orphans.forEach(l => {
+          batch.delete(doc(db, 'reminderLogs', l.id));
+        });
+        await batch.commit();
+
+        await pushNotification({
+          title: 'Goal Decommissioned',
+          message: 'Personal Reminder cleared successfully.',
+          type: 'daily'
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, `personalReminders/${id}`);
+      }
+    }
+  };
+
+  const handleActionPersonalReminder = async (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => {
+    if (!user) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const logId = `log-${reminderId}-${todayStr}-${Date.now()}`;
+    const logRef = doc(db, 'reminderLogs', logId);
+
+    const targetRem = personalReminders.find(r => r.id === reminderId);
+    if (!targetRem) return;
+
+    let snoozedUntil: string | undefined = undefined;
+    if (status === 'Snoozed' && snoozeMinutes) {
+      const snoozeTime = new Date();
+      snoozeTime.setMinutes(snoozeTime.getMinutes() + snoozeMinutes);
+      snoozedUntil = snoozeTime.toISOString();
+    }
+
+    const newLog: any = {
+      id: logId,
+      reminderId,
+      userId: user.uid,
+      date: todayStr,
+      status,
+    };
+    if (status === 'Completed') {
+      newLog.completedAt = new Date().toISOString();
+    }
+    if (snoozedUntil) {
+      newLog.snoozedUntil = snoozedUntil;
+    }
+    if (snoozeMinutes !== undefined) {
+      newLog.snoozeDurationMinutes = snoozeMinutes;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      batch.set(logRef, newLog);
+
+      // Handle Habit Streaks
+      if (targetRem.isHabit && status === 'Completed') {
+        const completedDates = targetRem.habitCompletedDates ? [...targetRem.habitCompletedDates] : [];
+        if (!completedDates.includes(todayStr)) {
+          completedDates.push(todayStr);
+        }
+
+        // Sort dates desc
+        const sortedDates = [...completedDates].sort((a, b) => b.localeCompare(a));
+        
+        // Compute streak
+        let streak = 0;
+        const tempDate = new Date();
+        // Check today and consecutive previous dates
+        for (let i = 0; i < 365; i++) {
+          const dStr = tempDate.toISOString().split('T')[0];
+          if (completedDates.includes(dStr)) {
+            streak++;
+            tempDate.setDate(tempDate.getDate() - 1);
+          } else {
+            // If checking today and it's not completed, allow streak if yesterday was completed
+            if (i === 0) {
+              const yesterday = new Date();
+              yesterday.setDate(yesterday.getDate() - 1);
+              const yStr = yesterday.toISOString().split('T')[0];
+              if (completedDates.includes(yStr)) {
+                tempDate.setDate(tempDate.getDate() - 1);
+                continue;
+              }
+            }
+            break;
+          }
+        }
+
+        const bestStreak = Math.max(targetRem.habitBestStreak || 0, streak);
+
+        batch.set(doc(db, 'personalReminders', reminderId), {
+          ...targetRem,
+          habitStreak: streak,
+          habitBestStreak: bestStreak,
+          habitCompletedDates: completedDates,
+          userId: user.uid
+        });
+
+        // Trigger streak badge trigger notification
+        if (streak > 0 && streak % 5 === 0) {
+          await pushNotification({
+            title: `Habit Milestone: ${streak} Days!`,
+            message: `Awesome job! You achieved a ${streak} days streak on "${targetRem.title}".`,
+            type: 'streak'
+          });
+        }
+      }
+
+      await batch.commit();
+
+      if (status === 'Completed') {
+        await pushNotification({
+          title: `Goal Checked In: ${targetRem.title}`,
+          message: `Logged complete for habit checklist element today. Keep it up!`,
+          type: 'daily'
+        });
+      }
+    } catch (err) {
+      console.error("Error logging action reminder:", err);
+    }
+  };
+
+  const handleUpdateReminderSettings = async (updatedSettings: PersonalReminderSettings) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'reminderSettings', user.uid), {
+        ...updatedSettings,
+        userId: user.uid
+      });
+      setReminderSettings(updatedSettings);
+    } catch (err) {
+      console.error("Error updating reminder settings:", err);
     }
   };
 
@@ -1603,6 +2008,7 @@ export default function App() {
                       { label: 'Topic Map & Spacing', icon: Compass },
                       { label: 'Question Bank & Practice', icon: HelpIcon },
                       { label: 'Interviews & Applications', icon: Calendar },
+                      { label: 'Personal Reminders', icon: Bell },
                       { label: 'Activity Planner', icon: ListTodo },
                       { label: 'Analytics & Sessions', icon: Activity },
                       { label: 'Preparation Roadmaps', icon: Layers },
@@ -1667,6 +2073,7 @@ export default function App() {
                 { label: 'Topic Map & Spacing', icon: Compass },
                 { label: 'Question Bank & Practice', icon: HelpIcon },
                 { label: 'Interviews & Applications', icon: Calendar },
+                { label: 'Personal Reminders', icon: Bell },
                 { label: 'Activity Planner', icon: ListTodo },
                 { label: 'Analytics & Sessions', icon: Activity },
                 { label: 'Preparation Roadmaps', icon: Layers },
@@ -1712,6 +2119,7 @@ export default function App() {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 pushNotification={pushNotification}
+                personalReminders={personalReminders}
               />
             </div>
 
@@ -1771,6 +2179,9 @@ export default function App() {
                   onUpdateTask={handleUpdateTaskInApp}
                   journals={journals}
                   roadmaps={roadmaps}
+                  personalReminders={personalReminders}
+                  reminderLogs={reminderLogs}
+                  onActionReminder={handleActionPersonalReminder}
                 />
                 
                 <CloudBackupControls 
@@ -1906,6 +2317,19 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'Personal Reminders' && (
+            <PersonalReminders 
+              reminders={personalReminders}
+              logs={reminderLogs}
+              settings={reminderSettings}
+              onAddReminder={handleAddPersonalReminder}
+              onUpdateReminder={handleUpdatePersonalReminder}
+              onDeleteReminder={handleDeletePersonalReminder}
+              onActionReminder={handleActionPersonalReminder}
+              onUpdateSettings={handleUpdateReminderSettings}
+            />
+          )}
+
           {activeTab === 'Mock Interview Simulator' && (
             <MockInterviewWorkspace 
               topics={topics}
@@ -1951,6 +2375,12 @@ export default function App() {
           &copy; 2026 Preparation Tracker. Master interviews with focused, AI-powered preparation.
         </div>
       </footer>
+
+      <FuturisticToaster 
+        toasts={activeToasts}
+        onDismiss={(id) => setActiveToasts(prev => prev.filter(t => t.id !== id))}
+        onExecuteAction={handleExecuteToastAction}
+      />
 
     </div>
   );

@@ -4,10 +4,10 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap } from '../types';
+import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus } from '../types';
 import { 
   Zap, Calendar, AlertTriangle, Play, BookOpen, Clock, 
-  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star
+  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -25,6 +25,9 @@ interface DashboardProps {
   onUpdateTask: (task: DailyTask, actualHours?: number, notes?: string) => Promise<void>;
   journals?: Journal[];
   roadmaps?: Roadmap[];
+  personalReminders?: PersonalReminder[];
+  reminderLogs?: ReminderLog[];
+  onActionReminder?: (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => Promise<void>;
 }
 
 // 1. Premium Animated Counter
@@ -157,7 +160,10 @@ export default function Dashboard({
   tasks,
   onUpdateTask,
   journals = [],
-  roadmaps = []
+  roadmaps = [],
+  personalReminders = [],
+  reminderLogs = [],
+  onActionReminder
 }: DashboardProps) {
 
   // Accessibility tracking prefers-reduced-motion check
@@ -279,6 +285,74 @@ export default function Dashboard({
     const completed = todayTasks.filter(t => t.status === 'Completed').length;
     return Math.round((completed / todayTasks.length) * 100);
   }, [todayTasks]);
+
+  // Reminders calculations for today
+  const todaysRemindersList = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayDayName = days[now.getDay()];
+    const todayDayOfMonth = now.getDate();
+
+    return personalReminders
+      .filter(rem => {
+        if (!rem.active) return false;
+        if (todayStr < rem.startDate || todayStr > rem.endDate) return false;
+        
+        if (rem.repeatType === 'Weekly') {
+          return rem.weeklyDays?.includes(todayDayName);
+        }
+        if (rem.repeatType === 'Monthly') {
+          return rem.monthlyDay === todayDayOfMonth;
+        }
+        return true; // Daily & Interval Based
+      })
+      .map(rem => {
+        const todayLog = reminderLogs.find(l => l.reminderId === rem.id && l.date === todayStr);
+        return {
+          reminder: rem,
+          status: (todayLog?.status || 'Pending') as ReminderStatus,
+          log: todayLog
+        };
+      })
+      .sort((a, b) => a.reminder.reminderTime.localeCompare(b.reminder.reminderTime));
+  }, [personalReminders, reminderLogs]);
+
+  const waterIntakeProgress = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const waterRem = personalReminders.find(r => r.category === 'Health' && r.targetGlasses !== undefined);
+    if (!waterRem) return { completed: 0, target: 8 };
+
+    const completed = reminderLogs.filter(l => l.reminderId === waterRem.id && l.date === todayStr && l.status === 'Completed').length;
+    return {
+      completed,
+      target: waterRem.targetGlasses || 8,
+      reminderId: waterRem.id
+    };
+  }, [personalReminders, reminderLogs]);
+
+  const medicineProgress = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const medRems = personalReminders.filter(r => r.medicineName !== undefined);
+    if (medRems.length === 0) return { completed: 0, total: 0 };
+
+    let completed = 0;
+    medRems.forEach(med => {
+      const hasTaken = reminderLogs.some(l => l.reminderId === med.id && l.date === todayStr && l.status === 'Completed');
+      if (hasTaken) completed++;
+    });
+
+    return {
+      completed,
+      total: medRems.length
+    };
+  }, [personalReminders, reminderLogs]);
+
+  const reminderCompletionPercentage = useMemo(() => {
+    if (todaysRemindersList.length === 0) return 100;
+    const completed = todaysRemindersList.filter(r => r.status === 'Completed').length;
+    return Math.round((completed / todaysRemindersList.length) * 100);
+  }, [todaysRemindersList]);
 
   // Spacing algorithm priority scoring recommendation list
   const priorityItems = useMemo(() => {
@@ -522,6 +596,166 @@ export default function Dashboard({
             )}
           </div>
         </BentoCard>
+      </motion.div>
+
+      {/* 2.5 TODAY'S PERSONAL REMINDERS & HYDRATION DASHBOARD WIDGET */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-6 gap-5">
+        
+        {/* Left Column: Reminders Checklist (Col Span 3) */}
+        <BentoCard className="md:col-span-3 space-y-4" reducedMotion={reducedMotion}>
+          <div className="flex items-center justify-between pb-2 border-b border-white/10">
+            <div className="flex items-center gap-1.5">
+              <Bell className="w-5 h-5 text-indigo-400" />
+              <h3 className="font-bold text-white text-sm font-display">Today's Reminders & Habits</h3>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+              {reminderCompletionPercentage}% Complete
+            </span>
+          </div>
+
+          <div className="space-y-2 text-xs font-sans max-h-60 overflow-y-auto pr-1">
+            {todaysRemindersList.map(({ reminder, status }) => {
+              const isCompleted = status === 'Completed';
+              const isSnoozed = status === 'Snoozed';
+              const isSkipped = status === 'Skipped';
+
+              return (
+                <div 
+                  key={reminder.id}
+                  className={`flex items-center justify-between p-2.5 rounded-xl border transition text-left ${
+                    isCompleted 
+                      ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500' 
+                      : isSkipped
+                      ? 'border-white/5 bg-slate-900/35 text-slate-500'
+                      : isSnoozed
+                      ? 'border-amber-500/25 bg-amber-500/5 text-slate-300'
+                      : 'border-white/5 bg-white/5 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden mr-2">
+                    <button 
+                      disabled={isCompleted || isSkipped}
+                      onClick={async () => {
+                        if (isCompleted || isSkipped || !onActionReminder) return;
+                        await onActionReminder(reminder.id, 'Completed');
+                      }}
+                      className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${
+                        isCompleted 
+                          ? 'bg-emerald-650 border-transparent text-white' 
+                          : isSkipped
+                          ? 'border-slate-700 bg-slate-850 text-slate-600'
+                          : 'border-slate-500 hover:border-indigo-400'
+                      }`}
+                    >
+                      {isCompleted && <Check className="w-3 h-3 stroke-[3]" />}
+                    </button>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className={`truncate font-semibold text-xs ${isCompleted ? 'line-through text-slate-500' : ''}`}>
+                        {reminder.title}
+                      </span>
+                      <span className="text-[9px] text-slate-450 font-mono">
+                        {reminder.reminderTime} | {reminder.category}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!isCompleted && !isSkipped && onActionReminder && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button 
+                        onClick={() => onActionReminder(reminder.id, 'Snoozed', 15)}
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 transition cursor-pointer"
+                      >
+                        Snooze
+                      </button>
+                      <button 
+                        onClick={() => onActionReminder(reminder.id, 'Skipped')}
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 border border-white/10 hover:bg-rose-950/20 text-rose-350 hover:text-rose-300 transition cursor-pointer"
+                      >
+                        Skip
+                      </button>
+                    </div>
+                  )}
+
+                  {(isCompleted || isSkipped) && (
+                    <span className="text-[8px] font-mono font-bold uppercase text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                      {status}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+
+            {todaysRemindersList.length === 0 && (
+              <div className="text-center py-6 text-slate-400 text-xs font-sans">
+                No reminders scheduled for today.
+                <button 
+                  onClick={() => onNavigate('Personal Reminders')}
+                  className="text-indigo-400 font-bold underline hover:text-indigo-305 ml-1 block mt-1.5 mx-auto cursor-pointer"
+                >
+                  Schedule Personal Reminders &rarr;
+                </button>
+              </div>
+            )}
+          </div>
+        </BentoCard>
+
+        {/* Right Column: Hydration & Medicine quick cards (Col Span 3) */}
+        <BentoCard className="md:col-span-3 space-y-4" reducedMotion={reducedMotion}>
+          <div className="flex items-center justify-between pb-2 border-b border-white/10">
+            <div className="flex items-center gap-1.5">
+              <Droplet className="w-5 h-5 text-sky-400" />
+              <h3 className="font-bold text-white text-sm font-display">Hydration & Medications</h3>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-full">
+              Habits Check
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            
+            {/* Water hydration quick check */}
+            <div className="p-3.5 bg-sky-500/5 rounded-xl border border-sky-500/10 flex flex-col justify-between min-h-[110px] text-left">
+              <div>
+                <span className="text-[9px] font-mono text-sky-400 font-bold block uppercase">Water Intake</span>
+                <span className="font-display font-extrabold text-sm text-slate-100 block pt-1">
+                  {waterIntakeProgress.completed} / {waterIntakeProgress.target} Glasses Completed
+                </span>
+              </div>
+              <div className="pt-2 border-t border-sky-500/5 mt-2 flex items-center justify-between">
+                <span className="text-[9px] font-mono text-slate-450">Target: {waterIntakeProgress.target * 250}ml</span>
+                {onActionReminder && waterIntakeProgress.reminderId && (
+                  <button 
+                    onClick={() => onActionReminder(waterIntakeProgress.reminderId, 'Completed')}
+                    className="p-1 px-2.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] transition cursor-pointer"
+                  >
+                    + Glass
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Medicine compliance check */}
+            <div className="p-3.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10 flex flex-col justify-between min-h-[110px] text-left">
+              <div>
+                <span className="text-[9px] font-mono text-emerald-350 font-bold block uppercase">Medications Taken</span>
+                <span className="font-display font-extrabold text-sm text-slate-100 block pt-1">
+                  {medicineProgress.completed} / {medicineProgress.total} Taken
+                </span>
+              </div>
+              <div className="pt-2 border-t border-emerald-500/5 mt-2 flex items-center justify-between text-[9px] font-mono text-slate-450">
+                <span>Compliance: {medicineProgress.total > 0 ? Math.round((medicineProgress.completed / medicineProgress.total) * 100) : 100}%</span>
+                <button 
+                  onClick={() => onNavigate('Personal Reminders')}
+                  className="text-emerald-400 font-bold underline hover:text-emerald-350 cursor-pointer"
+                >
+                  Manage Cabinet &rarr;
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </BentoCard>
+
       </motion.div>
 
       {/* 3. PREMIUM BENTO GRID (Bento Layout System for Dashboard) */}

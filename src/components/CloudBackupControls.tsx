@@ -44,8 +44,10 @@ export default function CloudBackupControls({ userId, currentData, onRestore, on
   const [loading, setLoading] = useState(false);
   const [backupName, setBackupName] = useState('');
   const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [rulesMismatched, setRulesMismatched] = useState(false);
 
   const fetchBackups = async () => {
+    if (!userId) return;
     try {
       const q = query(collection(db, 'backups'), where('userId', '==', userId));
       const snapshot = await getDocs(q);
@@ -56,8 +58,14 @@ export default function CloudBackupControls({ userId, currentData, onRestore, on
       // Sort by date descending
       fetched.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setBackups(fetched);
-    } catch (err) {
-      console.error(err);
+      setRulesMismatched(false);
+    } catch (err: any) {
+      if (err.code === 'permission-denied' || err.message?.includes('permission')) {
+        console.warn("Cloud backups fetch blocked by Firestore security rules. Rules deployment or authentication sync is required.");
+        setRulesMismatched(true);
+      } else {
+        console.error("fetchBackups error:", err);
+      }
     }
   };
 
@@ -215,6 +223,17 @@ export default function CloudBackupControls({ userId, currentData, onRestore, on
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {rulesMismatched && (
+          <div className="md:col-span-3 bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 flex items-start gap-3 text-xs text-amber-450">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5 animate-pulse" />
+            <div className="space-y-1 text-left">
+              <span className="font-bold block uppercase tracking-wider text-[10px] font-mono">Cloud Sync Suspended (Action Required)</span>
+              <p className="text-slate-400 leading-relaxed">
+                Firestore reports `permission-denied` for the backups collection. This occurs because the local security rules are not active on your remote Firebase project yet. Please run <code className="text-amber-300 font-mono bg-slate-950/40 px-1 py-0.5 rounded">firebase deploy --only firestore:rules</code> in your project root or configure your cloud database rules manually in the Firebase console to enable cloud backups.
+              </p>
+            </div>
+          </div>
+        )}
         {/* Save/Manual backup column */}
         <div className="md:col-span-1 bg-slate-950/40 rounded-xl p-4 border border-slate-800/80 flex flex-col justify-between">
           <div>

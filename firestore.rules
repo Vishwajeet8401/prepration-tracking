@@ -214,9 +214,62 @@ service cloud.firestore {
         && (!('prebuiltId' in data) || (data.prebuiltId is string && data.prebuiltId.size() <= 128));
     }
 
+    function isValidPersonalReminder(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'category', 'description', 'reminderTime', 'repeatType', 'startDate', 'endDate', 'priority', 'active', 'notificationMessage'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 300
+        && data.category is string && data.category.size() <= 100
+        && data.description is string && data.description.size() <= 3000
+        && data.reminderTime is string && data.reminderTime.size() <= 20
+        && data.repeatType is string && (data.repeatType == 'Daily' || data.repeatType == 'Weekly' || data.repeatType == 'Monthly' || data.repeatType == 'Interval Based')
+        && data.startDate is string && data.startDate.size() <= 30
+        && data.endDate is string && data.endDate.size() <= 30
+        && data.priority is string && (data.priority == 'High' || data.priority == 'Medium' || data.priority == 'Low')
+        && data.active is bool
+        && data.notificationMessage is string && data.notificationMessage.size() <= 2000
+        && (!('intervalHours' in data) || (data.intervalHours is int && data.intervalHours >= 0))
+        && (!('weeklyDays' in data) || data.weeklyDays is list)
+        && (!('monthlyDay' in data) || (data.monthlyDay is int && data.monthlyDay >= 0))
+        && (!('medicineName' in data) || (data.medicineName is string && data.medicineName.size() <= 200))
+        && (!('dosage' in data) || (data.dosage is string && data.dosage.size() <= 100))
+        && (!('frequency' in data) || (data.frequency is string && data.frequency.size() <= 100))
+        && (!('targetGlasses' in data) || (data.targetGlasses is int && data.targetGlasses >= 0))
+        && (!('isHabit' in data) || data.isHabit is bool)
+        && (!('habitStreak' in data) || data.habitStreak is int)
+        && (!('habitBestStreak' in data) || data.habitBestStreak is int)
+        && (!('habitCompletedDates' in data) || data.habitCompletedDates is list);
+    }
+
+    function isValidReminderLog(data) {
+      return data.keys().hasAll(['id', 'reminderId', 'userId', 'date', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.reminderId is string && data.reminderId.size() <= 128
+        && data.userId == request.auth.uid
+        && data.date is string && data.date.size() <= 30
+        && data.status is string && (data.status == 'Pending' || data.status == 'Completed' || data.status == 'Snoozed' || data.status == 'Skipped' || data.status == 'Missed')
+        && (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 60))
+        && (!('snoozedUntil' in data) || (data.snoozedUntil is string && data.snoozedUntil.size() <= 60))
+        && (!('snoozeDurationMinutes' in data) || data.snoozeDurationMinutes is int)
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 3000));
+    }
+
+    function isValidReminderSettings(data) {
+      return data.keys().hasAll(['userId', 'notificationSound', 'reminderDuration', 'defaultSnoozeTime', 'weekendMode', 'dndEnabled', 'dndStart', 'dndEnd'])
+        && data.userId == request.auth.uid
+        && data.notificationSound is bool
+        && data.reminderDuration is int
+        && data.defaultSnoozeTime is int
+        && data.weekendMode is bool
+        && data.dndEnabled is bool
+        && data.dndStart is string && data.dndStart.size() <= 10
+        && data.dndEnd is string && data.dndEnd.size() <= 10;
+    }
+
     // Collection Security Declarations
     match /users/{userId} {
-      allow get, write: if isVerifiedUser() && isOwner(userId) && isValidUser(incoming());
+      allow get: if isVerifiedUser() && isOwner(userId);
+      allow write: if isVerifiedUser() && isOwner(userId) && isValidUser(incoming());
     }
 
     match /topics/{topicId} {
@@ -335,6 +388,35 @@ service cloud.firestore {
       allow get: if isVerifiedUser() && isDocOwner(existing());
       allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
       allow create: if isVerifiedUser() && isValidId(mockId) && incoming().userId == request.auth.uid;
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /personalReminders/{reminderId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(reminderId) && isValidPersonalReminder(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidPersonalReminder(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /reminderLogs/{logId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(logId) && isValidReminderLog(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidReminderLog(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /reminderSettings/{userId} {
+      allow get: if isVerifiedUser() && isOwner(userId);
+      allow write: if isVerifiedUser() && isOwner(userId) && isValidReminderSettings(incoming());
+    }
+
+    match /backups/{backupId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(backupId) && incoming().userId == request.auth.uid;
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
       allow delete: if isVerifiedUser() && isDocOwner(existing());
     }
