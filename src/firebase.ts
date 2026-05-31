@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,7 +18,9 @@ const app = initializeApp(firebaseConfig);
 // web clients and can cause initialization issues. If you are intentionally
 // targeting a non-default database, set this explicitly and ensure the
 // database ID is correct. For normal usage, omit the second argument.
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
+});
 export const auth = getAuth(app);
 
 export enum OperationType {

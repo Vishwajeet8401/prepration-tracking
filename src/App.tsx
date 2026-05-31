@@ -1249,17 +1249,24 @@ export default function App() {
     }
   };
 
-  // ==========================================
-  // PERSONAL REMINDERS & HABITS MUTATIONS
-  // ==========================================
+  const cleanObject = (obj: any) => {
+    const cleaned: any = {};
+    Object.keys(obj).forEach(key => {
+      if (obj[key] !== undefined) {
+        cleaned[key] = obj[key];
+      }
+    });
+    return cleaned;
+  };
+
   const handleAddPersonalReminder = async (rem: Omit<PersonalReminder, 'id' | 'userId'>) => {
     if (!user) return;
     const remId = 'reminder-' + Date.now();
-    const created: PersonalReminder = {
+    const created = cleanObject({
       ...rem,
       id: remId,
       userId: user.uid
-    };
+    });
     try {
       await setDoc(doc(db, 'personalReminders', remId), created);
       await pushNotification({
@@ -1274,11 +1281,12 @@ export default function App() {
 
   const handleUpdatePersonalReminder = async (updated: PersonalReminder) => {
     if (!user) return;
+    const cleaned = cleanObject({
+      ...updated,
+      userId: user.uid
+    });
     try {
-      await setDoc(doc(db, 'personalReminders', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
+      await setDoc(doc(db, 'personalReminders', updated.id), cleaned);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `personalReminders/${updated.id}`);
     }

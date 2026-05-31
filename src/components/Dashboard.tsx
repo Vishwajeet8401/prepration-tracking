@@ -168,6 +168,82 @@ export default function Dashboard({
 
   // Accessibility tracking prefers-reduced-motion check
   const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Habit Matrix State
+  const [matrixCategory, setMatrixCategory] = useState<string>('All');
+  const [matrixView, setMatrixView] = useState<'Weekly' | 'Monthly'>('Weekly');
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  const parseLocalDate = (dateStr: string) => {
+    const parts = dateStr.split('-');
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  };
+
+  const isReminderScheduledForDate = (rem: PersonalReminder, dateStr: string) => {
+    if (!rem.active) return false;
+    if (dateStr < rem.startDate || dateStr > rem.endDate) return false;
+
+    const dateObj = parseLocalDate(dateStr);
+    
+    if (rem.repeatType === 'Weekly') {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayName = days[dateObj.getDay()];
+      return rem.weeklyDays?.includes(dayName) || false;
+    }
+    if (rem.repeatType === 'Monthly') {
+      const dayOfMonth = dateObj.getDate();
+      return rem.monthlyDay === dayOfMonth;
+    }
+    return true; // 'Daily' and 'Interval Based'
+  };
+
+  const matrixDates = useMemo(() => {
+    const dates = [];
+    if (matrixView === 'Weekly') {
+      // Last 7 days ending today
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+    } else {
+      // Days of the selected month
+      const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const dStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        dates.push(dStr);
+      }
+    }
+    return dates;
+  }, [matrixView, selectedMonth, selectedYear]);
+
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      options.push({
+        label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        month: d.getMonth(),
+        year: d.getFullYear()
+      });
+    }
+    return options;
+  }, []);
+
+  const matrixCategories = useMemo(() => {
+    const cats = new Set<string>();
+    personalReminders.forEach(r => cats.add(r.category));
+    return ['All', ...Array.from(cats)];
+  }, [personalReminders, matrixCategory]);
+
+  const filteredReminders = useMemo(() => {
+    return personalReminders.filter(rem => {
+      if (matrixCategory !== 'All' && rem.category !== matrixCategory) return false;
+      return true;
+    });
+  }, [personalReminders, matrixCategory]);
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReducedMotion(mediaQuery.matches);
@@ -1212,6 +1288,267 @@ export default function Dashboard({
               Update Journal Entries →
             </button>
           </BentoCard>
+        </div>
+      </motion.div>
+
+      {/* 5. Cyberpunk Habit & Task Grid Matrix */}
+      <motion.div variants={itemVariants} className="border-t border-white/10 pt-6 mt-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div className="text-left">
+            <h3 className="font-bold text-white font-display text-base flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+              </span>
+              Neural Habit & Task Grid Matrix
+            </h3>
+            <p className="text-xs text-slate-400 font-sans mt-0.5">
+              Interactive timeline mapping daily habits and scheduled tasks consistency checks.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {/* Category Filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-mono text-[10px]">Filter:</span>
+              <select
+                value={matrixCategory}
+                onChange={(e) => setMatrixCategory(e.target.value)}
+                className="bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none"
+              >
+                {matrixCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* View Horizon Toggle */}
+            <div className="bg-slate-900/60 p-0.5 rounded-lg border border-white/10 flex items-center">
+              <button
+                onClick={() => setMatrixView('Weekly')}
+                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${
+                  matrixView === 'Weekly'
+                    ? 'bg-indigo-650 text-white font-bold'
+                    : 'text-slate-450 hover:text-slate-200'
+                }`}
+              >
+                Weekly
+              </button>
+              <button
+                onClick={() => setMatrixView('Monthly')}
+                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${
+                  matrixView === 'Monthly'
+                    ? 'bg-indigo-650 text-white font-bold'
+                    : 'text-slate-450 hover:text-slate-200'
+                }`}
+              >
+                Monthly
+              </button>
+            </div>
+
+            {/* Month Selector Dropdown */}
+            {matrixView === 'Monthly' && (
+              <select
+                value={`${selectedYear}-${selectedMonth}`}
+                onChange={(e) => {
+                  const [y, m] = e.target.value.split('-').map(Number);
+                  setSelectedMonth(m);
+                  setSelectedYear(y);
+                }}
+                className="bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none"
+              >
+                {monthOptions.map(opt => (
+                  <option key={`${opt.year}-${opt.month}`} value={`${opt.year}-${opt.month}`}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+
+        {/* Matrix Grid Container */}
+        <div className="glass-card rounded-2xl border-white/10 bg-slate-950/20 p-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-indigo-500/10 scrollbar-track-transparent">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="border-b border-white/5 pb-2">
+                  <th className="py-2.5 pr-4 text-[10px] font-mono uppercase text-slate-450 tracking-wider w-[220px]">
+                    Reminder / Habit Title
+                  </th>
+                  {matrixDates.map(dateStr => {
+                    const dateObj = parseLocalDate(dateStr);
+                    const dayNum = String(dateObj.getDate()).padStart(2, '0');
+                    const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+                    const dayName = days[dateObj.getDay()];
+                    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                    return (
+                      <th 
+                        key={dateStr}
+                        className={`py-2 px-1 text-center font-mono text-[9px] font-bold min-w-[32px] ${
+                          isToday 
+                            ? 'text-indigo-400 ring-1 ring-indigo-500/30 rounded bg-indigo-500/5'
+                            : isWeekend 
+                              ? 'text-rose-450' 
+                              : 'text-slate-400'
+                        }`}
+                      >
+                        <span className="block">{dayName}</span>
+                        <span className="block text-[11px] font-bold mt-0.5">{dayNum}</span>
+                      </th>
+                    );
+                  })}
+                  <th className="py-2.5 pl-4 text-center text-[10px] font-mono uppercase text-slate-450 tracking-wider w-[80px]">
+                    Ratio
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredReminders.map(rem => {
+                  let totalScheduled = 0;
+                  let totalCompleted = 0;
+
+                  return (
+                    <tr 
+                      key={rem.id}
+                      className="border-b border-white/5 hover:bg-white/2 transition-colors group"
+                    >
+                      {/* First Column: Title & Streak */}
+                      <td className="py-3 pr-4 text-left w-[220px]">
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                          {rem.isHabit ? (
+                            <Flame className="w-3.5 h-3.5 text-orange-400 fill-orange-400/10 shrink-0" />
+                          ) : (
+                            <Bell className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                          )}
+                          <span className="font-extrabold text-xs text-white truncate max-w-[140px]" title={rem.title}>
+                            {rem.title}
+                          </span>
+                          {rem.isHabit && rem.habitStreak !== undefined && rem.habitStreak > 0 && (
+                            <span className="text-[9px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.2 rounded shrink-0">
+                              {rem.habitStreak}d
+                            </span>
+                          )}
+                        </div>
+                        <span className="block text-[9px] text-slate-450 font-mono mt-0.5 uppercase tracking-wide truncate max-w-[180px]">
+                          {rem.category} • {rem.repeatType}
+                        </span>
+                      </td>
+
+                      {/* Date Checkbox Cells */}
+                      {matrixDates.map(dateStr => {
+                        const isScheduled = isReminderScheduledForDate(rem, dateStr);
+                        const isToday = dateStr === new Date().toISOString().split('T')[0];
+                        const log = reminderLogs.find(l => l.reminderId === rem.id && l.date === dateStr);
+                        const isCompleted = log?.status === 'Completed';
+
+                        if (isScheduled) {
+                          totalScheduled++;
+                          if (isCompleted) totalCompleted++;
+                        }
+
+                        return (
+                          <td 
+                            key={dateStr}
+                            className={`py-3 px-1 text-center align-middle min-w-[32px] ${
+                              isToday ? 'bg-indigo-500/5' : ''
+                            }`}
+                          >
+                            {isScheduled ? (
+                              <div className="flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  disabled={!isToday || !onActionReminder}
+                                  onClick={() => {
+                                    if (isToday && onActionReminder) {
+                                      onActionReminder(rem.id, isCompleted ? 'Skipped' : 'Completed');
+                                    }
+                                  }}
+                                  className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                                    isCompleted
+                                      ? 'bg-emerald-500 border-emerald-450 text-slate-950 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                                      : isToday
+                                        ? 'bg-slate-900/80 border-indigo-400 hover:border-indigo-300 cursor-pointer shadow-[0_0_4px_rgba(99,102,241,0.15)] hover:scale-105'
+                                        : 'bg-slate-950/40 border-slate-700 cursor-not-allowed'
+                                  }`}
+                                  title={
+                                    isToday 
+                                      ? `Click to toggle completion for Today (${isCompleted ? 'Mark Incomplete' : 'Mark Completed'})`
+                                      : isCompleted 
+                                        ? `Completed on ${dateStr}`
+                                        : `Scheduled but Incomplete on ${dateStr}`
+                                  }
+                                >
+                                  {isCompleted && <Check className="w-3 h-3 stroke-[3px]" />}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-600 font-mono">•</span>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      {/* Final Column: Ratio Completion Percent */}
+                      <td className="py-3 pl-4 text-center w-[80px]">
+                        {totalScheduled > 0 ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="text-[10px] font-mono font-bold text-indigo-300">
+                              {totalCompleted}/{totalScheduled}
+                            </span>
+                            <span className="text-[8px] font-mono text-slate-450">
+                              ({Math.round((totalCompleted / totalScheduled) * 100)}%)
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[9px] font-mono text-slate-500">N/A</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredReminders.length === 0 && (
+                  <tr>
+                    <td 
+                      colSpan={matrixDates.length + 2} 
+                      className="text-center py-8 text-slate-450 text-xs font-sans"
+                    >
+                      No active reminders or habits match the selected filter configuration.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Bottom Grid Legend & Diagnostics */}
+          <div className="border-t border-white/5 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[10px] font-mono text-slate-450">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 justify-center sm:justify-start">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded bg-emerald-500 border border-emerald-450 flex items-center justify-center text-slate-950 font-bold text-[8px] shrink-0">
+                  <Check className="w-2 h-2 stroke-[3px]" />
+                </span>
+                <span>Completed</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded bg-slate-900 border border-slate-700 shrink-0" />
+                <span>Scheduled (Incomplete)</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-slate-650 shrink-0 font-bold">•</span>
+                <span>Off-Schedule (Not Due)</span>
+              </span>
+            </div>
+            
+            <div className="text-center sm:text-right text-slate-400">
+              💡 <span className="text-indigo-400 font-bold">Interactive:</span> You can click **Today's** checkboxes directly inside the grid to log daily check-ins!
+            </div>
+          </div>
         </div>
       </motion.div>
 
