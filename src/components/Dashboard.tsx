@@ -5,9 +5,9 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus } from '../types';
-import { 
-  Zap, Calendar, AlertTriangle, Play, BookOpen, Clock, 
-  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square
+import {
+  Zap, Calendar, AlertTriangle, Play, BookOpen, Clock,
+  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square, ListTodo
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -72,11 +72,11 @@ function BentoCard({ children, className = '', reducedMotion = false }: { childr
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    
+
     // Smooth angle tilt values (max 1.5 degrees)
     const rotX = ((centerY - y) / centerY) * 1.5;
     const rotY = ((x - centerX) / centerX) * 1.5;
-    
+
     setRotateX(rotX);
     setRotateY(rotY);
   };
@@ -91,12 +91,12 @@ function BentoCard({ children, className = '', reducedMotion = false }: { childr
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      animate={{ 
-        rotateX: rotateX, 
-        rotateY: rotateY, 
+      animate={{
+        rotateX: rotateX,
+        rotateY: rotateY,
         y: rotateX || rotateY ? -2 : 0,
-        boxShadow: rotateX || rotateY 
-          ? '0 20px 40px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.15)' 
+        boxShadow: rotateX || rotateY
+          ? '0 20px 40px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.15)'
           : '0 8px 32px 0 rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.08)'
       }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
@@ -212,7 +212,7 @@ export default function Dashboard({
     if (dateStr < rem.startDate || dateStr > rem.endDate) return false;
 
     const dateObj = parseLocalDate(dateStr);
-    
+
     if (rem.repeatType === 'Weekly') {
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const dayName = days[dateObj.getDay()];
@@ -262,15 +262,95 @@ export default function Dashboard({
   const matrixCategories = useMemo(() => {
     const cats = new Set<string>();
     personalReminders.forEach(r => cats.add(r.category));
+    plans.forEach(p => cats.add(p.category));
+    cats.add('Technical');
     return ['All', ...Array.from(cats)];
-  }, [personalReminders]);
+  }, [personalReminders, plans]);
 
-  const filteredReminders = useMemo(() => {
-    return personalReminders.filter(rem => {
-      if (matrixCategory !== 'All' && rem.category !== matrixCategory) return false;
-      return true;
+  const combinedMatrixItems = useMemo(() => {
+    const items: any[] = [];
+
+    // Add Reminders
+    personalReminders.forEach(rem => {
+      if (matrixCategory !== 'All' && rem.category !== matrixCategory) return;
+      items.push({
+        id: rem.id,
+        title: rem.title,
+        category: rem.category,
+        repeatType: rem.repeatType,
+        isHabit: rem.isHabit,
+        habitStreak: rem.habitStreak,
+        isTask: false,
+        isScheduled: (dateStr: string) => isReminderScheduledForDate(rem, dateStr),
+        isCompleted: (dateStr: string) => {
+          const log = reminderLogs.find(l => l.reminderId === rem.id && l.date === dateStr);
+          return log?.status === 'Completed';
+        },
+        toggleToday: (currentlyCompleted: boolean) => {
+          if (onActionReminder) {
+            onActionReminder(rem.id, currentlyCompleted ? 'Skipped' : 'Completed');
+          }
+        }
+      });
     });
-  }, [personalReminders, matrixCategory]);
+
+    // Add Plans
+    plans.forEach(plan => {
+      if (matrixCategory !== 'All' && plan.category !== matrixCategory) return;
+      items.push({
+        id: plan.id,
+        title: plan.title,
+        category: plan.category,
+        repeatType: plan.repeatType,
+        isHabit: false,
+        isTask: true,
+        isScheduled: (dateStr: string) => dateStr >= plan.startDate && dateStr <= plan.endDate,
+        isCompleted: (dateStr: string) => {
+          const task = tasks.find(t => t.planId === plan.id && t.date === dateStr);
+          return task?.status === 'Completed';
+        },
+        toggleToday: (currentlyCompleted: boolean) => {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const task = tasks.find(t => t.planId === plan.id && t.date === todayStr);
+          if (task) {
+            onUpdateTask({ ...task, status: currentlyCompleted ? 'Skipped' : 'Completed', completedAt: new Date().toISOString() }, task.targetHours, 'Toggled from Grid Matrix');
+          }
+        }
+      });
+    });
+
+    // Add System Tasks
+    if (matrixCategory === 'All' || matrixCategory === 'Technical') {
+      const systemTasks = [
+        { id: 'system-recall', title: 'Recall Session' },
+        { id: 'system-revision', title: 'Revision Queue' }
+      ];
+      systemTasks.forEach(sys => {
+        items.push({
+          id: sys.id,
+          title: sys.title,
+          category: 'Technical',
+          repeatType: 'Daily',
+          isHabit: false,
+          isTask: true,
+          isScheduled: (dateStr: string) => true,
+          isCompleted: (dateStr: string) => {
+            const task = tasks.find(t => t.planId === sys.id && t.date === dateStr);
+            return task?.status === 'Completed';
+          },
+          toggleToday: (currentlyCompleted: boolean) => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const task = tasks.find(t => t.planId === sys.id && t.date === todayStr);
+            if (task) {
+              onUpdateTask({ ...task, status: currentlyCompleted ? 'Skipped' : 'Completed', completedAt: new Date().toISOString() }, task.targetHours, 'Toggled from Grid Matrix');
+            }
+          }
+        });
+      });
+    }
+
+    return items;
+  }, [personalReminders, plans, tasks, reminderLogs, matrixCategory, onActionReminder, onUpdateTask]);
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReducedMotion(mediaQuery.matches);
@@ -281,7 +361,7 @@ export default function Dashboard({
 
   // 1. Calculate Study Streak (consecutive dates from sessions)
   const studyStreak = useMemo(() => {
-    if (sessions.length === 0) return 3; // fallback default
+    if (sessions.length === 0) return 0;
     const uniqueDates = new Set(
       sessions.map(s => s.startTime.split('T')[0])
     );
@@ -305,7 +385,7 @@ export default function Dashboard({
         break;
       }
     }
-    return Math.max(streak, 4);
+    return streak;
   }, [sessions]);
 
   // 2. Calculate Today's Study Time (in minutes)
@@ -321,7 +401,7 @@ export default function Dashboard({
     const now = new Date();
     let due = 0;
     let overdue = 0;
-    
+
     topics.forEach(t => {
       if (t.nextRevisionDate) {
         const revDate = new Date(t.nextRevisionDate);
@@ -389,6 +469,18 @@ export default function Dashboard({
     return Math.round((completed / todayTasks.length) * 100);
   }, [todayTasks]);
 
+  const todayCompletedHours = useMemo(() => {
+    const hours = todayTasks
+      .filter(t => t.status === 'Completed')
+      .reduce((sum, t) => sum + (t.targetHours || 0), 0);
+    return Number(hours.toFixed(2));
+  }, [todayTasks]);
+
+  const todayTotalHours = useMemo(() => {
+    const hours = todayTasks.reduce((sum, t) => sum + (t.targetHours || 0), 0);
+    return Number(hours.toFixed(2));
+  }, [todayTasks]);
+
   // Reminders calculations for today
   const todaysRemindersList = useMemo(() => {
     const now = new Date();
@@ -401,7 +493,7 @@ export default function Dashboard({
       .filter(rem => {
         if (!rem.active) return false;
         if (todayStr < rem.startDate || todayStr > rem.endDate) return false;
-        
+
         if (rem.repeatType === 'Weekly') {
           return rem.weeklyDays?.includes(todayDayName);
         }
@@ -460,7 +552,7 @@ export default function Dashboard({
   // Spacing algorithm priority scoring recommendation list
   const priorityItems = useMemo(() => {
     const now = Date.now();
-    
+
     const scored = topics.map(t => {
       let score = 0;
       let reasons: string[] = [];
@@ -493,9 +585,9 @@ export default function Dashboard({
       if (nearInterview) {
         const cleanCat = t.category.toLowerCase();
         const cleanCompNote = (nearInterview.companyName + ' ' + nearInterview.feedback).toLowerCase();
-        
+
         if (
-          cleanCompNote.includes(cleanCat) || 
+          cleanCompNote.includes(cleanCat) ||
           (cleanCat === 'spring boot' && cleanCompNote.includes('spring')) ||
           (cleanCat === 'collections' && cleanCompNote.includes('java'))
         ) {
@@ -564,35 +656,68 @@ export default function Dashboard({
     }
   };
 
-  // Mock Spark Line SVG Generator for subtle luxury background charts
-  const renderSparkline = (bgColor: string, strokeColor: string) => (
-    <div className="absolute bottom-0 inset-x-0 h-14 pointer-events-none opacity-40">
-      <svg className="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id={`sparkGrad-${strokeColor}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={bgColor} stopOpacity="0.4" />
-            <stop offset="100%" stopColor={bgColor} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <motion.path
-          d="M0,25 C15,10 30,28 45,15 C60,2 75,20 100,5 L100,30 L0,30 Z"
-          fill={`url(#sparkGrad-${strokeColor})`}
-          initial={{ d: "M0,30 C15,30 30,30 45,30 C60,30 75,30 100,30 L100,30 L0,30 Z" }}
-          animate={{ d: "M0,25 C15,10 30,28 45,15 C60,2 75,20 100,5 L100,30 L0,30 Z" }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-        />
-        <motion.path
-          d="M0,25 C15,10 30,28 45,15 C60,2 75,20 100,5"
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth="1.5"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 1.5, ease: "easeInOut" }}
-        />
-      </svg>
-    </div>
-  );
+  // Dynamic Spark Line SVG Generator for data charts
+  const renderSparkline = (dataPoints: number[], bgColor: string, strokeColor: string) => {
+    let pathD = "M0,30 L100,30 Z";
+    let filledPathD = "M0,30 L100,30 Z";
+    
+    if (dataPoints && dataPoints.length > 0) {
+      const max = Math.max(...dataPoints, 1);
+      const min = 0;
+      const range = max - min;
+      const stepX = 100 / Math.max(dataPoints.length - 1, 1);
+      
+      const points = dataPoints.map((val, i) => {
+        const x = i * stepX;
+        const y = 30 - ((val - min) / range) * 25; 
+        return `${x},${y}`;
+      });
+      
+      if (points.length > 1) {
+        let curve = `M${points[0]}`;
+        for (let i = 0; i < points.length - 1; i++) {
+          const [x1, y1] = points[i].split(',').map(Number);
+          const [x2, y2] = points[i+1].split(',').map(Number);
+          const cx1 = x1 + (x2 - x1) / 2;
+          const cy1 = y1;
+          const cx2 = x1 + (x2 - x1) / 2;
+          const cy2 = y2;
+          curve += ` C${cx1},${cy1} ${cx2},${cy2} ${x2},${y2}`;
+        }
+        pathD = curve;
+        filledPathD = `${curve} L100,30 L0,30 Z`;
+      }
+    }
+
+    return (
+      <div className="absolute bottom-0 inset-x-0 h-14 pointer-events-none opacity-40">
+        <svg className="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id={`sparkGrad-${strokeColor.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={bgColor} stopOpacity="0.4" />
+              <stop offset="100%" stopColor={bgColor} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <motion.path
+            d={filledPathD}
+            fill={`url(#sparkGrad-${strokeColor.replace('#', '')})`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+          />
+          <motion.path
+            d={pathD}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="1.5"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+          />
+        </svg>
+      </div>
+    );
+  };
 
   // Play a success sound using Web Audio API
   const playSuccessChime = () => {
@@ -600,17 +725,17 @@ export default function Dashboard({
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
       const ctx = new AudioContext();
-      
+
       const playOscillator = (freq: number, startTime: number, duration: number) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
-        
+
         gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
         gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + startTime + 0.05);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startTime + duration);
-        
+
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(ctx.currentTime + startTime);
@@ -628,13 +753,13 @@ export default function Dashboard({
   };
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       className="space-y-6"
     >
-      
+
       {/* 0. Top Priority Dynamic Island Timer Widget */}
       {activeTaskTimer && (
         <motion.div
@@ -646,7 +771,7 @@ export default function Dashboard({
         >
           {/* Animated Background Gradient */}
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-slate-900/95 to-black/90 backdrop-blur-3xl -z-10" />
-          
+
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent opacity-50" />
           <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-30" />
 
@@ -656,7 +781,7 @@ export default function Dashboard({
               <div className={`w-2 h-2 rounded-full ${activeTaskTimer.isPaused ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-red-500 animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.8)]'}`} />
               <div className="text-[10px] text-slate-300 font-mono font-bold uppercase tracking-widest">{activeTaskTimer.isPaused ? 'Paused' : 'Active Mission'}</div>
             </div>
-            
+
             <div className="flex flex-col items-center mt-2">
               <div className={`font-mono font-bold tracking-tighter text-center ${activeTaskTimer.isPaused ? 'text-slate-600' : 'text-transparent bg-clip-text bg-gradient-to-b from-white via-indigo-100 to-slate-400 drop-shadow-[0_0_40px_rgba(255,255,255,0.15)]'}`}>
                 {/* Mobile Vertical Timer */}
@@ -675,10 +800,10 @@ export default function Dashboard({
               </div>
             </div>
           </div>
-          
+
           {/* Row 2: Premium Dock Controls */}
           <div className="flex flex-wrap items-center justify-center gap-2 bg-white/5 backdrop-blur-xl p-2 rounded-3xl border border-white/10 shadow-2xl">
-            <button 
+            <button
               onClick={() => {
                 setActiveTaskTimer(prev => prev ? { ...prev, isPaused: !prev.isPaused } : null);
               }}
@@ -687,18 +812,18 @@ export default function Dashboard({
             >
               {activeTaskTimer.isPaused ? <Play className="w-5 h-5 text-indigo-300 ml-0.5" /> : <Pause className="w-5 h-5 text-amber-300" />}
             </button>
-            
-            <button 
+
+            <button
               onClick={() => setActiveTaskTimer(null)}
               title="Stop & Discard"
               className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group"
             >
               <Square className="w-4 h-4 text-rose-300 group-hover:text-rose-400" />
             </button>
-            
+
             <div className="w-px h-8 bg-white/10 mx-2" />
-            
-            <button 
+
+            <button
               onClick={async () => {
                 try {
                   const elapsedHours = Number((activeTaskTimer.elapsed / 3600).toFixed(2));
@@ -707,7 +832,7 @@ export default function Dashboard({
                     status: 'Completed',
                     completedAt: new Date().toISOString()
                   }, elapsedHours > 0 ? elapsedHours : activeTaskTimer.task.targetHours, `Completed via timer. Time spent: ${formatTime(activeTaskTimer.elapsed)}`);
-                  
+
                   playSuccessChime();
                   setActiveTaskTimer(null);
                 } catch (err) {
@@ -724,8 +849,8 @@ export default function Dashboard({
       )}
 
       {/* 1. Header with custom premium font pairing */}
-      <motion.div 
-        variants={itemVariants} 
+      <motion.div
+        variants={itemVariants}
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-white/10"
       >
         <div>
@@ -750,9 +875,14 @@ export default function Dashboard({
               <CheckCircle className="w-5 h-5 text-indigo-400" />
               <h3 className="font-bold text-white text-sm font-display">Daily Mission Goals</h3>
             </div>
-            <span className="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
-              {todayCompletionPercentage}% Complete
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                {todayCompletedHours} / {todayTotalHours} hr
+              </span>
+              <span className="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                {todayCompletionPercentage}% Complete
+              </span>
+            </div>
           </div>
 
           <div className="space-y-2 text-xs font-sans">
@@ -763,20 +893,19 @@ export default function Dashboard({
               const isPaused = isActive && activeTaskTimer?.isPaused;
 
               return (
-                <div 
+                <div
                   key={task.id}
-                  className={`flex items-center justify-between p-2.5 rounded-xl border transition text-left ${
-                    isCompleted 
-                      ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500' 
+                  className={`flex items-center justify-between p-2.5 rounded-xl border transition text-left ${isCompleted
+                      ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500'
                       : isSkipped
-                      ? 'border-white/5 bg-slate-900/35 text-slate-500'
-                      : isActive
-                      ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-100 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
-                      : 'border-white/5 bg-white/5 text-slate-300'
-                  }`}
+                        ? 'border-white/5 bg-slate-900/35 text-slate-500'
+                        : isActive
+                          ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-100 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                          : 'border-white/5 bg-white/5 text-slate-300'
+                    }`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden mr-2">
-                    <button 
+                    <button
                       disabled={isCompleted || isSkipped}
                       onClick={async () => {
                         if (isCompleted || isSkipped) return;
@@ -791,17 +920,16 @@ export default function Dashboard({
                           console.error(err);
                         }
                       }}
-                      className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${
-                        isCompleted 
-                          ? 'bg-emerald-650 border-transparent text-white' 
+                      className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${isCompleted
+                          ? 'bg-emerald-650 border-transparent text-white'
                           : isSkipped
-                          ? 'border-slate-700 bg-slate-850 text-slate-600'
-                          : 'border-slate-500 hover:border-indigo-405'
-                      }`}
+                            ? 'border-slate-700 bg-slate-850 text-slate-600'
+                            : 'border-slate-500 hover:border-indigo-405'
+                        }`}
                     >
                       {isCompleted && <Check className="w-3 h-3 stroke-[3]" />}
                     </button>
-                    
+
                     {!isCompleted && !isSkipped && (
                       <button
                         onClick={() => {
@@ -818,11 +946,10 @@ export default function Dashboard({
                             });
                           }
                         }}
-                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
-                          isActive && !isPaused 
-                            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' 
+                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${isActive && !isPaused
+                            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
                             : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
-                        }`}
+                          }`}
                       >
                         {isActive && !isPaused ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
                       </button>
@@ -838,11 +965,10 @@ export default function Dashboard({
                 </div>
               );
             })}
-
             {todayTasks.length === 0 && (
               <div className="text-center py-4 text-slate-400 text-xs font-sans">
                 No planner habits designated for today.
-                <button 
+                <button
                   onClick={() => onNavigate('Activity Planner')}
                   className="text-indigo-400 font-bold underline hover:text-indigo-305 ml-1 block mt-1.5 mx-auto cursor-pointer"
                 >
@@ -856,7 +982,7 @@ export default function Dashboard({
 
       {/* 2.5 TODAY'S PERSONAL REMINDERS & HYDRATION DASHBOARD WIDGET */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-6 gap-5">
-        
+
         {/* Left Column: Reminders Checklist (Col Span 3) */}
         <BentoCard className="md:col-span-3 space-y-4" reducedMotion={reducedMotion}>
           <div className="flex items-center justify-between pb-2 border-b border-white/10">
@@ -876,32 +1002,30 @@ export default function Dashboard({
               const isSkipped = status === 'Skipped';
 
               return (
-                <div 
+                <div
                   key={reminder.id}
-                  className={`flex items-center justify-between p-2.5 rounded-xl border transition text-left ${
-                    isCompleted 
-                      ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500' 
+                  className={`flex items-center justify-between p-2.5 rounded-xl border transition text-left ${isCompleted
+                      ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500'
                       : isSkipped
-                      ? 'border-white/5 bg-slate-900/35 text-slate-500'
-                      : isSnoozed
-                      ? 'border-amber-500/25 bg-amber-500/5 text-slate-300'
-                      : 'border-white/5 bg-white/5 text-slate-300'
-                  }`}
+                        ? 'border-white/5 bg-slate-900/35 text-slate-500'
+                        : isSnoozed
+                          ? 'border-amber-500/25 bg-amber-500/5 text-slate-300'
+                          : 'border-white/5 bg-white/5 text-slate-300'
+                    }`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden mr-2">
-                    <button 
+                    <button
                       disabled={isCompleted || isSkipped}
                       onClick={async () => {
                         if (isCompleted || isSkipped || !onActionReminder) return;
                         await onActionReminder(reminder.id, 'Completed');
                       }}
-                      className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${
-                        isCompleted 
-                          ? 'bg-emerald-650 border-transparent text-white' 
+                      className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${isCompleted
+                          ? 'bg-emerald-650 border-transparent text-white'
                           : isSkipped
-                          ? 'border-slate-700 bg-slate-850 text-slate-600'
-                          : 'border-slate-500 hover:border-indigo-400'
-                      }`}
+                            ? 'border-slate-700 bg-slate-850 text-slate-600'
+                            : 'border-slate-500 hover:border-indigo-400'
+                        }`}
                     >
                       {isCompleted && <Check className="w-3 h-3 stroke-[3]" />}
                     </button>
@@ -917,13 +1041,13 @@ export default function Dashboard({
 
                   {!isCompleted && !isSkipped && onActionReminder && (
                     <div className="flex items-center gap-1 shrink-0">
-                      <button 
+                      <button
                         onClick={() => onActionReminder(reminder.id, 'Snoozed', 15)}
                         className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 transition cursor-pointer"
                       >
                         Snooze
                       </button>
-                      <button 
+                      <button
                         onClick={() => onActionReminder(reminder.id, 'Skipped')}
                         className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 border border-white/10 hover:bg-rose-950/20 text-rose-350 hover:text-rose-300 transition cursor-pointer"
                       >
@@ -944,7 +1068,7 @@ export default function Dashboard({
             {todaysRemindersList.length === 0 && (
               <div className="text-center py-6 text-slate-400 text-xs font-sans">
                 No reminders scheduled for today.
-                <button 
+                <button
                   onClick={() => onNavigate('Personal Reminders')}
                   className="text-indigo-400 font-bold underline hover:text-indigo-305 ml-1 block mt-1.5 mx-auto cursor-pointer"
                 >
@@ -968,7 +1092,7 @@ export default function Dashboard({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            
+
             {/* Water hydration quick check */}
             <div className="p-3.5 bg-sky-500/5 rounded-xl border border-sky-500/10 flex flex-col justify-between min-h-[110px] text-left">
               <div>
@@ -980,7 +1104,7 @@ export default function Dashboard({
               <div className="pt-2 border-t border-sky-500/5 mt-2 flex items-center justify-between">
                 <span className="text-[9px] font-mono text-slate-450">Target: {waterIntakeProgress.target * 250}ml</span>
                 {onActionReminder && waterIntakeProgress.reminderId && (
-                  <button 
+                  <button
                     onClick={() => onActionReminder(waterIntakeProgress.reminderId, 'Completed')}
                     className="p-1 px-2.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] transition cursor-pointer"
                   >
@@ -1000,7 +1124,7 @@ export default function Dashboard({
               </div>
               <div className="pt-2 border-t border-emerald-500/5 mt-2 flex items-center justify-between text-[9px] font-mono text-slate-450">
                 <span>Compliance: {medicineProgress.total > 0 ? Math.round((medicineProgress.completed / medicineProgress.total) * 100) : 100}%</span>
-                <button 
+                <button
                   onClick={() => onNavigate('Personal Reminders')}
                   className="text-emerald-400 font-bold underline hover:text-emerald-350 cursor-pointer"
                 >
@@ -1016,7 +1140,7 @@ export default function Dashboard({
 
       {/* 3. PREMIUM BENTO GRID (Bento Layout System for Dashboard) */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-6 gap-5">
-        
+
         {/* Box A: Today's Mission & Action Banner (Col Span 3) */}
         <BentoCard className="md:col-span-3 flex flex-col justify-between min-h-[170px] bg-gradient-to-br from-indigo-950/20 to-purple-950/10 border-indigo-505/20 group" reducedMotion={reducedMotion}>
           <div className="space-y-2">
@@ -1029,16 +1153,20 @@ export default function Dashboard({
               </span>
             </div>
             <h2 className="text-lg font-bold text-white tracking-tight font-display pr-5">
-              Refocus and reinforce critical memory paths
+              {priorityItems.length > 0 
+                ? `Focus: ${priorityItems[0].topic.name} & related concepts`
+                : 'All clear! No critical concepts need revision today.'}
             </h2>
             <p className="text-xs text-slate-450 leading-relaxed max-w-sm">
-              Your spacing algorithm selected {priorityItems.length} high-decay technical concepts for recall testing today. Ensure you evaluate retention gaps.
+              {priorityItems.length > 0 
+                ? `Your spacing algorithm selected ${priorityItems.length} high-decay technical concepts for recall testing today. Ensure you evaluate retention gaps.`
+                : 'Your retention metrics look strong. You can review your spacing map or practice new topics.'}
             </p>
           </div>
 
           <div className="flex items-center justify-between items-end mt-4 border-t border-white/5 pt-3">
             <span className="text-[10px] font-mono text-slate-400">
-              Last evaluation: 1 min ago
+              Last evaluation: Just updated
             </span>
             <MagneticButton
               onClick={() => onNavigate('Question Bank & Practice')}
@@ -1071,7 +1199,7 @@ export default function Dashboard({
               </span>
             </div>
           </div>
-          {renderSparkline('rgba(249, 115, 22, 0.2)', '#f97316')}
+          {renderSparkline(streakSparklineData, 'rgba(249, 115, 22, 0.2)', '#f97316')}
         </BentoCard>
 
         {/* Box C: ICI (Col Span 1.5) */}
@@ -1094,105 +1222,16 @@ export default function Dashboard({
               </span>
             </div>
           </div>
-          {renderSparkline('rgba(99, 102, 241, 0.2)', '#6366f1')}
+          {renderSparkline(iciSparklineData, 'rgba(99, 102, 241, 0.2)', '#6366f1')}
         </BentoCard>
 
       </motion.div>
-
-      {/* Box D: Spacing Recommendation Weights */}
-      <motion.div variants={itemVariants} className="glass-card bg-indigo-950/10 p-6 relative overflow-hidden rounded-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff03_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
-        
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-300 animate-bounce fill-amber-300" />
-              <h2 className="text-base font-bold font-display text-white">
-                Spacing Decay Priorities recommendations
-              </h2>
-            </div>
-            <span className="text-[10px] text-indigo-300 font-mono ring-1 ring-indigo-500/20 px-2 py-0.5 rounded-full">
-              Algorithm: Ebbinghaus Matrix
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {priorityItems.map((item, index) => (
-              <motion.div 
-                key={item.topic.id}
-                whileHover={reducedMotion ? {} : { scale: 1.01, borderColor: 'rgba(255, 255, 255, 0.15)' }}
-                className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col justify-between hover:bg-white/8 transition-all duration-300 relative overflow-hidden group"
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-colors" />
-
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-400/25">
-                      Priority #{index + 1}
-                    </span>
-                    <span className="text-[11px] font-semibold text-amber-300 font-display flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                      {item.primaryReason}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-extrabold text-white mb-1 font-display">{item.topic.name}</h3>
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-3">
-                    {item.topic.description}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1.5 z-10">
-                  <div className="flex items-center gap-3">
-                    <div className="text-left font-mono">
-                      <span className="block text-[8px] text-indigo-400 uppercase font-semibold">Confidence</span>
-                      <span className="text-xs font-bold text-slate-200">
-                        {item.topic.confidenceScore}%
-                      </span>
-                    </div>
-                    <div className="h-5 w-px bg-white/10" />
-                    <div className="text-left font-mono">
-                      <span className="block text-[8px] text-indigo-400 uppercase font-semibold">Forgotten</span>
-                      <span className={`text-xs font-bold ${item.topic.forgotCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
-                        {item.topic.forgotCount}x
-                      </span>
-                    </div>
-                  </div>
-
-                  <MagneticButton 
-                    onClick={() => {
-                      if (item.topic.status === 'Not Started' || item.topic.status === 'Learning') {
-                        onStartSession(item.topic.id);
-                      } else {
-                        onNavigate('Question Bank & Practice');
-                      }
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-650 hover:bg-indigo-550 text-white font-bold text-xs font-sans transition-all shadow-md shrink-0 border border-indigo-500/25"
-                    reducedMotion={reducedMotion}
-                  >
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>Practice</span>
-                  </MagneticButton>
-                </div>
-              </motion.div>
-            ))}
-
-            {priorityItems.length === 0 && (
-              <div className="col-span-2 text-center py-8 bg-white/5 rounded-xl border border-dashed border-white/10">
-                <CheckCircle className="w-8 h-8 text-indigo-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-white font-display">Clear of spacing recommendations.</p>
-                <p className="text-xs text-slate-400 font-sans">Seeding topics inside your Spacing Map will instantly pop suggestions.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
       {/* 3. Revision Queue & Split Modules */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Left Side: Revision List Queue & Weak area indicators (Col Span 2) */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Box 1: High Priority Revisions */}
           <BentoCard className="space-y-4" reducedMotion={reducedMotion}>
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
@@ -1211,7 +1250,7 @@ export default function Dashboard({
 
             <div className="space-y-3">
               {highPriorityQueue.map((t) => (
-                <div 
+                <div
                   key={t.id}
                   className="p-3 rounded-xl border border-red-500/10 bg-red-500/5 hover:bg-red-500/10 transition-all flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-left"
                 >
@@ -1235,7 +1274,7 @@ export default function Dashboard({
                       <span className="block text-[8px] text-slate-450 uppercase font-semibold">Forgotten</span>
                       <span className="font-bold text-rose-450">{t.forgotCount}x</span>
                     </div>
-                    <button 
+                    <button
                       onClick={() => onNavigate('Question Bank & Practice')}
                       className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/15 hover:border-indigo-400 hover:text-indigo-300 font-sans font-bold text-xs text-slate-350 transition cursor-pointer"
                     >
@@ -1299,7 +1338,7 @@ export default function Dashboard({
 
         {/* Right Side Sidebar Panel: Tasks & Upcoming Schedules (Col Span 1) */}
         <div className="space-y-6">
-          
+
           {/* Right Bento Card 2: Upcoming Interviews */}
           <BentoCard className="space-y-4" reducedMotion={reducedMotion}>
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
@@ -1347,6 +1386,96 @@ export default function Dashboard({
 
       </motion.div>
 
+      {/* Box D: Spacing Recommendation Weights */}
+      <motion.div variants={itemVariants} className="glass-card bg-indigo-950/10 p-6 relative overflow-hidden rounded-2xl">
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff03_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-300 animate-bounce fill-amber-300" />
+              <h2 className="text-base font-bold font-display text-white">
+                Spacing Decay Priorities recommendations
+              </h2>
+            </div>
+            <span className="text-[10px] text-indigo-300 font-mono ring-1 ring-indigo-500/20 px-2 py-0.5 rounded-full">
+              Algorithm: Ebbinghaus Matrix
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {priorityItems.map((item, index) => (
+              <motion.div
+                key={item.topic.id}
+                whileHover={reducedMotion ? {} : { scale: 1.01, borderColor: 'rgba(255, 255, 255, 0.15)' }}
+                className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col justify-between hover:bg-white/8 transition-all duration-300 relative overflow-hidden group"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-colors" />
+
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-400/25">
+                      Priority #{index + 1}
+                    </span>
+                    <span className="text-[11px] font-semibold text-amber-300 font-display flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                      {item.primaryReason}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-extrabold text-white mb-1 font-display">{item.topic.name}</h3>
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-3">
+                    {item.topic.description}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1.5 z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="text-left font-mono">
+                      <span className="block text-[8px] text-indigo-400 uppercase font-semibold">Confidence</span>
+                      <span className="text-xs font-bold text-slate-200">
+                        {item.topic.confidenceScore}%
+                      </span>
+                    </div>
+                    <div className="h-5 w-px bg-white/10" />
+                    <div className="text-left font-mono">
+                      <span className="block text-[8px] text-indigo-400 uppercase font-semibold">Forgotten</span>
+                      <span className={`text-xs font-bold ${item.topic.forgotCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                        {item.topic.forgotCount}x
+                      </span>
+                    </div>
+                  </div>
+
+                  <MagneticButton
+                    onClick={() => {
+                      if (item.topic.status === 'Not Started' || item.topic.status === 'Learning') {
+                        onStartSession(item.topic.id);
+                      } else {
+                        onNavigate('Question Bank & Practice');
+                      }
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-650 hover:bg-indigo-550 text-white font-bold text-xs font-sans transition-all shadow-md shrink-0 border border-indigo-500/25"
+                    reducedMotion={reducedMotion}
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>Practice</span>
+                  </MagneticButton>
+                </div>
+              </motion.div>
+            ))}
+
+            {priorityItems.length === 0 && (
+              <div className="col-span-2 text-center py-8 bg-white/5 rounded-xl border border-dashed border-white/10">
+                <CheckCircle className="w-8 h-8 text-indigo-300 mx-auto mb-2" />
+                <p className="text-sm font-medium text-white font-display">Clear of spacing recommendations.</p>
+                <p className="text-xs text-slate-400 font-sans">Seeding topics inside your Spacing Map will instantly pop suggestions.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+
+
       {/* 4. Bottom Row: Interactive Map & Strategic Insights Wayfinder Bento Grid */}
       <motion.div variants={itemVariants} className="border-t border-white/10 pt-5 mt-5">
         <h4 className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 justify-center md:justify-start mb-4">
@@ -1362,13 +1491,13 @@ export default function Dashboard({
               {(() => {
                 const active = roadmaps.find(r => r.isActive) || (roadmaps.length > 0 ? roadmaps[0] : null);
                 if (!active) return <span className="text-xs text-slate-400 block pb-1">No active target roadmap track.</span>;
-                
+
                 const total = active.topics.length;
                 const completedCount = active.topics.filter(t => {
                   const matchInDb = topics.find(tp => tp.name.toLowerCase() === t.name.toLowerCase());
                   const isAutoComplete = matchInDb ? (
-                    matchInDb.status === 'Mastered' || 
-                    matchInDb.status === 'Interview Ready' || 
+                    matchInDb.status === 'Mastered' ||
+                    matchInDb.status === 'Interview Ready' ||
                     matchInDb.status === 'Revising'
                   ) : false;
                   return t.completed || isAutoComplete;
@@ -1389,7 +1518,7 @@ export default function Dashboard({
                 );
               })()}
             </div>
-            <button 
+            <button
               onClick={() => onNavigate('Preparation Roadmaps')}
               className="text-[9px] font-mono text-indigo-400 text-left hover:text-indigo-300 font-extrabold mt-3 pt-2.5 border-t border-white/5 block"
             >
@@ -1421,13 +1550,13 @@ export default function Dashboard({
                       <span>{count} / 3 unlocked</span>
                     </div>
                     <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full" style={{ width: `${(count/3)*100}%` }} />
+                      <div className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full" style={{ width: `${(count / 3) * 100}%` }} />
                     </div>
                   </div>
                 );
               })()}
             </div>
-            <button 
+            <button
               onClick={() => onNavigate('My Achievements')}
               className="text-[9px] font-mono text-orange-400 text-left hover:text-orange-300 font-extrabold mt-3 pt-2.5 border-t border-white/5 block"
             >
@@ -1461,7 +1590,7 @@ export default function Dashboard({
                 );
               })()}
             </div>
-            <button 
+            <button
               onClick={() => onNavigate('Personal Journal')}
               className="text-[9px] font-mono text-teal-400 text-left hover:text-teal-300 font-extrabold mt-3 pt-2.5 border-t border-white/5 block"
             >
@@ -1506,21 +1635,19 @@ export default function Dashboard({
             <div className="bg-slate-900/60 p-0.5 rounded-lg border border-white/10 flex items-center">
               <button
                 onClick={() => setMatrixView('Weekly')}
-                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${
-                  matrixView === 'Weekly'
+                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${matrixView === 'Weekly'
                     ? 'bg-indigo-650 text-white font-bold'
                     : 'text-slate-450 hover:text-slate-200'
-                }`}
+                  }`}
               >
                 Weekly
               </button>
               <button
                 onClick={() => setMatrixView('Monthly')}
-                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${
-                  matrixView === 'Monthly'
+                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${matrixView === 'Monthly'
                     ? 'bg-indigo-650 text-white font-bold'
                     : 'text-slate-450 hover:text-slate-200'
-                }`}
+                  }`}
               >
                 Monthly
               </button>
@@ -1550,7 +1677,7 @@ export default function Dashboard({
         {/* Matrix Grid Container */}
         <div className="glass-card rounded-2xl border-white/10 bg-slate-950/20 p-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-          
+
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-indigo-500/10 scrollbar-track-transparent">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
@@ -1567,15 +1694,14 @@ export default function Dashboard({
                     const isToday = dateStr === new Date().toISOString().split('T')[0];
 
                     return (
-                      <th 
+                      <th
                         key={dateStr}
-                        className={`py-2 px-1 text-center font-mono text-[9px] font-bold min-w-[32px] ${
-                          isToday 
+                        className={`py-2 px-1 text-center font-mono text-[9px] font-bold min-w-[32px] ${isToday
                             ? 'text-indigo-400 ring-1 ring-indigo-500/30 rounded bg-indigo-500/5'
-                            : isWeekend 
-                              ? 'text-rose-450' 
+                            : isWeekend
+                              ? 'text-rose-450'
                               : 'text-slate-400'
-                        }`}
+                          }`}
                       >
                         <span className="block">{dayName}</span>
                         <span className="block text-[11px] font-bold mt-0.5">{dayNum}</span>
@@ -1588,43 +1714,44 @@ export default function Dashboard({
                 </tr>
               </thead>
               <tbody>
-                {filteredReminders.map(rem => {
+                {combinedMatrixItems.map(item => {
                   let totalScheduled = 0;
                   let totalCompleted = 0;
 
                   return (
-                    <tr 
-                      key={rem.id}
+                    <tr
+                      key={item.id}
                       className="border-b border-white/5 hover:bg-white/2 transition-colors group"
                     >
                       {/* First Column: Title & Streak */}
                       <td className="py-3 pr-4 text-left w-[220px]">
                         <div className="flex items-center gap-1.5 overflow-hidden">
-                          {rem.isHabit ? (
+                          {item.isTask ? (
+                            <ListTodo className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          ) : item.isHabit ? (
                             <Flame className="w-3.5 h-3.5 text-orange-400 fill-orange-400/10 shrink-0" />
                           ) : (
                             <Bell className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                           )}
-                          <span className="font-extrabold text-xs text-white truncate max-w-[140px]" title={rem.title}>
-                            {rem.title}
+                          <span className="font-extrabold text-xs text-white truncate max-w-[140px]" title={item.title}>
+                            {item.title}
                           </span>
-                          {rem.isHabit && rem.habitStreak !== undefined && rem.habitStreak > 0 && (
+                          {item.isHabit && item.habitStreak !== undefined && item.habitStreak > 0 && (
                             <span className="text-[9px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.2 rounded shrink-0">
-                              {rem.habitStreak}d
+                              {item.habitStreak}d
                             </span>
                           )}
                         </div>
                         <span className="block text-[9px] text-slate-450 font-mono mt-0.5 uppercase tracking-wide truncate max-w-[180px]">
-                          {rem.category} • {rem.repeatType}
+                          {item.category} • {item.repeatType}
                         </span>
                       </td>
 
                       {/* Date Checkbox Cells */}
                       {matrixDates.map(dateStr => {
-                        const isScheduled = isReminderScheduledForDate(rem, dateStr);
+                        const isScheduled = item.isScheduled(dateStr);
                         const isToday = dateStr === new Date().toISOString().split('T')[0];
-                        const log = reminderLogs.find(l => l.reminderId === rem.id && l.date === dateStr);
-                        const isCompleted = log?.status === 'Completed';
+                        const isCompleted = item.isCompleted(dateStr);
 
                         if (isScheduled) {
                           totalScheduled++;
@@ -1632,33 +1759,31 @@ export default function Dashboard({
                         }
 
                         return (
-                          <td 
+                          <td
                             key={dateStr}
-                            className={`py-3 px-1 text-center align-middle min-w-[32px] ${
-                              isToday ? 'bg-indigo-500/5' : ''
-                            }`}
+                            className={`py-3 px-1 text-center align-middle min-w-[32px] ${isToday ? 'bg-indigo-500/5' : ''
+                              }`}
                           >
                             {isScheduled ? (
                               <div className="flex items-center justify-center">
                                 <button
                                   type="button"
-                                  disabled={!isToday || !onActionReminder}
+                                  disabled={!isToday}
                                   onClick={() => {
-                                    if (isToday && onActionReminder) {
-                                      onActionReminder(rem.id, isCompleted ? 'Skipped' : 'Completed');
+                                    if (isToday && item.toggleToday) {
+                                      item.toggleToday(isCompleted);
                                     }
                                   }}
-                                  className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
-                                    isCompleted
+                                  className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${isCompleted
                                       ? 'bg-emerald-500 border-emerald-450 text-slate-950 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
                                       : isToday
                                         ? 'bg-slate-900/80 border-indigo-400 hover:border-indigo-300 cursor-pointer shadow-[0_0_4px_rgba(99,102,241,0.15)] hover:scale-105'
                                         : 'bg-slate-950/40 border-slate-700 cursor-not-allowed'
-                                  }`}
+                                    }`}
                                   title={
-                                    isToday 
+                                    isToday
                                       ? `Click to toggle completion for Today (${isCompleted ? 'Mark Incomplete' : 'Mark Completed'})`
-                                      : isCompleted 
+                                      : isCompleted
                                         ? `Completed on ${dateStr}`
                                         : `Scheduled but Incomplete on ${dateStr}`
                                   }
@@ -1692,10 +1817,39 @@ export default function Dashboard({
                   );
                 })}
 
-                {filteredReminders.length === 0 && (
+                {/* Total Hours Summary Row */}
+                <tr className="border-t-2 border-white/10 bg-indigo-500/5 hover:bg-indigo-500/10 transition-colors">
+                  <td className="py-3 pr-4 text-left font-display font-bold text-[11px] text-indigo-300 uppercase tracking-widest flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    Total Study Hours
+                  </td>
+                  {matrixDates.map(dateStr => {
+                    const dayTasks = tasks.filter(t => t.date === dateStr);
+                    const totalTarget = dayTasks.reduce((sum, t) => sum + (t.targetHours || 0), 0);
+                    const totalCompleted = dayTasks.filter(t => t.status === 'Completed').reduce((sum, t) => sum + (t.targetHours || 0), 0);
+
+                    return (
+                      <td key={dateStr} className="py-3 px-1 text-center align-middle">
+                        {totalTarget > 0 ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className={`text-[9px] font-mono font-bold whitespace-nowrap px-1.5 py-0.5 rounded ${totalCompleted >= totalTarget ? 'bg-emerald-500/20 text-emerald-300' : 'bg-indigo-500/20 text-indigo-300'
+                              }`}>
+                              {totalCompleted.toFixed(1)} / {totalTarget.toFixed(1)} hr
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-mono text-slate-600">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="py-3 pl-4 text-center"></td>
+                </tr>
+
+                {combinedMatrixItems.length === 0 && (
                   <tr>
-                    <td 
-                      colSpan={matrixDates.length + 2} 
+                    <td
+                      colSpan={matrixDates.length + 2}
                       className="text-center py-8 text-slate-450 text-xs font-sans"
                     >
                       No active reminders or habits match the selected filter configuration.
@@ -1724,7 +1878,7 @@ export default function Dashboard({
                 <span>Off-Schedule (Not Due)</span>
               </span>
             </div>
-            
+
             <div className="text-center sm:text-right text-slate-400">
               💡 <span className="text-indigo-400 font-bold">Interactive:</span> You can click **Today's** checkboxes directly inside the grid to log daily check-ins!
             </div>
