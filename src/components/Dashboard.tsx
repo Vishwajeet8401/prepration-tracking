@@ -367,7 +367,7 @@ export default function Dashboard({
     );
     let streak = 0;
     const checkDate = new Date();
-    
+
     for (let i = 0; i < 30; i++) {
       const dateStr = checkDate.toISOString().split('T')[0];
       if (uniqueDates.has(dateStr)) {
@@ -456,6 +456,28 @@ export default function Dashboard({
       interviewPerformance: Math.round(interviewPerf)
     };
   }, [topics, interviews]);
+
+  // Generate dynamic data points for the Streak sparkline
+  const streakSparklineData = useMemo(() => {
+    const data = [];
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    for (let i = 0; i < 7; i++) {
+      const dStr = d.toISOString().split('T')[0];
+      const count = sessions.filter(s => s.startTime.startsWith(dStr)).length;
+      data.push(count);
+      d.setDate(d.getDate() + 1);
+    }
+    return data;
+  }, [sessions]);
+
+  // Generate dynamic data points for the ICI sparkline based on recent topics
+  const iciSparklineData = useMemo(() => {
+    if (topics.length === 0) return [0, 0, 0, 0];
+    const recentTopics = [...topics].sort((a: any, b: any) => (b.lastRevised || '').localeCompare(a.lastRevised || '')).slice(0, 10).reverse();
+    return recentTopics.length > 1 ? recentTopics.map((t: any) => t.confidenceScore) : [50, calculationsICI.score];
+  }, [topics, calculationsICI.score]);
+
 
   // 5. Today's priority tasks
   const todayTasks = useMemo(() => {
@@ -660,24 +682,24 @@ export default function Dashboard({
   const renderSparkline = (dataPoints: number[], bgColor: string, strokeColor: string) => {
     let pathD = "M0,30 L100,30 Z";
     let filledPathD = "M0,30 L100,30 Z";
-    
+
     if (dataPoints && dataPoints.length > 0) {
       const max = Math.max(...dataPoints, 1);
       const min = 0;
       const range = max - min;
       const stepX = 100 / Math.max(dataPoints.length - 1, 1);
-      
+
       const points = dataPoints.map((val, i) => {
         const x = i * stepX;
-        const y = 30 - ((val - min) / range) * 25; 
+        const y = 30 - ((val - min) / range) * 25;
         return `${x},${y}`;
       });
-      
+
       if (points.length > 1) {
         let curve = `M${points[0]}`;
         for (let i = 0; i < points.length - 1; i++) {
           const [x1, y1] = points[i].split(',').map(Number);
-          const [x2, y2] = points[i+1].split(',').map(Number);
+          const [x2, y2] = points[i + 1].split(',').map(Number);
           const cx1 = x1 + (x2 - x1) / 2;
           const cy1 = y1;
           const cx2 = x1 + (x2 - x1) / 2;
@@ -896,12 +918,12 @@ export default function Dashboard({
                 <div
                   key={task.id}
                   className={`flex items-center justify-between p-2.5 rounded-xl border transition text-left ${isCompleted
-                      ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500'
-                      : isSkipped
-                        ? 'border-white/5 bg-slate-900/35 text-slate-500'
-                        : isActive
-                          ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-100 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
-                          : 'border-white/5 bg-white/5 text-slate-300'
+                    ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500'
+                    : isSkipped
+                      ? 'border-white/5 bg-slate-900/35 text-slate-500'
+                      : isActive
+                        ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-100 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                        : 'border-white/5 bg-white/5 text-slate-300'
                     }`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden mr-2">
@@ -921,10 +943,10 @@ export default function Dashboard({
                         }
                       }}
                       className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${isCompleted
-                          ? 'bg-emerald-650 border-transparent text-white'
-                          : isSkipped
-                            ? 'border-slate-700 bg-slate-850 text-slate-600'
-                            : 'border-slate-500 hover:border-indigo-405'
+                        ? 'bg-emerald-650 border-transparent text-white'
+                        : isSkipped
+                          ? 'border-slate-700 bg-slate-850 text-slate-600'
+                          : 'border-slate-500 hover:border-indigo-405'
                         }`}
                     >
                       {isCompleted && <Check className="w-3 h-3 stroke-[3]" />}
@@ -947,8 +969,8 @@ export default function Dashboard({
                           }
                         }}
                         className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${isActive && !isPaused
-                            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                            : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                          : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
                           }`}
                       >
                         {isActive && !isPaused ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
@@ -1005,12 +1027,12 @@ export default function Dashboard({
                 <div
                   key={reminder.id}
                   className={`flex items-center justify-between p-2.5 rounded-xl border transition text-left ${isCompleted
-                      ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500'
-                      : isSkipped
-                        ? 'border-white/5 bg-slate-900/35 text-slate-500'
-                        : isSnoozed
-                          ? 'border-amber-500/25 bg-amber-500/5 text-slate-300'
-                          : 'border-white/5 bg-white/5 text-slate-300'
+                    ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500'
+                    : isSkipped
+                      ? 'border-white/5 bg-slate-900/35 text-slate-500'
+                      : isSnoozed
+                        ? 'border-amber-500/25 bg-amber-500/5 text-slate-300'
+                        : 'border-white/5 bg-white/5 text-slate-300'
                     }`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden mr-2">
@@ -1021,10 +1043,10 @@ export default function Dashboard({
                         await onActionReminder(reminder.id, 'Completed');
                       }}
                       className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${isCompleted
-                          ? 'bg-emerald-650 border-transparent text-white'
-                          : isSkipped
-                            ? 'border-slate-700 bg-slate-850 text-slate-600'
-                            : 'border-slate-500 hover:border-indigo-400'
+                        ? 'bg-emerald-650 border-transparent text-white'
+                        : isSkipped
+                          ? 'border-slate-700 bg-slate-850 text-slate-600'
+                          : 'border-slate-500 hover:border-indigo-400'
                         }`}
                     >
                       {isCompleted && <Check className="w-3 h-3 stroke-[3]" />}
@@ -1153,12 +1175,12 @@ export default function Dashboard({
               </span>
             </div>
             <h2 className="text-lg font-bold text-white tracking-tight font-display pr-5">
-              {priorityItems.length > 0 
+              {priorityItems.length > 0
                 ? `Focus: ${priorityItems[0].topic.name} & related concepts`
                 : 'All clear! No critical concepts need revision today.'}
             </h2>
             <p className="text-xs text-slate-450 leading-relaxed max-w-sm">
-              {priorityItems.length > 0 
+              {priorityItems.length > 0
                 ? `Your spacing algorithm selected ${priorityItems.length} high-decay technical concepts for recall testing today. Ensure you evaluate retention gaps.`
                 : 'Your retention metrics look strong. You can review your spacing map or practice new topics.'}
             </p>
@@ -1636,8 +1658,8 @@ export default function Dashboard({
               <button
                 onClick={() => setMatrixView('Weekly')}
                 className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${matrixView === 'Weekly'
-                    ? 'bg-indigo-650 text-white font-bold'
-                    : 'text-slate-450 hover:text-slate-200'
+                  ? 'bg-indigo-650 text-white font-bold'
+                  : 'text-slate-450 hover:text-slate-200'
                   }`}
               >
                 Weekly
@@ -1645,8 +1667,8 @@ export default function Dashboard({
               <button
                 onClick={() => setMatrixView('Monthly')}
                 className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${matrixView === 'Monthly'
-                    ? 'bg-indigo-650 text-white font-bold'
-                    : 'text-slate-450 hover:text-slate-200'
+                  ? 'bg-indigo-650 text-white font-bold'
+                  : 'text-slate-450 hover:text-slate-200'
                   }`}
               >
                 Monthly
@@ -1697,10 +1719,10 @@ export default function Dashboard({
                       <th
                         key={dateStr}
                         className={`py-2 px-1 text-center font-mono text-[9px] font-bold min-w-[32px] ${isToday
-                            ? 'text-indigo-400 ring-1 ring-indigo-500/30 rounded bg-indigo-500/5'
-                            : isWeekend
-                              ? 'text-rose-450'
-                              : 'text-slate-400'
+                          ? 'text-indigo-400 ring-1 ring-indigo-500/30 rounded bg-indigo-500/5'
+                          : isWeekend
+                            ? 'text-rose-450'
+                            : 'text-slate-400'
                           }`}
                       >
                         <span className="block">{dayName}</span>
@@ -1775,10 +1797,10 @@ export default function Dashboard({
                                     }
                                   }}
                                   className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${isCompleted
-                                      ? 'bg-emerald-500 border-emerald-450 text-slate-950 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-                                      : isToday
-                                        ? 'bg-slate-900/80 border-indigo-400 hover:border-indigo-300 cursor-pointer shadow-[0_0_4px_rgba(99,102,241,0.15)] hover:scale-105'
-                                        : 'bg-slate-950/40 border-slate-700 cursor-not-allowed'
+                                    ? 'bg-emerald-500 border-emerald-450 text-slate-950 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                                    : isToday
+                                      ? 'bg-slate-900/80 border-indigo-400 hover:border-indigo-300 cursor-pointer shadow-[0_0_4px_rgba(99,102,241,0.15)] hover:scale-105'
+                                      : 'bg-slate-950/40 border-slate-700 cursor-not-allowed'
                                     }`}
                                   title={
                                     isToday
