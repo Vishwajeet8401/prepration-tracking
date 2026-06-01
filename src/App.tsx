@@ -1325,9 +1325,12 @@ export default function App() {
     const targetRem = personalReminders.find(r => r.id === reminderId);
     if (!targetRem) return;
 
+    // For water intake, we allow multiple logs per day to track multiple glasses
+    const isMultiLogAllowed = targetRem.targetGlasses !== undefined;
+
     // Upsert strategy: reuse today's existing log if it exists to avoid duplicate accumulation
-    const existingLog = reminderLogs.find(l => l.reminderId === reminderId && l.date === todayStr);
-    const logId = existingLog ? existingLog.id : `log-${reminderId}-${todayStr}-${Date.now()}`;
+    const existingLog = !isMultiLogAllowed ? reminderLogs.find(l => l.reminderId === reminderId && l.date === todayStr) : null;
+    const logId = existingLog ? existingLog.id : `log-${reminderId}-${todayStr}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const logRef = doc(db, 'reminderLogs', logId);
 
     let snoozedUntil: string | undefined = undefined;

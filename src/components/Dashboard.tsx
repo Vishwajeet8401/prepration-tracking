@@ -7,7 +7,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus } from '../types';
 import { 
   Zap, Calendar, AlertTriangle, Play, BookOpen, Clock, 
-  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet
+  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -100,10 +100,10 @@ function BentoCard({ children, className = '', reducedMotion = false }: { childr
           : '0 8px 32px 0 rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.08)'
       }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-      style={{ transformStyle: 'preserve-3d', perspective: 1000 }}
+      style={{ WebkitFontSmoothing: 'antialiased', transformStyle: 'flat', perspective: 1000 }}
       className={`glass-card rounded-2xl p-5 relative overflow-hidden ${className}`}
     >
-      <div style={{ transform: 'translateZ(8px)', transformStyle: 'preserve-3d' }}>
+      <div className="relative z-10">
         {children}
       </div>
     </motion.div>
@@ -168,6 +168,33 @@ export default function Dashboard({
 
   // Accessibility tracking prefers-reduced-motion check
   const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Active Task Timer State
+  const [activeTaskTimer, setActiveTaskTimer] = useState<{
+    taskId: string;
+    taskTitle: string;
+    task: DailyTask;
+    startTime: number;
+    elapsed: number;
+    isPaused: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (activeTaskTimer && !activeTaskTimer.isPaused) {
+      interval = setInterval(() => {
+        setActiveTaskTimer(prev => prev ? { ...prev, elapsed: prev.elapsed + 1 } : null);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [activeTaskTimer]);
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
 
   // Habit Matrix State
   const [matrixCategory, setMatrixCategory] = useState<string>('All');
@@ -567,6 +594,39 @@ export default function Dashboard({
     </div>
   );
 
+  // Play a success sound using Web Audio API
+  const playSuccessChime = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      const playOscillator = (freq: number, startTime: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+        
+        gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + startTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + startTime);
+        osc.stop(ctx.currentTime + startTime + duration);
+      };
+
+      // Play a quick uplifting chord arpeggio
+      playOscillator(523.25, 0.0, 0.3); // C5
+      playOscillator(659.25, 0.1, 0.3); // E5
+      playOscillator(783.99, 0.2, 0.3); // G5
+      playOscillator(1046.50, 0.3, 0.8); // C6
+    } catch (e) {
+      console.error("Audio playback failed", e);
+    }
+  };
+
   return (
     <motion.div 
       variants={containerVariants}
@@ -575,6 +635,94 @@ export default function Dashboard({
       className="space-y-6"
     >
       
+      {/* 0. Top Priority Dynamic Island Timer Widget */}
+      {activeTaskTimer && (
+        <motion.div
+          initial={{ opacity: 0, y: -20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.95 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          className="relative overflow-hidden rounded-[2.5rem] p-8 md:p-10 flex flex-col items-center justify-center gap-8 shadow-xl border border-white/5"
+        >
+          {/* Animated Background Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-slate-900/95 to-black/90 backdrop-blur-3xl -z-10" />
+          
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent opacity-50" />
+          <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-30" />
+
+          {/* Row 1: Mission Info & Timer */}
+          <div className="flex flex-col items-center gap-3 w-full">
+            <div className="flex items-center gap-2 bg-white/5 px-4 py-1.5 rounded-full border border-white/5 shadow-inner">
+              <div className={`w-2 h-2 rounded-full ${activeTaskTimer.isPaused ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-red-500 animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.8)]'}`} />
+              <div className="text-[10px] text-slate-300 font-mono font-bold uppercase tracking-widest">{activeTaskTimer.isPaused ? 'Paused' : 'Active Mission'}</div>
+            </div>
+            
+            <div className="flex flex-col items-center mt-2">
+              <div className={`font-mono font-bold tracking-tighter text-center ${activeTaskTimer.isPaused ? 'text-slate-600' : 'text-transparent bg-clip-text bg-gradient-to-b from-white via-indigo-100 to-slate-400 drop-shadow-[0_0_40px_rgba(255,255,255,0.15)]'}`}>
+                {/* Mobile Vertical Timer */}
+                <div className="flex md:hidden flex-col items-center text-[5.5rem] leading-[0.85]">
+                  <div>{formatTime(activeTaskTimer.elapsed).split(':')[0]}</div>
+                  <div>{formatTime(activeTaskTimer.elapsed).split(':')[1]}</div>
+                  <div className="text-4xl text-indigo-300/60 mt-2 bg-clip-text">{formatTime(activeTaskTimer.elapsed).split(':')[2]}</div>
+                </div>
+                {/* Desktop Horizontal Timer */}
+                <div className="hidden md:block text-[7.5rem] leading-none">
+                  {formatTime(activeTaskTimer.elapsed)}
+                </div>
+              </div>
+              <div className="font-display text-base md:text-xl font-medium text-indigo-200/70 mt-4 max-w-[280px] md:max-w-xl text-center truncate px-2">
+                {activeTaskTimer.taskTitle}
+              </div>
+            </div>
+          </div>
+          
+          {/* Row 2: Premium Dock Controls */}
+          <div className="flex flex-wrap items-center justify-center gap-2 bg-white/5 backdrop-blur-xl p-2 rounded-3xl border border-white/10 shadow-2xl">
+            <button 
+              onClick={() => {
+                setActiveTaskTimer(prev => prev ? { ...prev, isPaused: !prev.isPaused } : null);
+              }}
+              title={activeTaskTimer.isPaused ? "Resume" : "Pause"}
+              className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              {activeTaskTimer.isPaused ? <Play className="w-5 h-5 text-indigo-300 ml-0.5" /> : <Pause className="w-5 h-5 text-amber-300" />}
+            </button>
+            
+            <button 
+              onClick={() => setActiveTaskTimer(null)}
+              title="Stop & Discard"
+              className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group"
+            >
+              <Square className="w-4 h-4 text-rose-300 group-hover:text-rose-400" />
+            </button>
+            
+            <div className="w-px h-8 bg-white/10 mx-2" />
+            
+            <button 
+              onClick={async () => {
+                try {
+                  const elapsedHours = Number((activeTaskTimer.elapsed / 3600).toFixed(2));
+                  await onUpdateTask({
+                    ...activeTaskTimer.task,
+                    status: 'Completed',
+                    completedAt: new Date().toISOString()
+                  }, elapsedHours > 0 ? elapsedHours : activeTaskTimer.task.targetHours, `Completed via timer. Time spent: ${formatTime(activeTaskTimer.elapsed)}`);
+                  
+                  playSuccessChime();
+                  setActiveTaskTimer(null);
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="px-6 h-12 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900 font-bold text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center gap-2"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span>Complete Mission</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* 1. Header with custom premium font pairing */}
       <motion.div 
         variants={itemVariants} 
@@ -611,6 +759,8 @@ export default function Dashboard({
             {todayTasks.map(task => {
               const isCompleted = task.status === 'Completed';
               const isSkipped = task.status === 'Skipped';
+              const isActive = activeTaskTimer?.taskId === task.id;
+              const isPaused = isActive && activeTaskTimer?.isPaused;
 
               return (
                 <div 
@@ -620,6 +770,8 @@ export default function Dashboard({
                       ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500' 
                       : isSkipped
                       ? 'border-white/5 bg-slate-900/35 text-slate-500'
+                      : isActive
+                      ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-100 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
                       : 'border-white/5 bg-white/5 text-slate-300'
                   }`}
                 >
@@ -634,6 +786,7 @@ export default function Dashboard({
                             status: 'Completed',
                             completedAt: new Date().toISOString()
                           }, task.targetHours, 'Completed directly from premium Dashboard controller.');
+                          if (isActive) setActiveTaskTimer(null);
                         } catch (err) {
                           console.error(err);
                         }
@@ -648,6 +801,33 @@ export default function Dashboard({
                     >
                       {isCompleted && <Check className="w-3 h-3 stroke-[3]" />}
                     </button>
+                    
+                    {!isCompleted && !isSkipped && (
+                      <button
+                        onClick={() => {
+                          if (isActive) {
+                            setActiveTaskTimer(prev => prev ? { ...prev, isPaused: !prev.isPaused } : null);
+                          } else {
+                            setActiveTaskTimer({
+                              taskId: task.id,
+                              taskTitle: task.title,
+                              task: task,
+                              startTime: Date.now(),
+                              elapsed: 0,
+                              isPaused: false
+                            });
+                          }
+                        }}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
+                          isActive && !isPaused 
+                            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' 
+                            : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+                        }`}
+                      >
+                        {isActive && !isPaused ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
+                      </button>
+                    )}
+
                     <span className={`truncate font-semibold text-xs ${isCompleted ? 'line-through text-slate-500' : ''}`}>
                       {task.title}
                     </span>
