@@ -25,71 +25,102 @@ const TEMPLATES = {
   Topics: {
     format: 'JSON / CSV / Excel',
     requiredFields: ['name', 'category'],
-    optionalFields: ['description', 'status', 'confidenceScore', 'recallScore', 'notes'],
+    optionalFields: ['subjectId', 'description', 'status', 'confidenceScore', 'recallScore', 'notes', 'dependencyIds'],
     example: [
       {
         name: "Spring Boot Microservices",
         category: "Backend Development",
+        subjectId: "", // Optional: paste the Subject ID from Topic Management > Subjects
         description: "Focus on cloud-native configurations, Eureka server registry, gateways, and load balancing mechanics.",
         status: "Learning",
         confidenceScore: 55,
         recallScore: 40,
-        notes: "Key review area: circuit breakers and resilience4j fallbacks."
+        notes: "Key review area: circuit breakers and resilience4j fallbacks.",
+        dependencyIds: [] // Optional: array of Topic IDs this depends on
       },
       {
         name: "Java Advanced Concurrency",
         category: "Core Java",
+        subjectId: "",
         description: "Deep dive into virtual threads (Java 21), CompletableFuture pipelines, and ForkJoinPool architectures.",
         status: "Practicing",
         confidenceScore: 70,
         recallScore: 65,
-        notes: "Study synchronized blocks vs. ReentrantLock performance characteristics."
+        notes: "Study synchronized blocks vs. ReentrantLock performance characteristics.",
+        dependencyIds: []
       }
     ],
-    prompt: `Generate 15 high-frequency enterprise Java Backend topics using this exact JSON structure:
+    prompt: `You are an expert software engineer helping a developer prepare for senior Java/backend engineering interviews at top tech companies.
+
+Generate a JSON array of 20 high-frequency, must-know study topics covering areas like Core Java, Spring Boot, System Design, DSA, Databases, Cloud, and Microservices.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "name" must be specific, not vague (e.g., "G1 Garbage Collector Internals" not "GC")
+- "category" must be one of: Core Java, Spring Boot, System Design, DSA, Databases, Microservices, Cloud & DevOps, Security, Testing, Concurrency
+- "status" must be exactly one of: Not Started | Learning | Practicing | Revising | Interview Ready | Mastered
+- "confidenceScore" and "recallScore" must be realistic integers between 0–100
+- "description" must be 2–3 sentences explaining the key concepts and why they matter in interviews
+- "notes" must contain a concrete tip or a specific subtopic to focus on
+- Leave "subjectId" as "" and "dependencyIds" as []
+
 [
   {
     "name": "Topic Name",
-    "category": "Topic Category (e.g. Core Java, System Design, DSA)",
-    "description": "Short explanatory brief",
-    "status": "Not Started | Learning | Practicing | Revising | Interview Ready | Mastered",
-    "confidenceScore": 50,
-    "recallScore": 30,
-    "notes": "Study reminders or deep architectural takeaways"
+    "category": "Core Java",
+    "subjectId": "",
+    "description": "2-3 sentence explanation of core concepts and interview relevance.",
+    "status": "Not Started",
+    "confidenceScore": 30,
+    "recallScore": 20,
+    "notes": "Specific subtopic or tip to focus on during revision.",
+    "dependencyIds": []
   }
 ]`
   },
   Questions: {
     format: 'JSON / CSV / Excel',
     requiredFields: ['question', 'answer'],
-    optionalFields: ['difficulty', 'tags', 'source', 'topicName'],
+    optionalFields: ['difficulty', 'tags', 'source', 'topicId'],
     example: [
       {
         question: "How does Garbage Collection handle memory recovery in G1 GC?",
         answer: "G1 GC divides the heap into equal-sized regions. It targets regions with the most garbage first ('Garbage-First') using parallel threads to compact memory and meet latency-bound targets.",
         difficulty: "Hard",
-        tags: "java,garbage-collection,jvm",
+        tags: ["java", "garbage-collection", "jvm"],
         source: "Interview",
-        topicName: "Java Memory Model"
+        topicId: "" // Optional: paste the Topic ID from Topic Management
       },
       {
         question: "Explain the difference between optimistic and pessimistic locking.",
         answer: "Optimistic locking assumes conflicts are rare and uses version numbers (CAS) upon commit. Pessimistic locking locks the database rows immediately via 'SELECT FOR UPDATE' to block other writers.",
         difficulty: "Medium",
-        tags: "databases,locking,concurrency",
+        tags: ["databases", "locking", "concurrency"],
         source: "Personal Notes",
-        topicName: "Advanced Concurrency"
+        topicId: ""
       }
     ],
-    prompt: `Act as a principal software engineer. Generate 20 system design and concurrency questions with complete high-quality answers using this JSON structure:
+    prompt: `You are a principal software engineer and technical interviewer at a FAANG-level company.
+
+Generate a JSON array of 25 interview-grade technical flashcard questions with complete, authoritative answers. Cover topics like Java internals, concurrency, system design, Spring Boot, databases, REST APIs, and DSA.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "question" must be specific and exactly as an interviewer would ask it — not vague
+- "answer" must be complete, technically accurate, and at least 3–5 sentences. Include examples or analogies where relevant.
+- "difficulty" must be exactly one of: Easy | Medium | Hard
+- "tags" must be a JSON ARRAY of lowercase strings (e.g., ["java", "jvm", "memory"]) — NOT a comma-separated string
+- "source" must be exactly one of: Interview | Course | Book | Internet | Personal Notes
+- Leave "topicId" as "" — it will be linked manually after import
+
 [
   {
-    "question": "Clear and detailed technical question text",
-    "answer": "Thorough, professional, correct answer explanation",
-    "difficulty": "Easy | Medium | Hard",
-    "tags": "comma-separated-tags",
-    "source": "Interview | Course | Book | Internet | Personal Notes",
-    "topicName": "Name of an associated main study topic (e.g. Concurrency)"
+    "question": "Specific technical question as an interviewer would ask",
+    "answer": "Complete, accurate, multi-sentence answer with details and examples.",
+    "difficulty": "Medium",
+    "tags": ["tag1", "tag2", "tag3"],
+    "source": "Interview",
+    "topicId": ""
   }
 ]`
   },
@@ -117,16 +148,29 @@ const TEMPLATES = {
         dateAsked: "2026-05-20"
       }
     ],
-    prompt: `Generate 15 interview intelligence questions asked by major tech firms like Google, Amazon, or Meta using this JSON template:
+    prompt: `You are simulating a technical interview debrief database for a senior backend engineer preparing for top-tier companies.
+
+Generate a JSON array of 20 realistic interview intelligence questions asked by companies like Google, Amazon, Meta, Microsoft, Apple, Netflix, or Flipkart. These should reflect actual, real-world interview rounds (DSA, System Design, Behavioral, Core CS).
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "company" must be a real tech company name
+- "question" must sound exactly like it was asked in a real interview round — specific and concrete
+- "answer" must be a complete, expert-level answer a strong candidate would give (minimum 4 sentences)
+- "difficulty" must be exactly one of: Easy | Medium | Hard
+- "topic" must be one of: System Design | DSA | Core Java | Databases | Concurrency | Behavioral | Spring Boot | OS & Networking | Cloud
+- "result" must be exactly one of: Answered Correctly | Struggled | Failed
+- "dateAsked" must be a real-looking date in YYYY-MM-DD format
+
 [
   {
-    "company": "Company Name",
-    "question": "Specific question asked during active rounds",
-    "answer": "Pristine technical explanation resolving the prompt",
-    "difficulty": "Easy | Medium | Hard",
-    "topic": "Related high-level domain (e.g. Databases, System Design)",
-    "result": "Answered Correctly | Struggled | Failed",
-    "dateAsked": "YYYY-MM-DD"
+    "company": "Google",
+    "question": "Exact question asked in the interview",
+    "answer": "Expert-level, complete answer a strong candidate would give.",
+    "difficulty": "Hard",
+    "topic": "System Design",
+    "result": "Struggled",
+    "dateAsked": "2026-05-15"
   }
 ]`
   },
@@ -142,12 +186,22 @@ const TEMPLATES = {
         date: "2026-05-12"
       }
     ],
-    prompt: `Generate a detailed set of candidate mistake templates documenting technical and conceptual gaps using this JSON outline:
+    prompt: `You are helping a backend engineer create a mistake journal to track conceptual gaps revealed during mock or real interviews.
+
+Generate a JSON array of 10 realistic interview failure post-mortems documenting what went wrong, why, and which specific questions were missed.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "companyName" must be a real or realistic company name (e.g., Swiggy, Google, Infosys, Zepto)
+- "reason" must be a 3–4 sentence honest post-mortem: what concept was missed, what you said wrong, and what you should have said instead
+- "missedQuestions" must be a comma-separated string of the actual questions that were asked and not answered well
+- "date" must be in YYYY-MM-DD format
+
 [
   {
     "companyName": "Company Name",
-    "reason": "Clear narrative post-mortem explaining what concept was missed and why details were skipped",
-    "missedQuestions": "Question One Missed,Question Two Missed (comma separated list)",
+    "reason": "3-4 sentence honest post-mortem of what went wrong and what you should have known.",
+    "missedQuestions": "Question one that was missed,Question two that was missed",
     "date": "YYYY-MM-DD"
   }
 ]`
@@ -170,19 +224,30 @@ const TEMPLATES = {
         targetHours: 3.0,
         category: "Technical",
         startDate: "2026-06-05",
-        endDate: "2526-07-05",
+        endDate: "2026-07-05",
         repeatType: "Weekly"
       }
     ],
-    prompt: `Generate 5 structured activity study schedules matching this structural schema:
+    prompt: `You are a structured study coach helping a backend developer create a 30-day interview preparation activity plan.
+
+Generate a JSON array of 10 realistic, balanced study activity plans covering DSA, system design, core Java, Spring Boot revision, mock interviews, and health habits.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "title" must be specific and actionable (e.g., "LeetCode Graph Problems — BFS/DFS", NOT just "Coding Practice")
+- "targetHours" must be a realistic decimal number (e.g., 1.5, 2.0, 0.5)
+- "category" must be EXACTLY one of: Technical | Communication | Interview Preparation | DSA | Reading | Writing | Speaking | Listening | Fitness | Custom
+- "startDate" and "endDate" must be real future dates in YYYY-MM-DD format
+- "repeatType" must be exactly one of: Daily | Weekly | Custom
+
 [
   {
-    "title": "Title of the habit or plan",
-    "targetHours": 2.5,
-    "category": "Technical | Communication | Interview Preparation | DSA | Reading | Writing | Speaking | Listening | Custom",
-    "startDate": "YYYY-MM-DD",
-    "endDate": "YYYY-MM-DD",
-    "repeatType": "Daily | Weekly | Custom"
+    "title": "Specific, actionable activity title",
+    "targetHours": 1.5,
+    "category": "DSA",
+    "startDate": "2026-06-01",
+    "endDate": "2026-06-30",
+    "repeatType": "Daily"
   }
 ]`
   },
@@ -201,14 +266,28 @@ const TEMPLATES = {
         ]
       }
     ],
-    prompt: `Generate a hierarchical roadmap with logical dependency chains using this nested JSON schema:
+    prompt: `You are a senior software architect creating a structured, dependency-ordered learning roadmap for a backend developer preparing for FAANG-level interviews.
+
+Generate a JSON array containing 1 complete, detailed learning roadmap with at least 12 logically ordered topics that build on each other — like a proper course curriculum.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "title" must describe the full track (e.g., "Complete System Design Mastery Roadmap")
+- "description" must be 2–3 sentences explaining the goal and target audience of the roadmap
+- "topics" must be an ordered array of topic nodes where each topic has:
+  - "name": a specific topic title (not generic)
+  - "completed": always false for new imports
+  - "dependencies": an array of other topic "name" values that must be completed FIRST (empty array for the first topic only)
+- Dependencies must be logically correct — earlier topics must appear before topics that depend on them
+
 [
   {
-    "title": "Roadmap Track Title",
-    "description": "General description outline",
+    "title": "Full Roadmap Title",
+    "description": "2-3 sentence description of scope and goal.",
     "topics": [
-      { "name": "Topic Name A", "completed": false, "dependencies": [] },
-      { "name": "Topic Name B", "completed": false, "dependencies": ["Topic Name A"] }
+      { "name": "Foundation Topic", "completed": false, "dependencies": [] },
+      { "name": "Intermediate Topic", "completed": false, "dependencies": ["Foundation Topic"] },
+      { "name": "Advanced Topic", "completed": false, "dependencies": ["Intermediate Topic"] }
     ]
   }
 ]`
@@ -226,14 +305,25 @@ const TEMPLATES = {
         createdAt: "2026-05-29T10:15:00Z"
       }
     ],
-    prompt: `Generate reflective coding journal entries reflecting technical progress during studies in this exact format:
+    prompt: `You are a developer journaling their software engineering interview preparation journey.
+
+Generate a JSON array of 8 realistic, personal, and emotionally authentic study journal entries reflecting daily learning sessions, interview experiences, and weekly progress reviews.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "title" must be descriptive and personal (e.g., "Why I Struggled With CompletableFuture Today", NOT "Day 5")
+- "content" must be a genuine, first-person reflection of at least 4–5 sentences. Mention specific concepts studied, what was understood, what gaps remain, and emotional context.
+- "type" must be EXACTLY one of: Daily Reflection | Interview Reflection | Learning Journal | Weekly Review Journal
+- "tags" must be a comma-separated lowercase string (e.g., "java,concurrency,interview-prep")
+- "createdAt" must be a valid ISO 8601 timestamp (e.g., "2026-06-01T09:00:00Z")
+
 [
   {
-    "title": "Topic Reflection Title",
-    "content": "Deep personal description detailing exactly what you understood and where gaps remain.",
-    "type": "Daily Reflection | Interview Reflection | Learning Journal | Weekly Review Journal",
-    "tags": "tags-delimited-with-commas",
-    "createdAt": "ISO-string-timestamp"
+    "title": "Descriptive, personal journal title",
+    "content": "4-5 sentence first-person reflection with specific concepts, insights, and emotional context.",
+    "type": "Learning Journal",
+    "tags": "topic1,topic2,topic3",
+    "createdAt": "2026-06-01T09:00:00Z"
   }
 ]`
   }
