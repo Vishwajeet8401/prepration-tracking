@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Topic, StudySession, ActivityPlan, DailyTask } from '../types';
+import { Topic, StudySession, ActivityPlan, DailyTask, Subject } from '../types';
+import { GlobalStats } from '../hooks/useGlobalStats';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
@@ -15,18 +16,22 @@ import {
 
 interface AnalyticsProps {
   sessions: StudySession[];
+  subjects: Subject[];
   topics: Topic[];
   onAddSession: (session: Omit<StudySession, 'id'>) => void;
   plans: ActivityPlan[];
   tasks: DailyTask[];
+  globalStats?: GlobalStats;
 }
 
 export default function Analytics({
   sessions,
+  subjects,
   topics,
   onAddSession,
   plans,
-  tasks
+  tasks,
+  globalStats
 }: AnalyticsProps) {
 
   // Active sub tab: 'charts' | 'timer-tracker'
@@ -39,6 +44,8 @@ export default function Analytics({
   const [timerTopicId, setTimerTopicId] = useState(topics[0]?.id || '');
   const [timerNotes, setTimerNotes] = useState('');
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
+  const [timerStartTimeMs, setTimerStartTimeMs] = useState<number>(0);
+  const [timerAccumulatedMs, setTimerAccumulatedMs] = useState<number>(0);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -54,24 +61,35 @@ export default function Analytics({
     setTimerActive(true);
     setTimerPaused(false);
     setSessionStartTime(new Date().toISOString());
+    const now = Date.now();
+    setTimerStartTimeMs(now);
+    setTimerAccumulatedMs(0);
+    setTimerSeconds(0);
+    
+    if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setTimerSeconds(sec => sec + 1);
-    }, 1000);
+      setTimerSeconds(Math.floor((Date.now() - now) / 1000));
+    }, 500);
   };
 
   // PAUSE RESUME
   const togglePause = () => {
     if (timerPaused) {
       setTimerPaused(false);
+      const now = Date.now();
+      setTimerStartTimeMs(now);
+      
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        setTimerSeconds(sec => sec + 1);
-      }, 1000);
+        setTimerSeconds(Math.floor((timerAccumulatedMs + Date.now() - now) / 1000));
+      }, 500);
     } else {
       setTimerPaused(true);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      setTimerAccumulatedMs(prev => prev + (Date.now() - timerStartTimeMs));
     }
   };
 
@@ -99,6 +117,8 @@ export default function Analytics({
     setTimerActive(false);
     setTimerPaused(false);
     setTimerSeconds(0);
+    setTimerAccumulatedMs(0);
+    setTimerStartTimeMs(0);
     setTimerNotes('');
     setSessionStartTime(null);
 
@@ -107,23 +127,31 @@ export default function Analytics({
 
   // ANALYTIC TOTALS E.G. WEEKLY AND DAILY SUMS
   const statsSummary = useMemo(() => {
-    const totalDuration = sessions.reduce((sum, s) => sum + s.duration, 0);
+    // Use globalStats if available for total duration, else fallback to locally loaded sessions
+    const totalStudyTimeSeconds = globalStats 
+      ? globalStats.totalStudyTimeSeconds 
+      : sessions.reduce((sum, s) => sum + (s.duration * 60), 0);
+    const totalDuration = Math.round(totalStudyTimeSeconds / 60);
     const avgDuration = sessions.length > 0 ? Math.round(totalDuration / sessions.length) : 0;
     
-    // Study time per topic map
-    const topicMap: Record<string, number> = {};
+    // Study time per subject map
+    const subjectMap: Record<string, number> = {};
     sessions.forEach(s => {
       const topic = topics.find(t => t.id === s.topicId);
-      const name = topic ? topic.name : 'Unknown';
-      topicMap[name] = (topicMap[name] || 0) + s.duration;
+      let subjectName = 'Uncategorized';
+      if (topic && topic.subjectId) {
+        const subject = subjects.find(sub => sub.id === topic.subjectId);
+        if (subject) subjectName = subject.name;
+      }
+      subjectMap[subjectName] = (subjectMap[subjectName] || 0) + s.duration;
     });
 
     return {
       totalDuration,
       avgDuration,
-      topicMap
+      subjectMap
     };
-  }, [sessions, topics]);
+  }, [sessions, topics, subjects]);
 
   // Current month active plans consistency calculation
   const monthlyConsistencyData = useMemo(() => {
@@ -551,14 +579,14 @@ export default function Analytics({
             </div>
           </div>
 
-          {/* Allocation by Topic study time map */}
+          {/* Allocation by Subject study time map */}
           <div className="glass-card p-5 space-y-4">
             <h4 className="font-extrabold text-sm text-white pb-2 border-b border-white/10 uppercase tracking-wide text-xs">
-              Study Time Allocation by Subject Topic (Minutes)
+              Study Time Allocation by Subject Focus (Minutes)
             </h4>
 
             <div className="space-y-3">
-              {Object.entries(statsSummary.topicMap).map(([name, mins]) => {
+              {Object.entries(statsSummary.subjectMap).map(([name, mins]) => {
                 const minsVal = mins as number;
                 const percentage = statsSummary.totalDuration > 0
                   ? Math.min(100, Math.round((minsVal / statsSummary.totalDuration) * 100))
@@ -578,7 +606,7 @@ export default function Analytics({
                 );
               })}
 
-              {Object.keys(statsSummary.topicMap).length === 0 && (
+              {Object.keys(statsSummary.subjectMap).length === 0 && (
                 <div className="text-center py-6 text-slate-450">
                   No allocation metrics. Try logging a study session using the study stopwatch tracker!
                 </div>

@@ -44,6 +44,16 @@ service cloud.firestore {
         && data.updatedAt is string && data.updatedAt.size() <= 60;
     }
 
+    function isValidSubject(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'description', 'color', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 200
+        && data.description is string && data.description.size() <= 2000
+        && data.color is string && data.color.size() <= 50
+        && data.createdAt is string && data.createdAt.size() <= 60;
+    }
+
     function isValidTopic(data) {
       return data.keys().hasAll(['id', 'userId', 'name', 'category', 'description', 'status', 'confidenceScore', 'recallScore', 'revisionCount', 'forgotCount', 'notes', 'dependencyIds'])
         && data.id is string && data.id.size() <= 128
@@ -270,6 +280,14 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isVerifiedUser() && isOwner(userId);
       allow write: if isVerifiedUser() && isOwner(userId) && isValidUser(incoming());
+    }
+
+    match /subjects/{subjectId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(subjectId) && isValidSubject(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidSubject(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
     }
 
     match /topics/{topicId} {

@@ -3,11 +3,29 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, InterviewIntelligenceQuestion } from './types';
+import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, InterviewIntelligenceQuestion, Subject } from './types';
+
+export const initialSubjects: Subject[] = [
+  {
+    id: 'subj-backend',
+    name: 'Backend Engineering',
+    description: 'Server-side programming, frameworks, and architecture.',
+    color: 'bg-emerald-500',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'subj-system-design',
+    name: 'System Design',
+    description: 'Scalability, distributed systems, and architectural patterns.',
+    color: 'bg-indigo-500',
+    createdAt: new Date().toISOString()
+  }
+];
 
 export const initialTopics: Topic[] = [
   {
     id: 'java-core',
+    subjectId: 'subj-backend',
     name: 'Java Core',
     category: 'Java Core',
     description: 'OOP Principles, JVM Architecture, Memory Management, and Basic Garbage Collection constructs.',
@@ -26,6 +44,7 @@ export const initialTopics: Topic[] = [
   },
   {
     id: 'collections',
+    subjectId: 'subj-backend',
     name: 'Collections Framework',
     category: 'Collections',
     description: 'List, Set, Map interfaces, custom hashing, Concurrent HashMap, Fail-Fast vs Fail-Safe iterators.',
@@ -44,6 +63,7 @@ export const initialTopics: Topic[] = [
   },
   {
     id: 'streams',
+    subjectId: 'subj-backend',
     name: 'Java 8 Streams & Lambdas',
     category: 'Java 8',
     description: 'Functional interfaces, Streams API, lazy evaluation, intermediate vs terminal operations, custom collectors.',
@@ -62,6 +82,7 @@ export const initialTopics: Topic[] = [
   },
   {
     id: 'completable-future',
+    subjectId: 'subj-backend',
     name: 'CompletableFuture & Multithreading',
     category: 'Multithreading',
     description: 'Asynchronous task orchestration, Executing, ThreadPools, task callbacks, and CompletableFuture combinations.',
@@ -82,6 +103,7 @@ export const initialTopics: Topic[] = [
   },
   {
     id: 'spring-boot',
+    subjectId: 'subj-backend',
     name: 'Spring Boot Architecture',
     category: 'Spring Boot',
     description: 'Bean lifecycles, Autowiring, Dependency Injection, Inversion of Control, Profiles, Actuator metrics.',
@@ -100,6 +122,7 @@ export const initialTopics: Topic[] = [
   },
   {
     id: 'spring-data',
+    subjectId: 'subj-backend',
     name: 'Spring Data JPA & Hibernate',
     category: 'Hibernate',
     description: 'Entity mappings, persistence context, lazy loading issues, N+1 query problem, dirty checking.',
@@ -118,6 +141,7 @@ export const initialTopics: Topic[] = [
   },
   {
     id: 'system-design',
+    subjectId: 'subj-system-design',
     name: 'System Design: Scalability & Caching',
     category: 'System Design',
     description: 'Load balancing, CDN, vertical vs horizontal scaling, Redis caching strategies, database replication.',

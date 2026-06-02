@@ -9,7 +9,7 @@ import {
   Bell, Check, Trash2, Calendar, AlertTriangle, Book, Clock, Star, Info,
   Settings, Award, Flame, Brain, Shield, Coffee, ChevronRight, CheckCircle2,
   X, Moon, CalendarDays, Compass, Activity, Play, Zap, ArrowRight, Sparkles, Sliders,
-  HelpCircle, LineChart, PieChart, TrendingUp, RefreshCw, BarChart2, Radio, Volume2, VolumeX
+  HelpCircle, LineChart, PieChart, TrendingUp, RefreshCw, BarChart2, Radio, Volume2, VolumeX, ShieldAlert
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 

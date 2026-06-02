@@ -829,6 +829,41 @@ export default function PersonalReminders({
                 </div>
               </div>
 
+              {/* Today's reminder schedule */}
+              {waterReminder && waterReminder.repeatType === 'Interval Based' && waterReminder.intervalHours && (
+                <div className="bg-[#111827]/40 p-3 rounded-xl border border-sky-500/10">
+                  <span className="block text-[8px] text-sky-400 uppercase font-semibold mb-2">
+                    Today's Schedule (every {waterReminder.intervalHours}h)
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(() => {
+                      const [sh, sm] = waterReminder.reminderTime.split(':').map(Number);
+                      const startMin = sh * 60 + sm;
+                      const intervalMin = waterReminder.intervalHours * 60;
+                      const slots: { label: string; done: boolean }[] = [];
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      const completedLogs = logs.filter(l => l.reminderId === waterReminder.id && l.date === todayStr && l.status === 'Completed');
+                      for (let m = startMin; m < 24 * 60; m += intervalMin) {
+                        const h = Math.floor(m / 60);
+                        const min = m % 60;
+                        slots.push({
+                          label: `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`,
+                          done: false
+                        });
+                      }
+                      // Mark slots as done based on glass log times (chronologically)
+                      const glassLogsSorted = [...completedLogs].sort((a,b) => (a.completedAt||'').localeCompare(b.completedAt||''));
+                      glassLogsSorted.forEach((_, i) => { if (i < slots.length) slots[i].done = true; });
+                      return slots.map((slot, i) => (
+                        <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 ${slot.done ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30' : 'bg-white/5 text-slate-500 border border-white/5'}`}>
+                          {slot.done ? '✓' : '○'} {slot.label}
+                        </span>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
               <div className="bg-[#111827]/40 p-3 rounded-xl border border-white/5">
                 <span className="block text-[8px] text-slate-450 uppercase font-semibold mb-1">Water Intakes logged today</span>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">

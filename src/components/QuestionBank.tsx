@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, forwardRef } from 'react';
+import { VirtuosoGrid } from 'react-virtuoso';
 import { Question, Topic, VoiceRecording } from '../types';
 import { createLocalObjectUrl, parseLocalFileRef } from '../localFileStore';
 import { 
@@ -21,7 +22,13 @@ interface QuestionBankProps {
   onRecallResponse: (questionId: string, topicId: string, response: 'Remembered' | 'Partially' | 'Forgot') => void;
   onAddVoiceRecording: (recording: Omit<VoiceRecording, 'id'>) => void;
   onDeleteVoiceRecording: (id: string) => void;
+  onLoadMore?: () => void;
 }
+
+const GridContainer = forwardRef<HTMLDivElement, any>((props, ref) => (
+  <div {...props} ref={ref} className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2" />
+));
+GridContainer.displayName = 'GridContainer';
 
 export default function QuestionBank({
   questions,
@@ -32,7 +39,8 @@ export default function QuestionBank({
   onDeleteQuestion,
   onRecallResponse,
   onAddVoiceRecording,
-  onDeleteVoiceRecording
+  onDeleteVoiceRecording,
+  onLoadMore
 }: QuestionBankProps) {
 
   // Nested navigation: 'bank' | 'practice' | 'voice'
@@ -472,12 +480,20 @@ export default function QuestionBank({
           )}
 
           {/* Question Cards Stack */}
-          {!isEditing && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-              {filteredQuestions.map(q => {
+          {!isEditing && filteredQuestions.length > 0 && (
+            <VirtuosoGrid
+              useWindowScroll
+              data={filteredQuestions}
+              components={{
+                List: GridContainer
+              }}
+              endReached={() => {
+                if (questions.length >= 50 && onLoadMore) onLoadMore();
+              }}
+              itemContent={(index, q) => {
                 const topicObj = topics.find(t => t.id === q.topicId);
                 return (
-                  <div key={q.id} className="glass-card p-5 flex flex-col justify-between relative overflow-hidden">
+                  <div key={q.id} className="glass-card p-5 flex flex-col justify-between relative overflow-hidden h-full">
                     <div>
                       {/* Top flags */}
                       <div className="flex items-center justify-between gap-1 mb-2.5">
@@ -489,8 +505,8 @@ export default function QuestionBank({
                           {q.difficulty}
                         </span>
 
-                        <span className="text-[10px] text-slate-400 font-sans">
-                          Source: <strong className="text-slate-200">{q.source}</strong>
+                        <span className="text-[10px] text-slate-400 font-sans truncate max-w-[120px] text-right">
+                          <strong className="text-slate-200 bg-white/5 px-2 py-0.5 rounded-md">{q.source}</strong>
                         </span>
                       </div>
 
@@ -500,10 +516,14 @@ export default function QuestionBank({
                       </h4>
 
                       {/* Inline key metrics / dates (Last Asked Tracker!) */}
-                      <div id="last_asked_tracker" className="border-t border-dashed border-white/10 pt-2.5 my-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-slate-400">
+                      <div className="border-t border-dashed border-white/10 pt-2.5 my-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-slate-400">
                         <div>
                           <span className="block text-slate-450 uppercase text-[9px]">Asked Count</span>
-                          <span className="font-bold text-slate-205">{q.askedCount} times</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <button onClick={() => onUpdateQuestion({...q, askedCount: Math.max(0, q.askedCount - 1)})} className="w-4 h-4 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer">-</button>
+                            <span className="font-bold text-slate-205">{q.askedCount}</span>
+                            <button onClick={() => onUpdateQuestion({...q, askedCount: q.askedCount + 1, lastAskedDate: new Date().toISOString()})} className="w-4 h-4 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer">+</button>
+                          </div>
                         </div>
                         <div>
                           <span className="block text-slate-450 uppercase text-[9px]">Last Asked</span>
@@ -556,15 +576,15 @@ export default function QuestionBank({
                     </div>
                   </div>
                 );
-              })}
+              }}
+            />
+          )}
 
-              {filteredQuestions.length === 0 && (
-                <div className="col-span-1 md:col-span-2 text-center py-12 glass-card">
-                  <HelpCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                  <p className="text-slate-300 text-sm font-semibold">Clear of matched questions</p>
-                  <p className="text-slate-400 text-xs text-center mx-auto max-w-sm">Re-select filter bounds or register a new card using the top actions.</p>
-                </div>
-              )}
+          {!isEditing && filteredQuestions.length === 0 && (
+            <div className="text-center py-12 glass-card">
+              <HelpCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+              <p className="text-slate-300 text-sm font-semibold">Clear of matched questions</p>
+              <p className="text-slate-400 text-xs text-center mx-auto max-w-sm">Re-select filter bounds or register a new card using the top actions.</p>
             </div>
           )}
         </div>

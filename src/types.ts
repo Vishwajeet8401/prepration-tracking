@@ -28,9 +28,19 @@ export type JobApplicationStatus =
   | 'Offer Received'
   | 'Joined';
 
+export interface Subject {
+  id: string;
+  userId?: string;
+  name: string;
+  description: string;
+  color: string;
+  createdAt: string;
+}
+
 export interface Topic {
   id: string;
   userId?: string;
+  subjectId?: string; // Links this topic to a specific Subject
   name: string;
   category: string;
   description: string;
@@ -220,6 +230,7 @@ export interface MockInterview {
   userId: string;
   roundType: 'Technical' | 'HR' | 'System Design' | 'Behavioral';
   difficulty: 'Easy' | 'Medium' | 'Hard';
+  subjectId?: string;
   topicsCovered: string[];
   answeredCount: number;
   totalQuestions: number;

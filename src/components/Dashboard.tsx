@@ -5,6 +5,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus } from '../types';
+import { GlobalStats } from '../hooks/useGlobalStats';
 import {
   Zap, Calendar, AlertTriangle, Play, BookOpen, Clock,
   TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square, ListTodo
@@ -28,6 +29,8 @@ interface DashboardProps {
   personalReminders?: PersonalReminder[];
   reminderLogs?: ReminderLog[];
   onActionReminder?: (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => Promise<void>;
+  globalStats?: GlobalStats;
+  urgentTopics?: Topic[];
 }
 
 // 1. Premium Animated Counter
@@ -163,31 +166,46 @@ export default function Dashboard({
   roadmaps = [],
   personalReminders = [],
   reminderLogs = [],
-  onActionReminder
+  onActionReminder,
+  globalStats,
+  urgentTopics
 }: DashboardProps) {
 
   // Accessibility tracking prefers-reduced-motion check
   const [reducedMotion, setReducedMotion] = useState(false);
 
   // Active Task Timer State
+  // `startTime` = wall-clock ms when the current running segment began
+  // `elapsed`   = total seconds accumulated in previous (paused) segments
+  // On every tick we compute: display = elapsed + (Date.now() - startTime) / 1000
+  // This stays accurate even when the browser throttles background tabs.
   const [activeTaskTimer, setActiveTaskTimer] = useState<{
     taskId: string;
     taskTitle: string;
     task: DailyTask;
-    startTime: number;
-    elapsed: number;
+    startTime: number;   // Date.now() when current segment started
+    elapsed: number;     // seconds accumulated before the current segment
     isPaused: boolean;
+    displaySeconds: number; // derived value updated by the interval
   } | null>(null);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (activeTaskTimer && !activeTaskTimer.isPaused) {
-      interval = setInterval(() => {
-        setActiveTaskTimer(prev => prev ? { ...prev, elapsed: prev.elapsed + 1 } : null);
-      }, 1000);
-    }
+    if (!activeTaskTimer || activeTaskTimer.isPaused) return;
+
+    // Use a shorter interval (500ms) so the display feels responsive,
+    // but always derive the value from wall-clock time — never accumulate ticks.
+    const interval = setInterval(() => {
+      setActiveTaskTimer(prev => {
+        if (!prev || prev.isPaused) return prev;
+        const wallSeconds = Math.floor((Date.now() - prev.startTime) / 1000);
+        return { ...prev, displaySeconds: prev.elapsed + wallSeconds };
+      });
+    }, 500);
+
     return () => clearInterval(interval);
-  }, [activeTaskTimer]);
+  // Only restart the interval when paused state or the timer identity changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTaskTimer?.isPaused, activeTaskTimer?.taskId]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -421,13 +439,17 @@ export default function Dashboard({
 
   // 4. Calculate Interview Confidence Index (ICI)
   const calculationsICI = useMemo(() => {
-    if (topics.length === 0) return { score: 50, avgConfidence: 50, avgRecall: 45, consistency: 40, interviewPerformance: 65 };
+    // If globalStats are provided, use them for accurate global aggregation instead of just the loaded subset
+    const count = globalStats ? globalStats.totalTopics : topics.length;
+    if (count === 0) return { score: 50, avgConfidence: 50, avgRecall: 45, consistency: 40, interviewPerformance: 65 };
 
-    const avgConfidence = topics.reduce((sum, t) => sum + t.confidenceScore, 0) / topics.length;
-    const avgRecall = topics.reduce((sum, t) => sum + t.recallScore, 0) / topics.length;
+    const avgConfidence = globalStats ? globalStats.avgConfidence : (topics.reduce((sum, t) => sum + t.confidenceScore, 0) / topics.length);
+    const avgRecall = globalStats ? globalStats.avgRecall : (topics.reduce((sum, t) => sum + t.recallScore, 0) / topics.length);
 
-    const ratio = topics.reduce((sum, t) => sum + Math.min(t.revisionCount, 8), 0) / (topics.length * 8);
-    const consistency = ratio * 100;
+    // Consistency: we use totalRevisions capped approximately (or just scale totalRevisions / (count * 8))
+    const consistency = globalStats 
+      ? Math.min(100, (globalStats.totalRevisions / (count * 8)) * 100) 
+      : (topics.reduce((sum, t) => sum + Math.min(t.revisionCount, 8), 0) / (topics.length * 8)) * 100;
 
     let interviewPerfSum = 0;
     let interviewCount = 0;
@@ -455,7 +477,7 @@ export default function Dashboard({
       consistency: Math.round(consistency),
       interviewPerformance: Math.round(interviewPerf)
     };
-  }, [topics, interviews]);
+  }, [topics, interviews, globalStats]);
 
   // Generate dynamic data points for the Streak sparkline
   const streakSparklineData = useMemo(() => {
@@ -574,8 +596,10 @@ export default function Dashboard({
   // Spacing algorithm priority scoring recommendation list
   const priorityItems = useMemo(() => {
     const now = Date.now();
+    // Use urgentTopics if provided, otherwise fallback to local paginated topics
+    const sourceTopics = urgentTopics || topics;
 
-    const scored = topics.map(t => {
+    const scored = sourceTopics.map(t => {
       let score = 0;
       let reasons: string[] = [];
 
@@ -625,10 +649,10 @@ export default function Dashboard({
       };
     });
 
-    return scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4);
-  }, [topics, interviews]);
+    const sorted = scored.sort((a, b) => b.score - a.score);
+
+    return sorted.slice(0, 10); // Display Top 10 priorities
+  }, [topics, urgentTopics, interviews]);
 
   // Weak areas list
   const weakTopics = useMemo(() => {
@@ -808,13 +832,13 @@ export default function Dashboard({
               <div className={`font-mono font-bold tracking-tighter text-center ${activeTaskTimer.isPaused ? 'text-slate-600' : 'text-transparent bg-clip-text bg-gradient-to-b from-white via-indigo-100 to-slate-400 drop-shadow-[0_0_40px_rgba(255,255,255,0.15)]'}`}>
                 {/* Mobile Vertical Timer */}
                 <div className="flex md:hidden flex-col items-center text-[5.5rem] leading-[0.85]">
-                  <div>{formatTime(activeTaskTimer.elapsed).split(':')[0]}</div>
-                  <div>{formatTime(activeTaskTimer.elapsed).split(':')[1]}</div>
-                  <div className="text-4xl text-indigo-300/60 mt-2 bg-clip-text">{formatTime(activeTaskTimer.elapsed).split(':')[2]}</div>
+                  <div>{formatTime(activeTaskTimer.displaySeconds).split(':')[0]}</div>
+                  <div>{formatTime(activeTaskTimer.displaySeconds).split(':')[1]}</div>
+                  <div className="text-4xl text-indigo-300/60 mt-2 bg-clip-text">{formatTime(activeTaskTimer.displaySeconds).split(':')[2]}</div>
                 </div>
                 {/* Desktop Horizontal Timer */}
                 <div className="hidden md:block text-[7.5rem] leading-none">
-                  {formatTime(activeTaskTimer.elapsed)}
+                  {formatTime(activeTaskTimer.displaySeconds)}
                 </div>
               </div>
               <div className="font-display text-base md:text-xl font-medium text-indigo-200/70 mt-4 max-w-[280px] md:max-w-xl text-center truncate px-2">
@@ -827,7 +851,17 @@ export default function Dashboard({
           <div className="flex flex-wrap items-center justify-center gap-2 bg-white/5 backdrop-blur-xl p-2 rounded-3xl border border-white/10 shadow-2xl">
             <button
               onClick={() => {
-                setActiveTaskTimer(prev => prev ? { ...prev, isPaused: !prev.isPaused } : null);
+                setActiveTaskTimer(prev => {
+                  if (!prev) return null;
+                  if (!prev.isPaused) {
+                    // Pausing: snapshot how many seconds have elapsed so far
+                    const wallSeconds = Math.floor((Date.now() - prev.startTime) / 1000);
+                    return { ...prev, isPaused: true, elapsed: prev.elapsed + wallSeconds, displaySeconds: prev.elapsed + wallSeconds };
+                  } else {
+                    // Resuming: reset startTime so wall-clock diff starts fresh
+                    return { ...prev, isPaused: false, startTime: Date.now() };
+                  }
+                });
               }}
               title={activeTaskTimer.isPaused ? "Resume" : "Pause"}
               className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
@@ -848,12 +882,12 @@ export default function Dashboard({
             <button
               onClick={async () => {
                 try {
-                  const elapsedHours = Number((activeTaskTimer.elapsed / 3600).toFixed(2));
+                  const elapsedHours = Number((activeTaskTimer.displaySeconds / 3600).toFixed(2));
                   await onUpdateTask({
                     ...activeTaskTimer.task,
                     status: 'Completed',
                     completedAt: new Date().toISOString()
-                  }, elapsedHours > 0 ? elapsedHours : activeTaskTimer.task.targetHours, `Completed via timer. Time spent: ${formatTime(activeTaskTimer.elapsed)}`);
+                  }, elapsedHours > 0 ? elapsedHours : activeTaskTimer.task.targetHours, `Completed via timer. Time spent: ${formatTime(activeTaskTimer.displaySeconds)}`);
 
                   playSuccessChime();
                   setActiveTaskTimer(null);
@@ -956,7 +990,15 @@ export default function Dashboard({
                       <button
                         onClick={() => {
                           if (isActive) {
-                            setActiveTaskTimer(prev => prev ? { ...prev, isPaused: !prev.isPaused } : null);
+                            setActiveTaskTimer(prev => {
+                              if (!prev) return null;
+                              if (!prev.isPaused) {
+                                const wallSeconds = Math.floor((Date.now() - prev.startTime) / 1000);
+                                return { ...prev, isPaused: true, elapsed: prev.elapsed + wallSeconds, displaySeconds: prev.elapsed + wallSeconds };
+                              } else {
+                                return { ...prev, isPaused: false, startTime: Date.now() };
+                              }
+                            });
                           } else {
                             setActiveTaskTimer({
                               taskId: task.id,
@@ -964,7 +1006,8 @@ export default function Dashboard({
                               task: task,
                               startTime: Date.now(),
                               elapsed: 0,
-                              isPaused: false
+                              isPaused: false,
+                              displaySeconds: 0
                             });
                           }
                         }}
@@ -1161,10 +1204,10 @@ export default function Dashboard({
       </motion.div>
 
       {/* 3. PREMIUM BENTO GRID (Bento Layout System for Dashboard) */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-6 gap-5">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-5">
 
-        {/* Box A: Today's Mission & Action Banner (Col Span 3) */}
-        <BentoCard className="md:col-span-3 flex flex-col justify-between min-h-[170px] bg-gradient-to-br from-indigo-950/20 to-purple-950/10 border-indigo-505/20 group" reducedMotion={reducedMotion}>
+        {/* Box A: Today's Mission & Action Banner (Col Span 2) */}
+        <BentoCard className="md:col-span-2 flex flex-col justify-between min-h-[170px] bg-gradient-to-br from-indigo-950/20 to-purple-950/10 border-indigo-505/20 group" reducedMotion={reducedMotion}>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest font-mono text-indigo-400 font-extrabold bg-indigo-500/10 px-2 py-0.5 rounded-md">
@@ -1201,8 +1244,8 @@ export default function Dashboard({
           </div>
         </BentoCard>
 
-        {/* Box B: Streak (Col Span 1.5) */}
-        <BentoCard className="md:col-span-1.5 flex flex-col justify-between min-h-[170px] hover:border-orange-500/20" reducedMotion={reducedMotion}>
+        {/* Box B: Streak (Col Span 1) */}
+        <BentoCard className="md:col-span-1 flex flex-col justify-between min-h-[170px] hover:border-orange-500/20" reducedMotion={reducedMotion}>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest font-mono text-slate-400 font-bold">
@@ -1224,8 +1267,8 @@ export default function Dashboard({
           {renderSparkline(streakSparklineData, 'rgba(249, 115, 22, 0.2)', '#f97316')}
         </BentoCard>
 
-        {/* Box C: ICI (Col Span 1.5) */}
-        <BentoCard className="md:col-span-1.5 flex flex-col justify-between min-h-[170px] hover:border-indigo-400/20" reducedMotion={reducedMotion}>
+        {/* Box C: ICI (Col Span 1) */}
+        <BentoCard className="md:col-span-1 flex flex-col justify-between min-h-[170px] hover:border-indigo-400/20" reducedMotion={reducedMotion}>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest font-mono text-slate-400 font-bold">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MockInterview, Topic } from '../types';
+import { MockInterview, Topic, Subject } from '../types';
 import { 
   Play, Square, Sparkles, Clock, ListTodo, Award, RefreshCw, 
   ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Flame, BarChart2, BookOpen, Send
@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MockInterviewWorkspaceProps {
+  subjects: Subject[];
   topics: Topic[];
   interviews: MockInterview[];
   onAddInterview: (int: Omit<MockInterview, 'id' | 'userId'>) => Promise<void>;
@@ -85,6 +86,7 @@ const PRESET_QUESTIONS = {
 };
 
 export default function MockInterviewWorkspace({
+  subjects,
   topics,
   interviews,
   onAddInterview,
@@ -93,6 +95,7 @@ export default function MockInterviewWorkspace({
   // Config state
   const [roundType, setRoundType] = useState<'Technical' | 'HR' | 'System Design' | 'Behavioral'>('Technical');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
+  const [subjectId, setSubjectId] = useState<string>('');
   
   // Active session state
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -208,6 +211,7 @@ export default function MockInterviewWorkspace({
       await onAddInterview({
         roundType,
         difficulty,
+        subjectId: subjectId || undefined,
         topicsCovered: topicsCovered.length > 0 ? topicsCovered : ['Enterprise architecture', 'Technical strategy'],
         answeredCount: nextHistory.length,
         totalQuestions: questionsList.length,
@@ -303,6 +307,21 @@ export default function MockInterviewWorkspace({
                   </div>
                 </div>
 
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-slate-300 font-semibold block">Target Subject Focus (Optional)</label>
+                  <p className="text-[10px] text-slate-400">Records which subject this mock evaluation targets.</p>
+                  <select
+                    value={subjectId}
+                    onChange={e => setSubjectId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-sans cursor-pointer glass-input bg-[#111827]"
+                  >
+                    <option value="" className="bg-[#111827]">General / Mixed</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.id} className="bg-[#111827]">{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-slate-300 font-semibold block">Simulation Difficulty</label>
                   <p className="text-[10px] text-slate-400">Controls time expectations per core answer response.</p>
@@ -357,7 +376,10 @@ export default function MockInterviewWorkspace({
                   <div key={item.id} className="glass-card p-4 space-y-3 border border-white/5 hover:border-white/10 transition">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
                       <div className="space-y-0.5 text-left">
-                        <span className="text-[9px] font-mono text-indigo-405 font-bold uppercase tracking-widest">{item.roundType} &bull; {item.difficulty}</span>
+                        <span className="text-[9px] font-mono text-indigo-405 font-bold uppercase tracking-widest">
+                          {item.roundType} &bull; {item.difficulty}
+                          {item.subjectId && subjects.find(s => s.id === item.subjectId) ? ` • ${subjects.find(s => s.id === item.subjectId)?.name}` : ''}
+                        </span>
                         <h4 className="font-bold text-white text-sm">{new Date(item.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} Scorecard</h4>
                       </div>
 

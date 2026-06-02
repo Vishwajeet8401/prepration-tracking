@@ -4,16 +4,18 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus } from './types';
+import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   initialTopics, initialQuestions, initialJobApplications, 
-  initialInterviews, initialMistakes, initialStudySessions, initialNotifications, initialIntelliQuestions 
+  initialInterviews, initialMistakes, initialStudySessions, initialNotifications, initialIntelliQuestions, initialSubjects
 } from './initialData';
 
 // Component imports
 import Dashboard from './components/Dashboard';
 import TopicManagement from './components/TopicManagement';
+import { useGlobalStats } from './hooks/useGlobalStats';
+import { useUrgentTopics } from './hooks/useUrgentTopics';
 import QuestionBank from './components/QuestionBank';
 import InterviewTracker from './components/InterviewTracker';
 import Analytics from './components/Analytics';
@@ -36,7 +38,7 @@ import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { 
   collection, doc, getDoc, setDoc, updateDoc, deleteDoc, 
-  onSnapshot, query, where, writeBatch, getDocs
+  onSnapshot, query, where, writeBatch, getDocs, limit
 } from 'firebase/firestore';
 import { saveLocalFile } from './localFileStore';
 
@@ -60,8 +62,11 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   // Core Persisted States synchronized with Cloud Firestore
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [topicLimit, setTopicLimit] = useState(50);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [questionLimit, setQuestionLimit] = useState(50);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [mistakes, setMistakes] = useState<Mistake[]>([]);
@@ -77,6 +82,9 @@ export default function App() {
   const [personalReminders, setPersonalReminders] = useState<PersonalReminder[]>([]);
   const [reminderLogs, setReminderLogs] = useState<ReminderLog[]>([]);
   const [reminderSettings, setReminderSettings] = useState<PersonalReminderSettings | null>(null);
+
+  const globalStats = useGlobalStats(user?.uid);
+  const { urgentTopics } = useUrgentTopics(user?.uid);
 
   const [activeToasts, setActiveToasts] = useState<AppNotification[]>([]);
   const processedToastsRef = React.useRef<Set<string>>(new Set());
@@ -218,10 +226,28 @@ export default function App() {
   // 2. Multi-user Firebase Collections Snapshot bindings
   useEffect(() => {
     if (!user) {
+      setSubjects([]);
+      return;
+    }
+    const q = query(collection(db, 'subjects'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Subject[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as Subject);
+      });
+      setSubjects(list);
+    }, (error) => {
+      console.error("Subjects snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
       setTopics([]);
       return;
     }
-    const q = query(collection(db, 'topics'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'topics'), where('userId', '==', user.uid), limit(topicLimit));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Topic[] = [];
       snapshot.forEach((doc) => {
@@ -232,14 +258,14 @@ export default function App() {
       console.error("Topics snapshot error:", error);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, topicLimit]);
 
   useEffect(() => {
     if (!user) {
       setQuestions([]);
       return;
     }
-    const q = query(collection(db, 'questions'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'questions'), where('userId', '==', user.uid), limit(questionLimit));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Question[] = [];
       snapshot.forEach((doc) => {
@@ -250,7 +276,7 @@ export default function App() {
       console.error("Questions snapshot error:", error);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, questionLimit]);
 
   useEffect(() => {
     if (!user) {
@@ -653,33 +679,84 @@ export default function App() {
         // Check date range limits
         if (todayStr < rem.startDate || todayStr > rem.endDate) return;
 
-        // Parse reminder time to HH:MM (handles 12h or 24h input from user forms)
+        // Parse reminder base time to HH:MM
         const remTime24 = convertTo24h(rem.reminderTime);
-        const [remH, remM] = remTime24.split(':').map(Number);
-        
-        if (now.getHours() === remH && now.getMinutes() === remM) {
-          // Check if already triggered today
-          const alreadyLogged = reminderLogs.some(l => l.reminderId === rem.id && l.date === todayStr && (l.status === 'Completed' || l.status === 'Skipped' || l.status === 'Missed'));
-          
-          if (!alreadyLogged) {
-            // Push alert to Firestore notification tray so it pops instantly
+        const [startH, startM] = remTime24.split(':').map(Number);
+        const startMinutes = startH * 60 + startM;
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        if (rem.repeatType === 'Interval Based' && rem.intervalHours && rem.intervalHours > 0) {
+          // For interval-based reminders (e.g. water every 2 hours):
+          // Compute all fire times for today: start, start+interval, start+2*interval, ...
+          // Check which slot corresponds to "right now"
+          const intervalMinutes = rem.intervalHours * 60;
+
+          // Which slot index does the current time correspond to?
+          const elapsed = currentMinutes - startMinutes;
+          if (elapsed < 0) return; // not yet reached start time
+
+          const slotIndex = Math.floor(elapsed / intervalMinutes);
+          const slotStartMin = startMinutes + slotIndex * intervalMinutes;
+
+          // Only fire if we are exactly at the slot's minute
+          if (currentMinutes !== slotStartMin) return;
+          if (slotStartMin >= 24 * 60) return; // past midnight, ignore
+
+          // Check if this specific slot was already notified today.
+          // We use a unique slot key: reminderTime + slot index
+          const slotKey = `${todayStr}-slot${slotIndex}`;
+          const alreadyFired = reminderLogs.some(l =>
+            l.reminderId === rem.id &&
+            l.date === todayStr &&
+            (l.notes === slotKey || l.status === 'Pending' && l.notes === slotKey)
+          );
+
+          if (!alreadyFired) {
             await pushNotification({
-              title: `Reminder Alert: ${rem.title}`,
-              message: rem.notificationMessage || `It is time for your task: "${rem.title}".`,
+              title: `Reminder: ${rem.title}`,
+              message: rem.notificationMessage || `Time for "${rem.title}"! (Every ${rem.intervalHours}h)`,
               type: 'daily'
             });
 
-            // Also seed a pending log to track occurrence if not exists
-            const hasPending = reminderLogs.some(l => l.reminderId === rem.id && l.date === todayStr);
-            if (!hasPending) {
-              const logId = `log-${rem.id}-${todayStr}-${Date.now()}`;
-              await setDoc(doc(db, 'reminderLogs', logId), {
-                id: logId,
-                reminderId: rem.id,
-                userId: user.uid,
-                date: todayStr,
-                status: 'Pending'
+            // Seed a pending log for this slot so it isn't fired again
+            const logId = `log-${rem.id}-${todayStr}-slot${slotIndex}-${Date.now()}`;
+            await setDoc(doc(db, 'reminderLogs', logId), {
+              id: logId,
+              reminderId: rem.id,
+              userId: user.uid,
+              date: todayStr,
+              status: 'Pending',
+              notes: slotKey
+            });
+          }
+
+        } else {
+          // Non-interval reminders: fire once at the exact reminderTime
+          if (now.getHours() === startH && now.getMinutes() === startM) {
+            const alreadyLogged = reminderLogs.some(l =>
+              l.reminderId === rem.id &&
+              l.date === todayStr &&
+              (l.status === 'Completed' || l.status === 'Skipped' || l.status === 'Missed')
+            );
+
+            if (!alreadyLogged) {
+              await pushNotification({
+                title: `Reminder Alert: ${rem.title}`,
+                message: rem.notificationMessage || `It is time for your task: "${rem.title}".`,
+                type: 'daily'
               });
+
+              const hasPending = reminderLogs.some(l => l.reminderId === rem.id && l.date === todayStr);
+              if (!hasPending) {
+                const logId = `log-${rem.id}-${todayStr}-${Date.now()}`;
+                await setDoc(doc(db, 'reminderLogs', logId), {
+                  id: logId,
+                  reminderId: rem.id,
+                  userId: user.uid,
+                  date: todayStr,
+                  status: 'Pending'
+                });
+              }
             }
           }
         }
@@ -714,6 +791,9 @@ export default function App() {
     setLoading(true);
     try {
       const batch = writeBatch(db);
+      initialSubjects.forEach((s) => {
+        batch.set(doc(db, 'subjects', s.id), { ...s, userId: user.uid });
+      });
       initialTopics.forEach((t) => {
         batch.set(doc(db, 'topics', t.id), { ...t, userId: user.uid });
       });
@@ -791,6 +871,42 @@ export default function App() {
   };
 
   // ==========================================
+  // SUBJECT MODIFIERS (Direct to Firestore)
+  // ==========================================
+  const handleAddSubject = async (newSubject: Omit<Subject, 'id'>) => {
+    if (!user) return;
+    const subjectId = 'subj-' + Date.now();
+    const created: Subject = {
+      ...newSubject,
+      id: subjectId,
+      userId: user.uid
+    };
+    try {
+      await setDoc(doc(db, 'subjects', subjectId), created);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `subjects/${subjectId}`);
+    }
+  };
+
+  const handleUpdateSubject = async (updated: Subject) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'subjects', updated.id), { ...updated });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `subjects/${updated.id}`);
+    }
+  };
+
+  const handleDeleteSubject = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'subjects', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `subjects/${id}`);
+    }
+  };
+
+  // ==========================================
   // TOPIC MODIFIERS (Direct to Firestore)
   // ==========================================
   const handleAddTopic = async (newTopic: Omit<Topic, 'id' | 'revisionCount' | 'forgotCount'>) => {
@@ -849,6 +965,79 @@ export default function App() {
       } catch (err) {
         handleFirestoreError(err, OperationType.DELETE, `topics/${id}`);
       }
+    }
+  };
+
+  const handleMergeTopics = async (primaryTopicId: string, duplicateTopicIds: string[]) => {
+    if (!user) return;
+    try {
+      const batch = writeBatch(db);
+      const primaryTopic = topics.find(t => t.id === primaryTopicId);
+      if (!primaryTopic) return;
+
+      const duplicateTopics = topics.filter(t => duplicateTopicIds.includes(t.id));
+      
+      // Merge descriptions and notes
+      let newDesc = primaryTopic.description || '';
+      let newNotes = primaryTopic.notes || '';
+      duplicateTopics.forEach(dup => {
+        if (dup.description && dup.description.trim() !== '') {
+          newDesc += `\n\n[Merged from ${dup.name}]:\n${dup.description}`;
+        }
+        if (dup.notes && dup.notes.trim() !== '') {
+          newNotes += `\n\n[Merged Notes from ${dup.name}]:\n${dup.notes}`;
+        }
+      });
+      
+      batch.update(doc(db, 'topics', primaryTopicId), {
+        description: newDesc,
+        notes: newNotes
+      });
+
+      // Update Questions
+      questions.filter(q => duplicateTopicIds.includes(q.topicId)).forEach(q => {
+        batch.update(doc(db, 'questions', q.id), { topicId: primaryTopicId });
+      });
+
+      // Update Sessions
+      sessions.filter(s => duplicateTopicIds.includes(s.topicId)).forEach(s => {
+        batch.update(doc(db, 'studySessions', s.id), { topicId: primaryTopicId });
+      });
+
+      // Update Voice Recordings
+      voiceRecordings.filter(v => duplicateTopicIds.includes(v.topicId)).forEach(v => {
+        batch.update(doc(db, 'voiceRecordings', v.id), { topicId: primaryTopicId });
+      });
+
+      // Update Journals
+      journals.filter(j => j.relatedTopicId && duplicateTopicIds.includes(j.relatedTopicId)).forEach(j => {
+        batch.update(doc(db, 'journals', j.id), { relatedTopicId: primaryTopicId });
+      });
+
+      // Update Topic Dependencies
+      topics.filter(t => t.dependencyIds && t.dependencyIds.some(d => duplicateTopicIds.includes(d))).forEach(t => {
+        const newDeps = new Set(t.dependencyIds.filter(d => !duplicateTopicIds.includes(d)));
+        if (t.id !== primaryTopicId) {
+          newDeps.add(primaryTopicId);
+        }
+        batch.update(doc(db, 'topics', t.id), { dependencyIds: Array.from(newDeps) });
+      });
+
+      // Delete Duplicates
+      duplicateTopicIds.forEach(id => {
+        batch.delete(doc(db, 'topics', id));
+      });
+
+      await batch.commit();
+
+      await pushNotification({
+        title: 'Topics Merged',
+        message: `Merged ${duplicateTopicIds.length} duplicate(s) into "${primaryTopic.name}".`,
+        type: 'daily'
+      });
+      
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `merge-topics`);
     }
   };
 
@@ -2199,6 +2388,8 @@ export default function App() {
                   personalReminders={personalReminders}
                   reminderLogs={reminderLogs}
                   onActionReminder={handleActionPersonalReminder}
+                  globalStats={globalStats}
+                  urgentTopics={urgentTopics}
                 />
                 
                 <CloudBackupControls 
@@ -2243,15 +2434,23 @@ export default function App() {
 
           {activeTab === 'Topic Map & Spacing' && (
             <TopicManagement 
+              subjects={subjects}
+              onAddSubject={handleAddSubject}
+              onUpdateSubject={handleUpdateSubject}
+              onDeleteSubject={handleDeleteSubject}
               topics={topics}
               onAddTopic={handleAddTopic}
               onUpdateTopic={handleUpdateTopic}
               onDeleteTopic={handleDeleteTopic}
+              onMergeTopics={handleMergeTopics}
+              onLoadMore={() => setTopicLimit(prev => prev + 50)}
+              userId={user?.uid}
             />
           )}
 
           {activeTab === 'Question Bank & Practice' && (
             <QuestionBank 
+              subjects={subjects}
               questions={questions}
               topics={topics}
               voiceRecordings={voiceRecordings}
@@ -2261,6 +2460,7 @@ export default function App() {
               onRecallResponse={handleRecallResponse}
               onAddVoiceRecording={handleAddVoice}
               onDeleteVoiceRecording={handleDeleteVoice}
+              onLoadMore={() => setQuestionLimit(prev => prev + 50)}
             />
           )}
 
@@ -2283,11 +2483,13 @@ export default function App() {
 
           {activeTab === 'Analytics & Sessions' && (
             <Analytics 
-              sessions={sessions}
+              sessions={sessions} 
+              subjects={subjects} 
               topics={topics}
               onAddSession={handleAddSession}
               plans={plans}
               tasks={tasks}
+              globalStats={globalStats}
             />
           )}
 
@@ -2349,6 +2551,7 @@ export default function App() {
 
           {activeTab === 'Mock Interview Simulator' && (
             <MockInterviewWorkspace 
+              subjects={subjects}
               topics={topics}
               interviews={mockInterviews}
               onAddInterview={handleAddMockInterview}

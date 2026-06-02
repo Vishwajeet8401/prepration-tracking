@@ -3,31 +3,90 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
-import { Topic } from '../types';
+import React, { useState, useMemo, useRef, useEffect, forwardRef } from 'react';
+import { VirtuosoGrid } from 'react-virtuoso';
+import { Topic, Subject } from '../types';
 import { useStackedPanelHistory } from '../hooks/useStackedPanelHistory';
+import { useAllTopics } from '../hooks/useAllTopics';
 import { 
   Plus, Edit2, Trash2, Search, Link2, AlertTriangle, Book, HelpCircle, 
   Check, Save, Eye, ArrowRight, ShieldAlert, Sparkles, BookOpen, Layers
 } from 'lucide-react';
 
 interface TopicManagementProps {
+  subjects: Subject[];
+  onAddSubject: (s: Omit<Subject, 'id'>) => void;
+  onUpdateSubject: (s: Subject) => void;
+  onDeleteSubject: (id: string) => void;
   topics: Topic[];
   onAddTopic: (topic: Omit<Topic, 'id' | 'revisionCount' | 'forgotCount'>) => void;
   onUpdateTopic: (topic: Topic) => void;
   onDeleteTopic: (id: string) => void;
+  onMergeTopics: (primaryTopicId: string, duplicateTopicIds: string[]) => void;
+  onLoadMore?: () => void;
+  userId?: string;
 }
 
+type FlatItem = 
+  | { type: 'header', subjectId: string, subject: Subject | undefined }
+  | { type: 'topic', topic: Topic };
+
+const GridContainer = forwardRef<HTMLDivElement, any>((props, ref) => (
+  <div {...props} ref={ref} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2" />
+));
+GridContainer.displayName = 'GridContainer';
+
+const ItemContainer = forwardRef<HTMLDivElement, any>(({ 'data-index': index, context, children, ...props }, ref) => {
+  const isHeader = context?.flatItems?.[index]?.type === 'header';
+  return (
+    <div {...props} ref={ref} className={isHeader ? 'col-span-full mb-2 mt-4' : 'col-span-1 h-full'}>
+      {children}
+    </div>
+  );
+});
+ItemContainer.displayName = 'ItemContainer';
+
 export default function TopicManagement({
+  subjects,
+  onAddSubject,
+  onUpdateSubject,
+  onDeleteSubject,
   topics,
   onAddTopic,
   onUpdateTopic,
-  onDeleteTopic
+  onDeleteTopic,
+  onMergeTopics,
+  onLoadMore,
+  userId
 }: TopicManagementProps) {
+
+  // Fetch full lightweight topic list for dependency mapping to bypass pagination limit
+  const { allTopics } = useAllTopics(userId);
   
-  // Tabs: 'all' | 'dependencies' | 'quick-revision' | 'teach-me'
-  const [activeSubTab, setActiveSubTab] = useState<'all' | 'dependencies' | 'quick-revision' | 'teach-me'>('all');
+  // Tabs: 'subjects' | 'all' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'
+  const [activeSubTab, setActiveSubTab] = useState<'subjects' | 'all' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'>('all');
   
+  // Infinite Scroll Observer
+  const observerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!observerRef.current || !onLoadMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        onLoadMore();
+      }
+    }, { threshold: 0.1 });
+    
+    observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [onLoadMore, topics.length]);
+  
+  // Subject Form State
+  const [isEditingSubject, setIsEditingSubject] = useState(false);
+  const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
+  const [formSubjectName, setFormSubjectName] = useState('');
+  const [formSubjectDesc, setFormSubjectDesc] = useState('');
+  const [formSubjectColor, setFormSubjectColor] = useState('bg-indigo-500');
+
   // Search and filters
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -38,6 +97,7 @@ export default function TopicManagement({
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState('');
+  const [formSubjectId, setFormSubjectId] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formStatus, setFormStatus] = useState<Topic['status']>('Not Started');
   const [formConfidence, setFormConfidence] = useState(50);
@@ -47,6 +107,39 @@ export default function TopicManagement({
 
   // Teach Me Again selected topic
   const [teachMeTopicId, setTeachMeTopicId] = useState<string>(topics[0]?.id || '');
+
+  // Merge Topics State
+  const [mergePrimaryId, setMergePrimaryId] = useState<string>('');
+  const [mergeDuplicateIds, setMergeDuplicateIds] = useState<string[]>([]);
+  
+  // Smart auto-suggestion effect
+  React.useEffect(() => {
+    if (!mergePrimaryId) {
+      setMergeDuplicateIds([]);
+      return;
+    }
+    const primary = topics.find(t => t.id === mergePrimaryId);
+    if (!primary) return;
+
+    // Tokenize strings to find common significant words
+    const tokenize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(' ').filter(w => w.length > 2);
+    const pTokens = tokenize(primary.name);
+    
+    if (pTokens.length === 0) {
+      setMergeDuplicateIds([]);
+      return;
+    }
+
+    const suggested = topics.filter(t => {
+      if (t.id === primary.id) return false;
+      const tTokens = tokenize(t.name);
+      const intersection = pTokens.filter(pt => tTokens.includes(pt));
+      // Overlap threshold: if they share at least 1 significant token, we suggest it
+      return intersection.length > 0;
+    }).map(t => t.id);
+
+    setMergeDuplicateIds(suggested);
+  }, [mergePrimaryId, topics]);
 
   const closeEditor = () => {
     setIsEditing(false);
@@ -65,12 +158,12 @@ export default function TopicManagement({
     return ['All', ...Array.from(list)];
   }, [topics]);
 
-  // Handler to open create form
   const handleOpenCreate = () => {
     setIsEditing(true);
     setEditingTopicId(null);
     setFormName('');
     setFormCategory('');
+    setFormSubjectId(subjects[0]?.id || '');
     setFormDescription('');
     setFormStatus('Learning');
     setFormConfidence(50);
@@ -79,12 +172,12 @@ export default function TopicManagement({
     setFormDependencies([]);
   };
 
-  // Handler to open edit form
   const handleOpenEdit = (topic: Topic) => {
     setIsEditing(true);
     setEditingTopicId(topic.id);
     setFormName(topic.name);
     setFormCategory(topic.category);
+    setFormSubjectId(topic.subjectId || subjects[0]?.id || '');
     setFormDescription(topic.description);
     setFormStatus(topic.status);
     setFormConfidence(topic.confidenceScore);
@@ -102,6 +195,7 @@ export default function TopicManagement({
       const existing = topics.find(t => t.id === editingTopicId)!;
       onUpdateTopic({
         ...existing,
+        subjectId: formSubjectId,
         name: formName,
         category: formCategory,
         description: formDescription,
@@ -113,6 +207,7 @@ export default function TopicManagement({
       });
     } else {
       onAddTopic({
+        subjectId: formSubjectId,
         name: formName,
         category: formCategory,
         description: formDescription,
@@ -153,6 +248,24 @@ export default function TopicManagement({
       return matchSearch && matchCategory && matchStatus;
     });
   }, [topics, searchQuery, categoryFilter, statusFilter]);
+
+  // Flattened grid structure for virtualization
+  const flatItems: FlatItem[] = useMemo(() => {
+    const items: FlatItem[] = [];
+    const subjectIds = Array.from(new Set<string>(filteredTopics.map(t => t.subjectId || '')));
+    
+    subjectIds.forEach(subjId => {
+      const subject = subjects.find(s => s.id === subjId);
+      const subjTopics = filteredTopics.filter(t => t.subjectId === subjId);
+      if (subjTopics.length > 0) {
+        items.push({ type: 'header', subjectId: subjId || 'uncategorized', subject });
+        subjTopics.forEach(topic => {
+          items.push({ type: 'topic', topic });
+        });
+      }
+    });
+    return items;
+  }, [filteredTopics, subjects]);
 
   // Topic selected in active teach me tab
   const activeTeachTopic = useMemo(() => {
@@ -232,7 +345,13 @@ export default function TopicManagement({
           <h2 className="text-xl font-bold text-white tracking-tight">Technical Topic Manager</h2>
         </div>
         
-        <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-lg text-xs font-semibold border border-white/5">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white/5 rounded-lg text-xs font-semibold border border-white/5">
+          <button 
+            onClick={() => { setActiveSubTab('subjects'); closeEditor(); }}
+            className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'subjects' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
+          >
+            Subjects
+          </button>
           <button 
             onClick={() => { setActiveSubTab('all'); closeEditor(); }}
             className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'all' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
@@ -256,6 +375,12 @@ export default function TopicManagement({
             className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'teach-me' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
             Teach Me Again
+          </button>
+          <button 
+            onClick={() => { setActiveSubTab('merge'); closeEditor(); }}
+            className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'merge' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
+          >
+            Merge Duplicates
           </button>
         </div>
       </div>
@@ -327,6 +452,21 @@ export default function TopicManagement({
                 </div>
 
                 <div className="md:col-span-2 space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">Subject Assignment</label>
+                  <select 
+                    value={formSubjectId}
+                    onChange={(e) => setFormSubjectId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm glass-input font-sans cursor-pointer"
+                    required
+                  >
+                    <option value="" disabled className="bg-[#111827]">Select Subject</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.id} className="bg-[#111827]">{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2 space-y-1">
                   <label className="block text-xs font-semibold text-slate-300">Description Summary</label>
                   <textarea 
                     value={formDescription}
@@ -355,7 +495,7 @@ export default function TopicManagement({
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold text-slate-300">Linked Parent Dependencies</label>
                   <div className="max-h-24 overflow-y-auto border border-white/10 rounded-lg p-2 bg-white/2 space-y-1">
-                    {topics.filter(t => t.id !== editingTopicId).map(t => (
+                    {allTopics.filter(t => t.id !== editingTopicId).map(t => (
                       <label key={t.id} className="flex items-center gap-2 text-xs font-sans text-slate-350 cursor-pointer hover:text-white">
                         <input 
                           type="checkbox" 
@@ -372,7 +512,7 @@ export default function TopicManagement({
                         <span>{t.name}</span>
                       </label>
                     ))}
-                    {topics.length === 1 && (
+                    {allTopics.length <= 1 && (
                       <span className="text-[10px] text-slate-400 block">No other topics registered yet.</span>
                     )}
                   </div>
@@ -483,21 +623,42 @@ export default function TopicManagement({
               >
                 <Plus className="w-4 h-4" />
                 <span>Create Topic</span>
-              </button>
+</button>
             </div>
           )}
 
           {/* Grid Layout of Registered Topics */}
-          {!isEditing && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTopics.map(topic => {
+          {!isEditing && flatItems.length > 0 && (
+            <VirtuosoGrid
+              useWindowScroll
+              data={flatItems}
+              context={{ flatItems }}
+              components={{
+                List: GridContainer,
+                Item: ItemContainer
+              }}
+              endReached={() => {
+                if (topics.length >= 50 && onLoadMore) onLoadMore();
+              }}
+              itemContent={(index, item) => {
+                if (item.type === 'header') {
+                  const subject = item.subject;
+                  return (
+                    <h3 className="text-lg font-bold text-white border-b border-white/10 pb-2 flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${subject ? subject.color : 'bg-slate-500'}`} />
+                      {subject ? subject.name : 'Uncategorized Topics'}
+                    </h3>
+                  );
+                }
+
+                const topic = item.topic;
                 const warnings = getDependencyWarnings(topic);
                 const isOverdue = topic.nextRevisionDate && new Date(topic.nextRevisionDate) < new Date();
                 
                 return (
                   <div 
                     key={topic.id} 
-                    className={`glass-card glass-card-hover p-5 flex flex-col justify-between relative overflow-hidden ${isOverdue ? 'border-amber-500/30' : ''}`}
+                    className={`glass-card glass-card-hover p-5 flex flex-col justify-between relative overflow-hidden h-full ${isOverdue ? 'border-amber-500/30' : ''}`}
                   >
                     <div>
                       {/* Category Tag & Actions */}
@@ -526,53 +687,46 @@ export default function TopicManagement({
 
                       {/* Header and status info */}
                       <div className="space-y-1 mb-2">
-                        <h3 className="font-extrabold text-white text-base flex items-center gap-1.5 leading-tight">
+                        <h4 className="font-extrabold text-white text-[15px] leading-tight">
                           {topic.name}
-                          {isOverdue && (
-                            <span className="text-[9px] font-mono border border-orange-500/35 bg-orange-500/20 text-orange-300 px-1.5 py-0.2 rounded-sm animate-pulse font-bold leading-none">
-                              OVERDUE
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 mt-1">
-                          {topic.description}
-                        </p>
+                        </h4>
                       </div>
 
-                      {/* Parent Warnings Display */}
-                      {warnings.map((warn, i) => (
-                        <div key={i} className="my-2 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5 text-[11px] text-red-300 flex items-start gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
-                          <span>{warn}</span>
-                        </div>
-                      ))}
-
-                      {/* Visual Gauges confidence/recall */}
-                      <div className="grid grid-cols-2 gap-3 py-3 border-y border-dashed border-white/10 my-3 font-mono text-xs">
-                        <div>
-                          <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase mb-0.5">
-                            <span>Confidence</span>
-                            <span className="font-bold text-slate-200">{topic.confidenceScore}%</span>
-                          </div>
-                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full ${topic.confidenceScore < 50 ? 'bg-rose-500' : topic.confidenceScore < 80 ? 'bg-amber-400' : 'bg-emerald-500'}`} 
-                              style={{ width: `${topic.confidenceScore}%` }} 
-                            />
+                      {/* Warnings if dependencies weak */}
+                      {warnings.length > 0 && (
+                        <div className="mb-3 px-2 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-md flex items-start gap-1.5 text-rose-300">
+                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                          <div className="text-[9px] font-semibold leading-relaxed space-y-0.5">
+                            {warnings.map((w, idx) => <p key={idx}>{w}</p>)}
                           </div>
                         </div>
+                      )}
 
-                        <div>
-                          <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase mb-0.5">
-                            <span>Recall Metric</span>
-                            <span className="font-bold text-slate-200">{topic.recallScore}%</span>
+                      {/* Description truncated */}
+                      <p className="text-xs text-slate-350 line-clamp-3 mb-4 leading-relaxed font-sans">
+                        {topic.description || <span className="italic text-slate-500">No core description supplied.</span>}
+                      </p>
+
+                      {/* Visual Health metrics layout */}
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div className="bg-black/20 p-2 rounded-lg border border-white/5">
+                          <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1">Confidence</span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${
+                                topic.confidenceScore > 80 ? 'bg-emerald-400' :
+                                topic.confidenceScore > 50 ? 'bg-amber-400' : 'bg-rose-400'
+                              }`} style={{ width: `${topic.confidenceScore}%` }} />
+                            </div>
+                            <span className="text-[10px] font-black text-slate-200">{topic.confidenceScore}%</span>
                           </div>
-                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full ${topic.recallScore < 50 ? 'bg-rose-500' : topic.recallScore < 80 ? 'bg-amber-400' : 'bg-emerald-500'}`} 
-                              style={{ width: `${topic.recallScore}%` }} 
-                            />
-                          </div>
+                        </div>
+
+                        <div className="bg-black/20 p-2 rounded-lg border border-white/5">
+                          <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1">Next Revision</span>
+                          <span className={`text-[10px] font-bold ${isOverdue ? 'text-amber-400' : 'text-slate-200'}`}>
+                            {topic.nextRevisionDate ? new Date(topic.nextRevisionDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Unscheduled'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -609,17 +763,18 @@ export default function TopicManagement({
                     </div>
                   </div>
                 );
-              })}
+              }}
+            />
+          )}
 
-              {filteredTopics.length === 0 && (
-                <div className="col-span-1 md:col-span-3 text-center py-12 glass-card">
-                  <HelpCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                  <p className="text-slate-300 text-sm font-semibold">No studied topics matched filters</p>
-                  <p className="text-slate-400 text-xs">Reset keyword criteria or create a fresh topic card above.</p>
-                </div>
-              )}
+          {!isEditing && flatItems.length === 0 && (
+            <div className="text-center py-12 glass-card">
+              <HelpCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+              <p className="text-slate-300 text-sm font-semibold">No studied topics matched filters</p>
+              <p className="text-slate-400 text-xs">Reset keyword criteria or create a fresh topic card above.</p>
             </div>
           )}
+          
         </>
       )}
 
@@ -640,7 +795,7 @@ export default function TopicManagement({
             <div className="flex flex-wrap items-center justify-center gap-4">
               {topics.map(t => {
                 const dependenciesStr = t.dependencyIds.map(depId => {
-                  const dep = topics.find(tp => tp.id === depId);
+                  const dep = allTopics.find(tp => tp.id === depId);
                   return dep ? dep.name : '';
                 }).filter(Boolean).join(', ');
 
@@ -831,6 +986,232 @@ export default function TopicManagement({
               No active topics to load notes. Use the All Topics tab to register your first subject.
             </div>
           )}
+        </div>
+      )}
+
+      {/* SUB-TAB 0: SUBJECT MANAGER DECK */}
+      {activeSubTab === 'subjects' && (
+        <div className="glass-card p-5 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
+            <div className="space-y-1">
+              <h3 className="font-extrabold text-white text-base">Core Subject Manager</h3>
+              <p className="text-xs text-slate-400 font-sans">
+                Group your technical topics under broader academic subjects (e.g. System Design, Backend Engineering).
+              </p>
+            </div>
+            {!isEditingSubject && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <button 
+                  onClick={() => {
+                    const uncategorizedTopics = topics.filter(t => !t.subjectId);
+                    if (uncategorizedTopics.length === 0) {
+                      alert('All your topics are already categorized under a subject!');
+                      return;
+                    }
+                    if (subjects.length === 0) {
+                      alert('Please create at least one Subject first before migrating old topics.');
+                      return;
+                    }
+                    const targetSubject = subjects[0];
+                    if (confirm(`Do you want to automatically assign ${uncategorizedTopics.length} uncategorized topics to your "${targetSubject.name}" subject?`)) {
+                      uncategorizedTopics.forEach(t => {
+                        onUpdateTopic({...t, subjectId: targetSubject.id});
+                      });
+                      alert(`Successfully migrated ${uncategorizedTopics.length} topics to ${targetSubject.name}!`);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-md shrink-0 transition cursor-pointer"
+                >
+                  <span>Migrate Old Data</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsEditingSubject(true);
+                    setEditingSubjectId(null);
+                    setFormSubjectName('');
+                    setFormSubjectDesc('');
+                    setFormSubjectColor('bg-indigo-500');
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-md shrink-0 transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Subject</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {isEditingSubject && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if(!formSubjectName) return;
+              if (editingSubjectId) {
+                const existing = subjects.find(s => s.id === editingSubjectId)!;
+                onUpdateSubject({...existing, name: formSubjectName, description: formSubjectDesc, color: formSubjectColor});
+              } else {
+                onAddSubject({ name: formSubjectName, description: formSubjectDesc, color: formSubjectColor, createdAt: new Date().toISOString() });
+              }
+              setIsEditingSubject(false);
+            }} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">Subject Name</label>
+                  <input type="text" value={formSubjectName} onChange={e => setFormSubjectName(e.target.value)} required className="w-full px-3 py-2 rounded-lg text-sm glass-input" placeholder="e.g. System Design" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">Color Theme</label>
+                  <select value={formSubjectColor} onChange={e => setFormSubjectColor(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm glass-input font-sans">
+                    <option value="bg-indigo-500" className="bg-[#111827]">Indigo</option>
+                    <option value="bg-emerald-500" className="bg-[#111827]">Emerald</option>
+                    <option value="bg-rose-500" className="bg-[#111827]">Rose</option>
+                    <option value="bg-amber-500" className="bg-[#111827]">Amber</option>
+                    <option value="bg-purple-500" className="bg-[#111827]">Purple</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">Description</label>
+                  <textarea value={formSubjectDesc} onChange={e => setFormSubjectDesc(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm h-16 glass-input" placeholder="What does this subject cover?" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+                <button type="button" onClick={() => setIsEditingSubject(false)} className="px-3 py-1.5 border border-white/10 rounded-lg text-xs hover:bg-white/5 transition cursor-pointer">Cancel</button>
+                <button type="submit" className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs shadow-md transition cursor-pointer">Save Subject</button>
+              </div>
+            </form>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {subjects.map(subject => {
+              const subjectTopics = topics.filter(t => t.subjectId === subject.id);
+              return (
+                <div key={subject.id} className="border border-white/10 bg-[#ffffff05] rounded-xl p-4 flex flex-col justify-between relative overflow-hidden">
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${subject.color} opacity-80`} />
+                  <div className="ml-2 flex items-start justify-between">
+                    <div>
+                      <h4 className="font-extrabold text-white">{subject.name}</h4>
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{subject.description}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-4">
+                      <button onClick={() => {
+                        setIsEditingSubject(true);
+                        setEditingSubjectId(subject.id);
+                        setFormSubjectName(subject.name);
+                        setFormSubjectDesc(subject.description);
+                        setFormSubjectColor(subject.color);
+                      }} className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-white/5 transition"><Edit2 className="w-3.5 h-3.5"/></button>
+                      <button onClick={() => {
+                        if (confirm('Delete this subject? Topics will lose their subject mapping.')) onDeleteSubject(subject.id);
+                      }} className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-white/5 transition"><Trash2 className="w-3.5 h-3.5"/></button>
+                    </div>
+                  </div>
+                  <div className="mt-4 ml-2 flex items-center justify-between text-xs font-mono border-t border-white/5 pt-3">
+                    <span className="text-slate-400">Total Topics: <strong className="text-white">{subjectTopics.length}</strong></span>
+                    <span className="text-slate-400">Registered: {new Date(subject.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {subjects.length === 0 && (
+              <div className="col-span-2 text-center py-10 bg-white/5 rounded-xl border border-dashed border-white/10">
+                <p className="text-slate-400 text-sm font-sans">No subjects created yet. Add one to start organizing!</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB: MERGE DUPLICATES */}
+      {activeSubTab === 'merge' && (
+        <div className="glass-card p-5 space-y-6">
+          <div className="space-y-1 border-b border-white/5 pb-4">
+            <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+              <Layers className="text-indigo-400 w-5 h-5" />
+              <span>Merge Duplicate Topics</span>
+            </h3>
+            <p className="text-xs text-slate-400 font-sans">
+              Safely consolidate duplicated topics. All questions, study sessions, voice recordings, journals, and dependencies attached to the duplicates will be reassigned to the Primary Topic, and the duplicates will be deleted.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-white">1. Select Primary Topic (Keep)</label>
+              <select 
+                value={mergePrimaryId}
+                onChange={(e) => setMergePrimaryId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl text-sm glass-input font-sans cursor-pointer bg-[#ffffff05] border border-white/10 text-white"
+              >
+                <option value="" disabled className="bg-[#111827]">-- Select the topic you want to keep --</option>
+                {topics.map(t => (
+                  <option key={t.id} value={t.id} className="bg-[#111827]">{t.name} ({t.category})</option>
+                ))}
+              </select>
+            </div>
+
+            {mergePrimaryId && (
+              <div className="space-y-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-bold text-white">2. Select Duplicates (Merge & Delete)</label>
+                  {mergeDuplicateIds.length > 0 && (
+                    <span className="text-xs font-mono bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded-md border border-indigo-500/30">
+                      {mergeDuplicateIds.length} Selected
+                    </span>
+                  )}
+                </div>
+                
+                <p className="text-xs text-slate-400 font-sans">
+                  The system has auto-suggested duplicates based on naming similarities. You can manually check or uncheck topics below.
+                </p>
+
+                <div className="max-h-64 overflow-y-auto border border-white/10 rounded-lg p-3 bg-black/20 space-y-2">
+                  {topics.filter(t => t.id !== mergePrimaryId).map(t => (
+                    <label key={t.id} className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition ${mergeDuplicateIds.includes(t.id) ? 'bg-indigo-500/10 border border-indigo-500/20' : 'hover:bg-white/5 border border-transparent'}`}>
+                      <input 
+                        type="checkbox" 
+                        checked={mergeDuplicateIds.includes(t.id)}
+                        onChange={() => {
+                          if (mergeDuplicateIds.includes(t.id)) {
+                            setMergeDuplicateIds(mergeDuplicateIds.filter(id => id !== t.id));
+                          } else {
+                            setMergeDuplicateIds([...mergeDuplicateIds, t.id]);
+                          }
+                        }}
+                        className="mt-1 rounded-sm border-white/20 text-indigo-650 focus:ring-indigo-500 bg-black/40"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-slate-200">{t.name}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">Category: {t.category}</span>
+                      </div>
+                    </label>
+                  ))}
+                  {topics.length <= 1 && (
+                    <span className="text-[10px] text-slate-400 block p-2">No other topics available to merge.</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {mergePrimaryId && mergeDuplicateIds.length > 0 && (
+              <div className="pt-4 border-t border-white/5 flex justify-end">
+                <button 
+                  onClick={() => {
+                    const primary = topics.find(t => t.id === mergePrimaryId);
+                    if (!primary) return;
+                    if (confirm(`Are you sure you want to merge ${mergeDuplicateIds.length} topics into "${primary.name}"? This action cannot be easily undone.`)) {
+                      onMergeTopics(mergePrimaryId, mergeDuplicateIds);
+                      setMergePrimaryId('');
+                      setMergeDuplicateIds([]);
+                      alert('Merge completed successfully!');
+                    }
+                  }}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold shadow-md transition cursor-pointer"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Execute Merge & Cleanup</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
