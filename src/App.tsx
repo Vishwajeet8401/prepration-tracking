@@ -2450,7 +2450,6 @@ export default function App() {
 
           {activeTab === 'Question Bank & Practice' && (
             <QuestionBank 
-              subjects={subjects}
               questions={questions}
               topics={topics}
               voiceRecordings={voiceRecordings}
