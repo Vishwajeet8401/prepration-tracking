@@ -66,19 +66,7 @@ export default function TopicManagement({
   // Tabs: 'subjects' | 'all' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'
   const [activeSubTab, setActiveSubTab] = useState<'subjects' | 'all' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'>('all');
   
-  // Infinite Scroll Observer
-  const observerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!observerRef.current || !onLoadMore) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        onLoadMore();
-      }
-    }, { threshold: 0.1 });
-    
-    observer.observe(observerRef.current);
-    return () => observer.disconnect();
-  }, [onLoadMore, topics.length]);
+  // removed unused infinite scroll observer reference
   
   // Subject Form State
   const [isEditingSubject, setIsEditingSubject] = useState(false);

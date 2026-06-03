@@ -2443,7 +2443,7 @@ export default function App() {
               onUpdateTopic={handleUpdateTopic}
               onDeleteTopic={handleDeleteTopic}
               onMergeTopics={handleMergeTopics}
-              onLoadMore={() => setTopicLimit(prev => prev + 50)}
+              onLoadMore={() => { if (topics.length >= topicLimit) setTopicLimit(prev => prev + 50); }}
               userId={user?.uid}
             />
           )}
@@ -2459,7 +2459,7 @@ export default function App() {
               onRecallResponse={handleRecallResponse}
               onAddVoiceRecording={handleAddVoice}
               onDeleteVoiceRecording={handleDeleteVoice}
-              onLoadMore={() => setQuestionLimit(prev => prev + 50)}
+              onLoadMore={() => { if (questions.length >= questionLimit) setQuestionLimit(prev => prev + 50); }}
             />
           )}
 

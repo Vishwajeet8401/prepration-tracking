@@ -883,11 +883,15 @@ export default function Dashboard({
               onClick={async () => {
                 try {
                   const elapsedHours = Number((activeTaskTimer.displaySeconds / 3600).toFixed(2));
+                  const fallbackHours = Number(activeTaskTimer.task.targetHours) || 1;
+                  const finalHours = elapsedHours > 0 ? elapsedHours : fallbackHours;
+                  
                   await onUpdateTask({
                     ...activeTaskTimer.task,
+                    targetHours: fallbackHours,
                     status: 'Completed',
                     completedAt: new Date().toISOString()
-                  }, elapsedHours > 0 ? elapsedHours : activeTaskTimer.task.targetHours, `Completed via timer. Time spent: ${formatTime(activeTaskTimer.displaySeconds)}`);
+                  }, finalHours, `Completed via timer. Time spent: ${formatTime(activeTaskTimer.displaySeconds)}`);
 
                   playSuccessChime();
                   setActiveTaskTimer(null);
@@ -966,11 +970,13 @@ export default function Dashboard({
                       onClick={async () => {
                         if (isCompleted || isSkipped) return;
                         try {
+                          const fallbackHours = Number(task.targetHours) || 1;
                           await onUpdateTask({
                             ...task,
+                            targetHours: fallbackHours,
                             status: 'Completed',
                             completedAt: new Date().toISOString()
-                          }, task.targetHours, 'Completed directly from premium Dashboard controller.');
+                          }, fallbackHours, 'Completed directly from premium Dashboard controller.');
                           if (isActive) setActiveTaskTimer(null);
                         } catch (err) {
                           console.error(err);
