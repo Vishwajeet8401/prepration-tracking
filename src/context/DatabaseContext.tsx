@@ -2107,6 +2107,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     try {
       await setDoc(doc(db, 'notifications', notifId), created);
+      // Trigger native system tray notification on mobile
+      await triggerImmediateNativeNotification(params.title, params.message);
     } catch (err) {
       console.error(err);
     }

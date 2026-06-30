@@ -183,8 +183,26 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
   const [questionSource, setQuestionSource] = useState<'Presets' | 'Question Bank' | 'Intelligence DB' | 'AI Generated'>('Presets');
   const [subjectId, setSubjectId] = useState<string>('');
+  const [topicId, setTopicId] = useState<string>('');
   const [experienceLevel, setExperienceLevel] = useState<'Junior' | 'Mid' | 'Senior' | 'Staff'>('Senior');
   const [companyType, setCompanyType] = useState<'FAANG / Tier 1' | 'Startup / High-Growth' | 'Enterprise / Fintech' | 'General Tech'>('FAANG / Tier 1');
+
+  // Reset topicId if the selected topic doesn't belong to the newly selected subject
+  useEffect(() => {
+    if (subjectId) {
+      const selectedTopicObj = topics.find(t => t.id === topicId);
+      if (selectedTopicObj && selectedTopicObj.subjectId !== subjectId) {
+        setTopicId('');
+      }
+    }
+  }, [subjectId, topics, topicId]);
+
+  // Ensure questionSource is not 'AI Generated' if there is no api key
+  useEffect(() => {
+    if (!cerebrasApiKey && questionSource === 'AI Generated') {
+      setQuestionSource('Presets');
+    }
+  }, [cerebrasApiKey, questionSource]);
   
   // Active session state
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -392,7 +410,12 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
     } else if (questionSource === 'Question Bank') {
       const filtered = questions.filter(q => {
         const diffMatch = q.difficulty === difficulty;
-        return diffMatch;
+        const topicMatch = !topicId || q.topicId === topicId;
+        const subjectMatch = !subjectId || (() => {
+          const t = topics.find(tp => tp.id === q.topicId);
+          return t ? t.subjectId === subjectId : false;
+        })();
+        return diffMatch && topicMatch && subjectMatch;
       });
       list = filtered.map((q, idx) => ({
         id: q.id || `qb-${idx}`,
@@ -401,7 +424,12 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
         idealConcept: q.answer
       }));
     } else if (questionSource === 'Intelligence DB') {
-      const filtered = intelliQuestions.filter(q => q.difficulty === difficulty);
+      const filtered = intelliQuestions.filter(q => {
+        const diffMatch = q.difficulty === difficulty;
+        const selectedTopicObj = topics.find(t => t.id === topicId);
+        const topicMatch = !topicId || (selectedTopicObj ? q.topic.toLowerCase() === selectedTopicObj.name.toLowerCase() : true);
+        return diffMatch && topicMatch;
+      });
       list = filtered.map((q, idx) => ({
         id: q.id || `iq-${idx}`,
         question: q.question,
@@ -411,7 +439,13 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
     } else {
       // AI Generated
       setIsGeneratingQuestions(true);
-      const subjectName = subjectId ? (subjects.find(s => s.id === subjectId)?.name || '') : 'General Software Engineering';
+      const subjectName = subjectId ? (subjects.find(s => s.id === subjectId)?.name || '') : '';
+      const topicName = topicId ? (topics.find(t => t.id === topicId)?.name || '') : '';
+      const focusText = [
+        subjectName && `Subject Focus: ${subjectName}`,
+        topicName && `Topic Focus: ${topicName}`
+      ].filter(Boolean).join('. ');
+
       try {
         const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
           method: "POST",
@@ -437,7 +471,7 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
               },
               {
                 role: "user",
-                content: `Generate questions for a ${roundType} round targeting ${difficulty} difficulty. Subject Focus: ${subjectName}. Target seniority level: ${experienceLevel}. Focus style matching this company profile: ${companyType}.`
+                content: `Generate questions for a ${roundType} round targeting ${difficulty} difficulty. ${focusText ? `${focusText}. ` : ''}Target seniority level: ${experienceLevel}. Focus style matching this company profile: ${companyType}.`
               }
             ],
             temperature: 0.7,
@@ -895,20 +929,22 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
                   <label className="text-slate-300 font-semibold block">Question Pool Source</label>
                   <p className="text-[10px] text-slate-500">Select where the questions should be loaded from.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {['Presets', 'Question Bank', 'Intelligence DB', 'AI Generated'].map(src => (
-                      <button
-                        key={src}
-                        type="button"
-                        onClick={() => setQuestionSource(src as any)}
-                        className={`py-2 px-1 rounded-lg border text-center font-bold text-[10px] transition cursor-pointer ${
-                          questionSource === src
-                            ? 'bg-violet-650 text-white border-violet-500/50 shadow'
-                            : 'bg-white/5 text-slate-350 border-white/5 hover:bg-white/10'
-                        }`}
-                      >
-                        {src}
-                      </button>
-                    ))}
+                    {['Presets', 'Question Bank', 'Intelligence DB', 'AI Generated']
+                      .filter(src => src !== 'AI Generated' || !!cerebrasApiKey)
+                      .map(src => (
+                        <button
+                          key={src}
+                          type="button"
+                          onClick={() => setQuestionSource(src as any)}
+                          className={`py-2 px-1 rounded-lg border text-center font-bold text-[10px] transition cursor-pointer ${
+                            questionSource === src
+                              ? 'bg-violet-650 text-white border-violet-500/50 shadow'
+                              : 'bg-white/5 text-slate-350 border-white/5 hover:bg-white/10'
+                          }`}
+                        >
+                          {src}
+                        </button>
+                      ))}
                   </div>
                 </div>
 
@@ -950,6 +986,23 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
                     {subjects.map(s => (
                       <option key={s.id} value={s.id} className="bg-[#111827]">{s.name}</option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-slate-300 font-semibold block">Target Topic Focus (Optional)</label>
+                  <p className="text-[10px] text-slate-500">Focus the simulation round on a specific topic.</p>
+                  <select
+                    value={topicId}
+                    onChange={e => setTopicId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-xl glass-input text-slate-205 cursor-pointer bg-[#111827]"
+                  >
+                    <option value="" className="bg-[#111827]">General / Mixed</option>
+                    {topics
+                      .filter(t => !subjectId || t.subjectId === subjectId)
+                      .map(t => (
+                        <option key={t.id} value={t.id} className="bg-[#111827]">{t.name}</option>
+                      ))}
                   </select>
                 </div>
 
