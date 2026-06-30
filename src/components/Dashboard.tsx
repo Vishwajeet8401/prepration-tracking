@@ -239,6 +239,40 @@ const Dashboard = React.memo(function Dashboard({
     }
   }, [activeTaskTimer?.displaySeconds, activeTaskTimer?.taskId, activeTaskTimer?.task?.targetHours, pushNotification]);
 
+  // Native Mobile background timer compatibility syncer
+  useEffect(() => {
+    if (!activeTaskTimer) return;
+
+    const targetSeconds = (activeTaskTimer.task.targetHours || 0) * 3600;
+
+    if (!activeTaskTimer.isPaused) {
+      // Timer is active: calculate remaining time and schedule future overflow notification
+      const remainingSeconds = targetSeconds - activeTaskTimer.elapsed;
+      if (remainingSeconds > 0) {
+        import('../utils/mobileScheduler').then(m => {
+          m.scheduleTimerOverflowNotification(
+            activeTaskTimer.taskId,
+            activeTaskTimer.taskTitle,
+            activeTaskTimer.task.targetHours || 1,
+            remainingSeconds
+          );
+        }).catch(err => console.error("Failed to load mobile scheduler:", err));
+      }
+    } else {
+      // Timer is paused: cancel any scheduled overflow notification
+      import('../utils/mobileScheduler').then(m => {
+        m.cancelTimerOverflowNotification(activeTaskTimer.taskId);
+      }).catch(err => console.error("Failed to load mobile scheduler:", err));
+    }
+
+    // Cleanup: cancel notification on task switch or unmount
+    return () => {
+      import('../utils/mobileScheduler').then(m => {
+        m.cancelTimerOverflowNotification(activeTaskTimer.taskId);
+      }).catch(err => console.error("Failed to load mobile scheduler:", err));
+    };
+  }, [activeTaskTimer?.isPaused, activeTaskTimer?.taskId, activeTaskTimer?.elapsed]);
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
     const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');

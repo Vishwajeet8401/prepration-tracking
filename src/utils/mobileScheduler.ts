@@ -264,3 +264,67 @@ export const triggerImmediateNativeNotification = async (title: string, body: st
     console.error('Failed to trigger immediate native notification:', err);
   }
 };
+
+/**
+ * Schedules a native notification for when a study task timer exceeds its target duration.
+ * This ensures the notification will fire even if the app WebView is throttled/paused in the background.
+ */
+export const scheduleTimerOverflowNotification = async (
+  taskId: string,
+  taskTitle: string,
+  targetHours: number,
+  delaySeconds: number
+): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
+  try {
+    const permissionGranted = await requestNativeNotificationPermission();
+    if (!permissionGranted) {
+      console.warn('Native notification permission denied.');
+      return;
+    }
+
+    const notificationId = generateNumericId('timer-' + taskId);
+    
+    // Cancel any previous notification under this ID to avoid duplicates
+    await LocalNotifications.cancel({
+      notifications: [{ id: notificationId }]
+    });
+
+    const triggerAt = new Date(Date.now() + delaySeconds * 1000);
+
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: notificationId,
+        title: `Task Target Exceeded`,
+        body: `You have exceeded the target of ${targetHours}h for task "${taskTitle}".`,
+        schedule: { at: triggerAt, allowWhileIdle: true },
+        sound: 'chime.wav'
+      }]
+    });
+    console.log(`Scheduled native task timer overflow notification for "${taskTitle}" in ${delaySeconds}s.`);
+  } catch (err) {
+    console.error('Failed to schedule native timer overflow notification:', err);
+  }
+};
+
+/**
+ * Cancels a scheduled task timer overflow notification.
+ */
+export const cancelTimerOverflowNotification = async (taskId: string): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
+  try {
+    const notificationId = generateNumericId('timer-' + taskId);
+    await LocalNotifications.cancel({
+      notifications: [{ id: notificationId }]
+    });
+    console.log(`Cancelled native timer overflow notification for task: ${taskId}`);
+  } catch (err) {
+    console.error('Failed to cancel native timer overflow notification:', err);
+  }
+};
