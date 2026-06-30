@@ -410,6 +410,14 @@ service cloud.firestore {
       allow delete: if isVerifiedUser() && isDocOwner(existing());
     }
 
+    match /mockPresetQuestions/{docId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(docId) && incoming().userId == request.auth.uid;
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
     match /personalReminders/{reminderId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
       allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;

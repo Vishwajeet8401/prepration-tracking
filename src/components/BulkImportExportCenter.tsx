@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   Topic, Question, InterviewIntelligenceQuestion, Mistake, 
-  ActivityPlan, Roadmap, Journal, Interview, Subject, UserSettings
+  ActivityPlan, Roadmap, Journal, Interview, Subject, UserSettings, MockPresetQuestion
 } from '../types';
 import { 
   FileJson, FileSpreadsheet, Copy, Check, Trash2, HelpCircle, 
@@ -21,6 +21,7 @@ interface BulkImportExportCenterProps {
   journals: Journal[];
   interviews: Interview[];
   subjects: Subject[];
+  mockPresetQuestions: MockPresetQuestion[];
   userSettings: UserSettings | null;
   onUpdateCerebrasKey: (key: string) => Promise<void>;
   onUpdateTheme: (theme: string) => Promise<void>;
@@ -341,6 +342,27 @@ STRICT RULES:
     "createdAt": "2026-06-01T09:00:00Z"
   }
 ]`
+  },
+  'Simulator Questions': {
+    format: 'JSON / CSV / Excel',
+    requiredFields: ['question', 'idealConcept', 'roundType'],
+    optionalFields: ['expectedKeywords'],
+    example: [
+      {
+        question: 'Explain the difference between optimistic locking and pessimistic locking database strategies.',
+        expectedKeywords: 'version column, db locks, locking overhead, database collision, serializability',
+        idealConcept: 'Optimistic locking assumes collisions are rare and verifies that the version column of the record is unchanged before executing updates. Pessimistic locking locks the records at database level immediately, preventing concurrent updates until release.',
+        roundType: 'Technical'
+      }
+    ],
+    prompt: `You are an expert interviewer coach. Generate a JSON array of 8 challenging interview questions.
+    
+    STRICT RULES:
+    - Output ONLY a valid JSON array. No markdown, no code fences.
+    - "question" must be a deep scenario-based or conceptual technical question.
+    - "expectedKeywords" must be a comma-separated lowercase string of key terms.
+    - "idealConcept" must be a 3-4 sentence detailed expert answer definition.
+    - "roundType" must be exactly one of: Technical | HR | System Design | Behavioral`
   }
 };
 
@@ -415,6 +437,16 @@ const sanitizeRecord = (type: string, rec: any): any => {
         r.tags = [];
       }
       break;
+    case 'Simulator Questions':
+      r.question = r.question || '';
+      r.idealConcept = r.idealConcept || '';
+      r.roundType = r.roundType || 'Technical';
+      if (typeof r.expectedKeywords === 'string') {
+        r.expectedKeywords = r.expectedKeywords.split(',').map((k: string) => k.trim().toLowerCase()).filter(Boolean);
+      } else if (!Array.isArray(r.expectedKeywords)) {
+        r.expectedKeywords = [];
+      }
+      break;
   }
   return r;
 };
@@ -423,6 +455,7 @@ const sanitizeRecord = (type: string, rec: any): any => {
 
 export default function BulkImportExportCenter({
   topics, questions, intelliQuestions, mistakes, plans, roadmaps, journals, interviews, subjects,
+  mockPresetQuestions,
   userSettings, onUpdateCerebrasKey, onUpdateTheme, onBulkImport
 }: BulkImportExportCenterProps) {
 
@@ -678,7 +711,8 @@ export default function BulkImportExportCenter({
       Mistakes: mistakes,
       'Activity Plans': plans,
       Journals: journals,
-      Roadmaps: roadmaps
+      Roadmaps: roadmaps,
+      'Simulator Questions': mockPresetQuestions
     };
 
     const sourceData = dataMap[type];
@@ -732,14 +766,15 @@ export default function BulkImportExportCenter({
         mistakes: mistakes.map(cleanExport),
         plans: plans.map(cleanExport),
         journals: journals.map(cleanExport),
-        roadmaps: roadmaps.map(cleanExport)
+        roadmaps: roadmaps.map(cleanExport),
+        mockPresetQuestions: mockPresetQuestions.map(cleanExport)
       }
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     downloadBlob(blob, `PrepMaster_FullBackup_${new Date().toISOString().split('T')[0]}.json`);
   };
 
-  const totalExportRecords = subjects.length + topics.length + questions.length + intelliQuestions.length + mistakes.length + plans.length + journals.length + roadmaps.length;
+  const totalExportRecords = subjects.length + topics.length + questions.length + intelliQuestions.length + mistakes.length + plans.length + journals.length + roadmaps.length + mockPresetQuestions.length;
 
   // ── Export cards config ──────────────────────────────────────────────────────
 
@@ -751,7 +786,8 @@ export default function BulkImportExportCenter({
     { type: 'Mistakes', count: mistakes.length, desc: 'Post-mortem tracking & failure diagnostics', icon: AlertTriangle, color: 'rose' },
     { type: 'Activity Plans', count: plans.length, desc: 'Strategic weekly targets and durations', icon: CheckCircle, color: 'emerald' },
     { type: 'Journals', count: journals.length, desc: 'Reflective learning summaries', icon: FileJson, color: 'teal' },
-    { type: 'Roadmaps', count: roadmaps.length, desc: 'Hierarchical learning tracks & dependency links', icon: Database, color: 'pink' }
+    { type: 'Roadmaps', count: roadmaps.length, desc: 'Hierarchical learning tracks & dependency links', icon: Database, color: 'pink' },
+    { type: 'Simulator Questions', count: mockPresetQuestions.length, desc: 'Custom and seeded mock interview simulation pools', icon: RefreshCw, color: 'indigo' }
   ];
 
   const colorMap: Record<string, string> = {

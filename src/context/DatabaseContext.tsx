@@ -9,12 +9,12 @@ import {
   Topic, Question, JobApplication, Interview, Mistake, StudySession, 
   AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, 
   DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, 
-  PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject, UserSettings, StarStory 
+  PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject, UserSettings, StarStory, MockPresetQuestion 
 } from '../types';
 import { 
   initialTopics, initialQuestions, initialJobApplications, 
   initialInterviews, initialMistakes, initialStudySessions, initialNotifications, 
-  initialIntelliQuestions, initialSubjects
+  initialIntelliQuestions, initialSubjects, initialMockPresetQuestions
 } from '../initialData';
 import { useGlobalStats } from '../hooks/useGlobalStats';
 import { useUrgentTopics } from '../hooks/useUrgentTopics';
@@ -105,6 +105,10 @@ export interface DatabaseContextType {
   handleDeletePlan: (id: string) => Promise<void>;
   handleUpdateTaskInApp: (updated: DailyTask, actualHours?: number, notes?: string) => Promise<void>;
   handleDeleteTaskInApp: (id: string) => Promise<void>;
+  mockPresetQuestions: MockPresetQuestion[];
+  handleAddMockPresetQuestion: (newQ: Omit<MockPresetQuestion, 'id' | 'userId'>) => Promise<void>;
+  handleDeleteMockPresetQuestion: (id: string) => Promise<void>;
+  handleUpdateCustomPrompt: (prompt: string) => Promise<void>;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -135,6 +139,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [reminderLogs, setReminderLogs] = useState<ReminderLog[]>([]);
   const [reminderSettings, setReminderSettings] = useState<PersonalReminderSettings | null>(null);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [mockPresetQuestions, setMockPresetQuestions] = useState<MockPresetQuestion[]>([]);
 
   const globalStats = useGlobalStats(user?.uid);
   const { urgentTopics } = useUrgentTopics(user?.uid);
@@ -162,6 +167,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const personalRemindersRef = useRef(personalReminders);
   const reminderLogsRef = useRef(reminderLogs);
   const reminderSettingsRef = useRef(reminderSettings);
+  const mockPresetQuestionsRef = useRef(mockPresetQuestions);
 
   useEffect(() => { subjectsRef.current = subjects; }, [subjects]);
   useEffect(() => { topicsRef.current = topics; }, [topics]);
@@ -181,6 +187,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => { personalRemindersRef.current = personalReminders; }, [personalReminders]);
   useEffect(() => { reminderLogsRef.current = reminderLogs; }, [reminderLogs]);
   useEffect(() => { reminderSettingsRef.current = reminderSettings; }, [reminderSettings]);
+  useEffect(() => { mockPresetQuestionsRef.current = mockPresetQuestions; }, [mockPresetQuestions]);
 
   // Toast Notifications Syncer
   useEffect(() => {
@@ -309,6 +316,24 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setInterviews(list);
     }, (error) => {
       console.error("Interviews snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setMockPresetQuestions([]);
+      return;
+    }
+    const q = query(collection(db, 'mockPresetQuestions'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: MockPresetQuestion[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as MockPresetQuestion);
+      });
+      setMockPresetQuestions(list);
+    }, (error) => {
+      console.error("Mock preset questions snapshot error:", error);
     });
     return () => unsubscribe();
   }, [user]);
@@ -856,6 +881,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
       initialIntelliQuestions.forEach((iq) => {
         batch.set(doc(db, 'intelliQuestions', iq.id), { ...iq, userId: user.uid });
+      });
+      initialMockPresetQuestions.forEach((mpq) => {
+        batch.set(doc(db, 'mockPresetQuestions', mpq.id), { ...mpq, userId: user.uid });
       });
 
       await batch.commit();
@@ -1693,6 +1721,47 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user]);
 
+  const handleUpdateCustomPrompt = useCallback(async (prompt: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        customInterviewPrompt: prompt
+      }, { merge: true });
+      await pushNotification({
+        title: 'AI Prompt Settings Saved',
+        message: 'Your custom AI interviewer prompt persona was updated successfully.',
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error updating custom prompt settings:", err);
+    }
+  }, [user]);
+
+  const handleAddMockPresetQuestion = useCallback(async (newQ: Omit<MockPresetQuestion, 'id' | 'userId'>) => {
+    if (!user) return;
+    const newId = 'mpq-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const fullQ: MockPresetQuestion = {
+      ...newQ,
+      id: newId,
+      userId: user.uid
+    };
+    try {
+      await setDoc(doc(db, 'mockPresetQuestions', newId), fullQ);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `mockPresetQuestions/${newId}`);
+    }
+  }, [user]);
+
+  const handleDeleteMockPresetQuestion = useCallback(async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'mockPresetQuestions', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `mockPresetQuestions/${id}`);
+    }
+  }, [user]);
 
   const handleBulkImport = useCallback(async (
     dataType: string,
@@ -1750,6 +1819,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         case 'Journal Entries': {
           colName = 'journals';
           existing = journalsRef.current.find(j => j.title.toLowerCase().trim() === item.title.toLowerCase().trim() && j.content.toLowerCase().trim() === item.content.toLowerCase().trim());
+          break;
+        }
+        case 'Simulator Questions': {
+          colName = 'mockPresetQuestions';
+          existing = mockPresetQuestionsRef.current.find(mpq => mpq.question.toLowerCase().trim() === item.question.toLowerCase().trim());
           break;
         }
         default:
@@ -1928,6 +2002,20 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             tags: typeof item.tags === 'string' ? item.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t !== '') : (Array.isArray(item.tags) ? item.tags : []),
             createdAt: item.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
+          };
+          break;
+        }
+        case 'Simulator Questions': {
+          docId = existing ? existing.id : 'mpq-' + Date.now() + '-' + idx;
+          docData = {
+            id: docId,
+            userId: user.uid,
+            question: item.question,
+            idealConcept: item.idealConcept,
+            roundType: item.roundType || 'Technical',
+            expectedKeywords: typeof item.expectedKeywords === 'string' 
+              ? item.expectedKeywords.split(',').map((k: string) => k.trim().toLowerCase()).filter((k: string) => k !== '')
+              : (Array.isArray(item.expectedKeywords) ? item.expectedKeywords : [])
           };
           break;
         }
@@ -2156,6 +2244,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       applications, interviews, mistakes, sessions, notifications, voiceRecordings, intelliQuestions,
       plans, tasks, journals, roadmaps, mockInterviews, starStories, personalReminders, reminderLogs, reminderSettings,
       userSettings, loading, globalStats, urgentTopics, activeToasts, setActiveToasts,
+      mockPresetQuestions,
       handleSeedSandbox, handleRestoreCloudBackup, handleAddSubject, handleUpdateSubject, handleDeleteSubject,
       handleAddTopic, handleUpdateTopic, handleDeleteTopic, handleMergeTopics, handleAddJournal, handleUpdateJournal,
       handleUploadJournalAttachment, handleDeleteJournal, handleAddRoadmap, handleUpdateRoadmap, handleDeleteRoadmap,
@@ -2166,7 +2255,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       handleActionPersonalReminder, handleUpdateReminderSettings, handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport,
       handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead, handleClearAll,
       handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan, handleUpdateTaskInApp,
-      handleDeleteTaskInApp
+      handleDeleteTaskInApp, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion, handleUpdateCustomPrompt
     }}>
       {children}
     </DatabaseContext.Provider>

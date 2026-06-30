@@ -432,3 +432,139 @@ export const initialIntelliQuestions: InterviewIntelligenceQuestion[] = [
   }
 ];
 
+export const initialMockPresetQuestions = [
+  {
+    id: 'mpq-t1',
+    question: 'How does the ConcurrentHashMap achieve high concurrency compared to a synchronized Hashtable?',
+    expectedKeywords: ['segment', 'bucket', 'reentrant lock', 'cas', 'compare and swap', 'synchronized blocks', 'node-level locking'],
+    idealConcept: 'ConcurrentHashMap in modern Java uses CAS (Compare-And-Swap) operations for empty buckets, and locking at the single bucket node level. This avoids locking the entire map, allowing multiple reader threads and distinct bucket writer threads to operate simultaneously without interference.',
+    roundType: 'Technical'
+  },
+  {
+    id: 'mpq-t2',
+    question: 'What are the key differences between heap memory and stack memory in the Java Virtual Machine?',
+    expectedKeywords: ['heap', 'stack', 'allocation', 'garbage collection', 'reference', 'thread safety', 'scope'],
+    idealConcept: 'Stack memory is used for local variable storage, method execution frames, and object references. It is thread-safe and faster with LIFO structure. Heap memory stores all actual object instances, is shared across threads, and is managed dynamically by the Garbage Collector.',
+    roundType: 'Technical'
+  },
+  {
+    id: 'mpq-t3',
+    question: 'Explain the N+1 select query problem in Hibernate or JPA, and how can you solve it?',
+    expectedKeywords: ['join fetch', 'entity graph', 'batch size', 'n+1', 'lazy loading', 'eager loading'],
+    idealConcept: 'The N+1 problem occurs when Hibernate executes 1 query to retrieve parent entities and then executes N separate queries to retrieve child associations for each parent. It is solved using JOIN FETCH queries, JPA Entity Graphs, or setting a subselect/batch fetch size in configuration.',
+    roundType: 'Technical'
+  },
+  {
+    id: 'mpq-t4',
+    question: 'How do you ensure cache consistency between a distributed cache (like Redis) and your primary SQL database?',
+    expectedKeywords: ['cache aside', 'write through', 'write behind', 'eviction', 'ttl', 'transactional', 'message queue'],
+    idealConcept: 'Cache consistency is commonly maintained using the Cache-Aside pattern (write database, delete cache). Advanced systems use Write-Through, transactional cache invalidation, short TTL boundaries, or CDC (Change Data Capture) via message queues for asynchronous caching sync.',
+    roundType: 'Technical'
+  },
+  {
+    id: 'mpq-t5',
+    question: 'Explain the Javascript Event Loop, Call Stack, Microtask queue, and Macrotask queue hierarchy.',
+    expectedKeywords: ['call stack', 'event loop', 'microtask', 'macrotask', 'promise', 'settimeout', 'callback queue'],
+    idealConcept: 'The JavaScript event loop coordinates execution. Synchronous code runs on the call stack first. Once cleared, the loop processes the microtask queue (Promises, MutationObservers) to completion. Only then does it poll the macrotask queue (setTimeout, I/O tasks) for one callback per tick, ensuring non-blocking operations.',
+    roundType: 'Technical'
+  },
+  {
+    id: 'mpq-t6',
+    question: 'How does indexing speed up database queries, and what are the trade-offs of having too many indexes?',
+    expectedKeywords: ['b-tree', 'index', 'scan', 'seek', 'insert', 'update', 'write overhead', 'disk space'],
+    idealConcept: 'Database indexes (typically B-Trees) provide quick lookup pointers to avoid full table scans, converting O(N) operations to O(log N) seeks. However, indexes introduce write overhead because insert, update, and delete statements must modify the index trees, consuming extra disk space.',
+    roundType: 'Technical'
+  },
+  {
+    id: 'mpq-t7',
+    question: 'Explain the virtual DOM reconciliation process in React, including keys and diffing algorithm.',
+    expectedKeywords: ['reconciliation', 'virtual dom', 'diffing', 'keys', 'fiber', 'render', 'complexity'],
+    idealConcept: 'React uses a Virtual DOM to minimize direct browser reflows. During reconciliation, React walks old and new element trees, matching nodes. By using unique keys, React can track elements across renders, reducing updates from O(N^3) to O(N) by mapping matching tree elements efficiently.',
+    roundType: 'Technical'
+  },
+  {
+    id: 'mpq-h1',
+    question: 'Tell me about a time when you had a technical disagreement with a colleague. How did you handle it?',
+    expectedKeywords: ['listen', 'empathy', 'trade-offs', 'data-driven', 'collaboration', 'consensus', 'respect'],
+    idealConcept: 'Explain a specific disagreement calmly, highlighting active listening, objectifying trade-offs using proof-of-concept benchmarks or official documentation, and collaborating constructive guidelines rather than arguing personal styles.',
+    roundType: 'HR'
+  },
+  {
+    id: 'mpq-h2',
+    question: 'Describe a challenging bug you encountered in production, your troubleshooting workflow, and how you hotfixed it.',
+    expectedKeywords: ['logs', 'apm', 'root cause', 'hotfix', 'regression testing', 'post-mortem', 'monitoring'],
+    idealConcept: 'Illustrate your systematic troubleshooting loop: gathering telemetry error logs, isolating the state, deploying a verified patch, executing safety regression tests, and conducting post-mortem tracking to avoid future leaks.',
+    roundType: 'HR'
+  },
+  {
+    id: 'mpq-h3',
+    question: 'Where do you see your technical career in five years?',
+    expectedKeywords: ['architectural', 'mentoring', 'domain master', 'continuous learning', 'system design', 'impact'],
+    idealConcept: 'Emphasize your intent to master high-availability backend microservices, lead architectural designs, mentor junior contributors, and translate product visions into scalable cloud-native architectures.',
+    roundType: 'HR'
+  },
+  {
+    id: 'mpq-h4',
+    question: 'How do you manage stress and prioritize tasks when faced with tight release deadlines?',
+    expectedKeywords: ['prioritize', 'communication', 'scope', 'time management', 'delegation', 'incremental'],
+    idealConcept: 'I prioritize tasks using the MoSCoW method, identifying critical dependencies. I maintain transparent communication with stakeholders to scope down optional requirements, and focus on delivering high-quality incremental updates instead of rushing large features.',
+    roundType: 'HR'
+  },
+  {
+    id: 'mpq-h5',
+    question: 'Why do you want to join our organization, and what value do you expect to bring?',
+    expectedKeywords: ['culture', 'scale', 'domain', 'problem solving', 'alignment', 'contribution'],
+    idealConcept: 'I am highly aligned with your focus on building high-availability, user-centric systems at scale. I bring a strong background in backend performance optimization, a solid problem-solving mindset, and a commitment to collaborative, continuous improvement.',
+    roundType: 'HR'
+  },
+  {
+    id: 'mpq-s1',
+    question: 'How would you design a scalable distributed rate limiter for an API gateway serving millions of users?',
+    expectedKeywords: ['token bucket', 'sliding window', 'redis', 'lua scripts', 'fallback', 'middleware', 'latency'],
+    idealConcept: 'Implement a Token Bucket or Sliding Window log algorithm using Redis to hold rate limit counters dynamically. Use Redis Lua scripts to execute queries atomically, keeping latency below 5ms with back-up local fallback headers.',
+    roundType: 'System Design'
+  },
+  {
+    id: 'mpq-s2',
+    question: 'How would you design a highly consistent, fault-tolerant distributed transaction system?',
+    expectedKeywords: ['two-phase commit', '2pc', 'saga pattern', 'compensation', 'outbox pattern', 'idempotency'],
+    idealConcept: 'For strict consistency, two-phase commit is used but limits performance. In microservices, the Saga Pattern is preferred: using orchestration or choreographies with compensating events, backed by transactional outbox pipelines and idempotency guards.',
+    roundType: 'System Design'
+  },
+  {
+    id: 'mpq-s3',
+    question: 'How would you design a scalable distributed unique ID generator (like Snowflake)?',
+    expectedKeywords: ['snowflake', 'timestamp', 'worker id', 'sequence', 'uuid', 'collision', 'coordination'],
+    idealConcept: 'A distributed ID generator can use Twitter Snowflake structure: 41 bits for timestamp, 10 bits for worker/node ID, and 12 bits for a sequence number. This allows generating 64-bit sortable unique IDs locally on each server without central coordination databases, avoiding latency bottlenecks.',
+    roundType: 'System Design'
+  },
+  {
+    id: 'mpq-s4',
+    question: 'How would you design a high-throughput video uploading and encoding service like YouTube?',
+    expectedKeywords: ['transcoding', 'chunking', 'object storage', 'cdn', 'queue', 'metadata', 'scalability'],
+    idealConcept: 'The design uploads videos in chunks to Object Storage, triggering async jobs in a message queue. Worker pools process chunks in parallel, transcoding them into multiple formats (1080p, 720p, etc.). Video metadata is saved to a database, and encoded files are pushed to Edge CDNs for low-latency playback.',
+    roundType: 'System Design'
+  },
+  {
+    id: 'mpq-b1',
+    question: 'Describe a time you failed to meet a target deadline. What did you learn and how did you manage expectations?',
+    expectedKeywords: ['proactive communication', 'transparency', 'prioritization', 'agile', 'timeline modification', 'velocity'],
+    idealConcept: 'Highlight proactive communication with stakeholders the moment risks were discovered. Detail how you re-prioritized features, shipped MVP core functionality on time, and adjusted sprint velocity estimations for future projects.',
+    roundType: 'Behavioral'
+  },
+  {
+    id: 'mpq-b2',
+    question: 'Tell me about a time you had to take lead on a project with ambiguous or incomplete requirements.',
+    expectedKeywords: ['ambiguity', 'stakeholders', 'requirements', 'proactive', 'feedback loop', 'prototype'],
+    idealConcept: 'When requirements were ambiguous, I took initiative by organizing meetings with key stakeholders to define core goals. I built a simple, low-fidelity prototype to visualize the flow, gather early feedback, and iteratively document refined product specs, reducing scope risks.',
+    roundType: 'Behavioral'
+  },
+  {
+    id: 'mpq-b3',
+    question: 'Describe a time you received constructive criticism that impacted your development style. How did you react?',
+    expectedKeywords: ['feedback', 'listening', 'growth mindset', 'improvement', 'refactoring', 'code review'],
+    idealConcept: 'During a code review, a lead developer pointed out that my architecture was overly complex for the feature requirements. I listened with a growth mindset, worked with them to refactor the module for simplicity and readability, and now actively focus on writing simpler, more maintainable code.',
+    roundType: 'Behavioral'
+  }
+];
+

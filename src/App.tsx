@@ -48,6 +48,7 @@ export default function App() {
     applications, interviews, mistakes, sessions, notifications, voiceRecordings, intelliQuestions,
     plans, tasks, journals, roadmaps, mockInterviews, starStories, personalReminders, reminderLogs, reminderSettings,
     userSettings, loading, globalStats, urgentTopics, activeToasts, setActiveToasts,
+    mockPresetQuestions,
     handleSeedSandbox, handleRestoreCloudBackup, handleAddSubject, handleUpdateSubject, handleDeleteSubject,
     handleAddTopic, handleUpdateTopic, handleDeleteTopic, handleMergeTopics, handleAddJournal, handleUpdateJournal,
     handleUploadJournalAttachment, handleDeleteJournal, handleAddRoadmap, handleUpdateRoadmap, handleDeleteRoadmap,
@@ -58,7 +59,7 @@ export default function App() {
     handleUpdatePersonalReminder, handleDeletePersonalReminder, handleActionPersonalReminder, handleUpdateReminderSettings,
     handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
     handleClearAll, handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan,
-    handleUpdateTaskInApp, handleDeleteTaskInApp
+    handleUpdateTaskInApp, handleDeleteTaskInApp, handleUpdateCustomPrompt, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion
   } = useDatabase();
 
   // Navigation tabs state
@@ -561,6 +562,13 @@ export default function App() {
             <MockInterviewWorkspace 
               subjects={subjects}
               topics={topics}
+              questions={questions}
+              intelliQuestions={intelliQuestions}
+              mockPresetQuestions={mockPresetQuestions}
+              customInterviewPrompt={userSettings?.customInterviewPrompt}
+              onUpdateCustomPrompt={handleUpdateCustomPrompt}
+              onAddMockPresetQuestion={handleAddMockPresetQuestion}
+              onDeleteMockPresetQuestion={handleDeleteMockPresetQuestion}
               interviews={mockInterviews}
               cerebrasApiKey={userSettings?.cerebrasApiKey}
               onAddInterview={handleAddMockInterview}
@@ -586,6 +594,7 @@ export default function App() {
               journals={journals}
               interviews={interviews}
               subjects={subjects}
+              mockPresetQuestions={mockPresetQuestions}
               userSettings={userSettings}
               onUpdateCerebrasKey={handleUpdateCerebrasKey}
               onUpdateTheme={handleUpdateTheme}

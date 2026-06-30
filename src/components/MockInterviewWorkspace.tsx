@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MockInterview, Topic, Subject, Question, InterviewIntelligenceQuestion } from '../types';
+import { MockInterview, Topic, Subject, Question, InterviewIntelligenceQuestion, MockPresetQuestion } from '../types';
 import { 
   Play, Square, Sparkles, Clock, ListTodo, Award, RefreshCw, 
   ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Flame, BarChart2, BookOpen, Send,
@@ -12,6 +12,11 @@ interface MockInterviewWorkspaceProps {
   topics: Topic[];
   questions: Question[];
   intelliQuestions: InterviewIntelligenceQuestion[];
+  mockPresetQuestions: MockPresetQuestion[];
+  customInterviewPrompt?: string;
+  onUpdateCustomPrompt: (prompt: string) => Promise<void>;
+  onAddMockPresetQuestion: (q: Omit<MockPresetQuestion, 'id' | 'userId'>) => Promise<void>;
+  onDeleteMockPresetQuestion: (id: string) => Promise<void>;
   interviews: MockInterview[];
   cerebrasApiKey?: string;
   onAddInterview: (int: Omit<MockInterview, 'id' | 'userId'>) => Promise<void>;
@@ -148,11 +153,31 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
   topics,
   questions,
   intelliQuestions,
+  mockPresetQuestions,
+  customInterviewPrompt,
+  onUpdateCustomPrompt,
+  onAddMockPresetQuestion,
+  onDeleteMockPresetQuestion,
   interviews,
   cerebrasApiKey,
   onAddInterview,
   onDeleteInterview
 }: MockInterviewWorkspaceProps) {
+  const DEFAULT_PERSONA_PROMPT = `You are an expert technical interviewer at a top-tier tech company.
+Your task is to generate exactly 3 challenging, thinking-based, scenario-oriented interview questions for a candidate.
+Avoid simple definitions like "what is oops" or "what is a class". 
+Generate scenario-based questions that test deep technical/conceptual knowledge, system design choices, or soft skills/problem-solving based on the stream.`;
+
+  const [localPersonaPrompt, setLocalPersonaPrompt] = useState(customInterviewPrompt || DEFAULT_PERSONA_PROMPT);
+  const [showPersonaPromptEditor, setShowPersonaPromptEditor] = useState(false);
+  const [isSavingPersonaPrompt, setIsSavingPersonaPrompt] = useState(false);
+
+  useEffect(() => {
+    if (customInterviewPrompt) {
+      setLocalPersonaPrompt(customInterviewPrompt);
+    }
+  }, [customInterviewPrompt]);
+
   // Config state
   const [roundType, setRoundType] = useState<'Technical' | 'HR' | 'System Design' | 'Behavioral'>('Technical');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
@@ -353,7 +378,17 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
     let list: Array<{ id: string; question: string; expectedKeywords: string[]; idealConcept: string }> = [];
 
     if (questionSource === 'Presets') {
-      list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
+      const dbPresets = mockPresetQuestions.filter(q => q.roundType === roundType);
+      if (dbPresets.length > 0) {
+        list = dbPresets.map(q => ({
+          id: q.id,
+          question: q.question,
+          expectedKeywords: q.expectedKeywords,
+          idealConcept: q.idealConcept
+        }));
+      } else {
+        list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
+      }
     } else if (questionSource === 'Question Bank') {
       const filtered = questions.filter(q => {
         const diffMatch = q.difficulty === difficulty;
@@ -389,11 +424,9 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
             messages: [
               {
                 role: "system",
-                content: `You are an expert technical interviewer at a top-tier tech company.
-                Your task is to generate exactly 3 challenging, thinking-based, scenario-oriented interview questions for a candidate.
-                Avoid simple definitions like "what is oops" or "what is a class". 
-                Generate scenario-based questions that test deep technical/conceptual knowledge, system design choices, or soft skills/problem-solving based on the stream.
+                content: `${localPersonaPrompt}
                 
+                Strict formatting requirements:
                 You must return a JSON array containing exactly 3 objects. Each object must have these fields:
                 - "id": a unique string ID (e.g. "ai-q1")
                 - "question": the scenario-based question text
@@ -422,7 +455,17 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
         }
       } catch (err) {
         console.warn("Cerebras question generation failed, falling back to presets:", err);
-        list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
+        const dbPresets = mockPresetQuestions.filter(q => q.roundType === roundType);
+        if (dbPresets.length > 0) {
+          list = dbPresets.map(q => ({
+            id: q.id,
+            question: q.question,
+            expectedKeywords: q.expectedKeywords,
+            idealConcept: q.idealConcept
+          }));
+        } else {
+          list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
+        }
       } finally {
         setIsGeneratingQuestions(false);
       }
@@ -771,6 +814,60 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
                     </span>
                   </div>
                 </div>
+              </div>
+
+              {/* Custom AI prompt editor */}
+              <div className="border border-white/5 bg-white/5 rounded-xl overflow-hidden text-xs">
+                <div 
+                  onClick={() => setShowPersonaPromptEditor(!showPersonaPromptEditor)}
+                  className="flex items-center justify-between p-3 cursor-pointer select-none hover:bg-white/10 transition"
+                >
+                  <span className="font-bold text-slate-300 flex items-center gap-1.5 font-sans">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                    <span>AI Interviewer Prompt Persona Settings</span>
+                  </span>
+                  <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showPersonaPromptEditor ? 'rotate-90' : ''}`} />
+                </div>
+                
+                {showPersonaPromptEditor && (
+                  <div className="p-3.5 border-t border-white/5 space-y-3">
+                    <p className="text-[10px] text-slate-400 font-sans">
+                      Customize the behavior, constraints, and instructions of the AI interviewer. Llama 3.3 will use this prompt template to design scenario questions and evaluate your responses.
+                    </p>
+                    <textarea
+                      value={localPersonaPrompt}
+                      onChange={e => setLocalPersonaPrompt(e.target.value)}
+                      rows={4}
+                      className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl font-mono text-[10px] text-slate-300 focus:outline-none focus:border-indigo-500 leading-normal"
+                      placeholder="Enter custom interviewer instructions..."
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setLocalPersonaPrompt(DEFAULT_PERSONA_PROMPT)}
+                        className="px-2.5 py-1.5 border border-white/10 text-[10px] font-bold text-slate-400 hover:text-white rounded-lg cursor-pointer transition hover:bg-white/5"
+                      >
+                        Reset Default
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingPersonaPrompt}
+                        onClick={async () => {
+                          setIsSavingPersonaPrompt(true);
+                          try {
+                            await onUpdateCustomPrompt(localPersonaPrompt);
+                          } finally {
+                            setIsSavingPersonaPrompt(false);
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-indigo-650 hover:bg-indigo-600 disabled:opacity-50 text-[10px] font-bold text-white rounded-lg cursor-pointer transition flex items-center gap-1"
+                      >
+                        {isSavingPersonaPrompt ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                        Save Prompt
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">

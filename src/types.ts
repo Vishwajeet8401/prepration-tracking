@@ -339,6 +339,7 @@ export interface UserSettings {
   userId: string;
   cerebrasApiKey: string;
   theme?: string;
+  customInterviewPrompt?: string;
 }
 
 export interface StarStory {
@@ -354,6 +355,15 @@ export interface StarStory {
   updatedAt: string;
   aiScore?: number;
   aiFeedback?: string;
+}
+
+export interface MockPresetQuestion {
+  id: string;
+  userId: string;
+  question: string;
+  expectedKeywords: string[];
+  idealConcept: string;
+  roundType: 'Technical' | 'HR' | 'System Design' | 'Behavioral';
 }
 
 
