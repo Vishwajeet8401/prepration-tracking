@@ -122,7 +122,8 @@ export const scheduleNativeNotification = async (reminder: PersonalReminder): Pr
           allowWhileIdle: true,
           repeats: true
         },
-        sound: 'chime.wav'
+        sound: 'chime.wav',
+        channelId: 'prep_tracker_reminders'
       });
     } else if (reminder.repeatType === 'Weekly' && reminder.weeklyDays && reminder.weeklyDays.length > 0) {
       // For weekly schedules, schedule a separate notification for each selected weekday
@@ -143,7 +144,8 @@ export const scheduleNativeNotification = async (reminder: PersonalReminder): Pr
             allowWhileIdle: true,
             repeats: true
           },
-          sound: 'chime.wav'
+          sound: 'chime.wav',
+          channelId: 'prep_tracker_reminders'
         });
       });
     } else if (reminder.repeatType === 'Monthly' && reminder.monthlyDay) {
@@ -160,7 +162,8 @@ export const scheduleNativeNotification = async (reminder: PersonalReminder): Pr
           allowWhileIdle: true,
           repeats: true
         },
-        sound: 'chime.wav'
+        sound: 'chime.wav',
+        channelId: 'prep_tracker_reminders'
       });
     } else if (reminder.repeatType === 'Interval Based' && reminder.intervalHours) {
       // For interval-based alarms, schedule standard recurring trigger on the device
@@ -179,7 +182,8 @@ export const scheduleNativeNotification = async (reminder: PersonalReminder): Pr
           allowWhileIdle: true,
           repeats: true
         },
-        sound: 'chime.wav'
+        sound: 'chime.wav',
+        channelId: 'prep_tracker_reminders'
       });
     } else {
       // Default to standard one-shot or daily schedule at the target time
@@ -195,7 +199,8 @@ export const scheduleNativeNotification = async (reminder: PersonalReminder): Pr
           allowWhileIdle: true,
           repeats: false
         },
-        sound: 'chime.wav'
+        sound: 'chime.wav',
+        channelId: 'prep_tracker_reminders'
       });
     }
 
@@ -252,13 +257,16 @@ export const triggerImmediateNativeNotification = async (title: string, body: st
     }
 
     const notificationId = Math.floor(Math.random() * 1000000);
+    // Schedule 1 second in the future — scheduling at exact 'now' can fail on some Android versions
+    const triggerAt = new Date(Date.now() + 1000);
     await LocalNotifications.schedule({
       notifications: [{
         id: notificationId,
         title,
         body,
-        schedule: { at: new Date() },
-        sound: 'chime.wav'
+        schedule: { at: triggerAt, allowWhileIdle: true },
+        sound: 'chime.wav',
+        channelId: 'prep_tracker_reminders'
       }]
     });
     console.log(`Triggered immediate native notification: "${title}"`);
@@ -303,7 +311,8 @@ export const scheduleTimerOverflowNotification = async (
         title: `Task Target Exceeded`,
         body: `You have exceeded the target of ${targetHours}h for task "${taskTitle}".`,
         schedule: { at: triggerAt, allowWhileIdle: true },
-        sound: 'chime.wav'
+        sound: 'chime.wav',
+        channelId: 'prep_tracker_reminders'
       }]
     });
     console.log(`Scheduled native task timer overflow notification for "${taskTitle}" in ${delaySeconds}s.`);

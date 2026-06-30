@@ -7,11 +7,14 @@ import {
   FileJson, FileSpreadsheet, Copy, Check, Trash2, HelpCircle, 
   Upload, Download, AlertTriangle, CheckCircle, Info, Clipboard, Play,
   PackageOpen, ShieldCheck, Zap, Database, Tag, BookOpen, ChevronRight,
-  RefreshCw
+  RefreshCw, Loader
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface BulkImportExportCenterProps {
+  userId: string;
   topics: Topic[];
   questions: Question[];
   intelliQuestions: InterviewIntelligenceQuestion[];
@@ -454,7 +457,7 @@ const sanitizeRecord = (type: string, rec: any): any => {
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
 
 export default function BulkImportExportCenter({
-  topics, questions, intelliQuestions, mistakes, plans, roadmaps, journals, interviews, subjects,
+  userId, topics, questions, intelliQuestions, mistakes, plans, roadmaps, journals, interviews, subjects,
   mockPresetQuestions,
   userSettings, onUpdateCerebrasKey, onUpdateTheme, onBulkImport
 }: BulkImportExportCenterProps) {
@@ -489,6 +492,7 @@ export default function BulkImportExportCenter({
 
   // Export state
   const [stripIds, setStripIds] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Template copy state
   const [copiedType, setCopiedType] = useState<string | null>(null);
@@ -702,76 +706,121 @@ export default function BulkImportExportCenter({
     return copy;
   };
 
-  const triggerDataExport = (type: string, format: 'json' | 'csv' | 'xlsx') => {
-    const dataMap: Record<string, any[]> = {
-      Subjects: subjects,
-      Topics: topics,
-      Questions: questions,
-      'Interview Questions': intelliQuestions,
-      Mistakes: mistakes,
-      'Activity Plans': plans,
-      Journals: journals,
-      Roadmaps: roadmaps,
-      'Simulator Questions': mockPresetQuestions
-    };
+  /**
+   * Fetches ALL records for collections that may be paginated in the UI
+   * (topics, questions). Other collections are passed in as props directly.
+   */
+  const fetchAllForExport = async (): Promise<{
+    allTopics: any[];
+    allQuestions: any[];
+  }> => {
+    const [topicsSnap, questionsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'topics'), where('userId', '==', userId))),
+      getDocs(query(collection(db, 'questions'), where('userId', '==', userId)))
+    ]);
+    const allTopics: any[] = [];
+    topicsSnap.forEach(doc => allTopics.push(doc.data()));
+    const allQuestions: any[] = [];
+    questionsSnap.forEach(doc => allQuestions.push(doc.data()));
+    return { allTopics, allQuestions };
+  };
 
-    const sourceData = dataMap[type];
-    if (!sourceData || sourceData.length === 0) {
-      alert(`No records found for ${type}.`);
-      return;
-    }
-
-    const cleaned = sourceData.map(cleanExport);
-    const dateStr = new Date().toISOString().split('T')[0];
-
-    if (format === 'json') {
-      const blob = new Blob([JSON.stringify(cleaned, null, 2)], { type: 'application/json' });
-      downloadBlob(blob, `PrepMaster_${type}_${dateStr}.json`);
-    } else if (format === 'csv') {
-      const headers = Object.keys(cleaned[0] || {}).filter(k => typeof cleaned[0][k] !== 'object');
-      const csvContent = [
-        headers.join(','),
-        ...cleaned.map(row => headers.map(f => `"${String(row[f] ?? '').replace(/"/g, '""')}"`).join(','))
-      ].join('\n');
-      downloadBlob(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }), `PrepMaster_${type}_${dateStr}.csv`);
-    } else if (format === 'xlsx') {
-      let xlsxData = cleaned;
-      if (type === 'Roadmaps') {
-        xlsxData = cleaned.map(r => ({
-          ...(!stripIds && { id: r.id }),
-          title: r.title,
-          description: r.description,
-          total_topics: r.topics?.length || 0,
-          topics_summary: r.topics?.map((t: any) => `${t.name} (${t.completed ? '✓' : '○'})`).join(' → ') || '',
-          isActive: r.isActive,
-          createdAt: r.createdAt
-        }));
+  const triggerDataExport = async (type: string, format: 'json' | 'csv' | 'xlsx') => {
+    setIsExporting(true);
+    try {
+      // For Topics and Questions, fetch ALL records from Firestore (bypass UI scroll limit)
+      let allTopics = topics;
+      let allQuestions = questions;
+      if (type === 'Topics' || type === 'Questions') {
+        const fetched = await fetchAllForExport();
+        allTopics = fetched.allTopics;
+        allQuestions = fetched.allQuestions;
       }
-      const ws = XLSX.utils.json_to_sheet(xlsxData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, type.slice(0, 31));
-      XLSX.writeFile(wb, `PrepMaster_${type}_${dateStr}.xlsx`);
+
+      const dataMap: Record<string, any[]> = {
+        Subjects: subjects,
+        Topics: allTopics,
+        Questions: allQuestions,
+        'Interview Questions': intelliQuestions,
+        Mistakes: mistakes,
+        'Activity Plans': plans,
+        Journals: journals,
+        Roadmaps: roadmaps,
+        'Simulator Questions': mockPresetQuestions
+      };
+
+      const sourceData = dataMap[type];
+      if (!sourceData || sourceData.length === 0) {
+        alert(`No records found for ${type}.`);
+        return;
+      }
+
+      const cleaned = sourceData.map(cleanExport);
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      if (format === 'json') {
+        const blob = new Blob([JSON.stringify(cleaned, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, `PrepMaster_${type}_${dateStr}.json`);
+      } else if (format === 'csv') {
+        const headers = Object.keys(cleaned[0] || {}).filter(k => typeof cleaned[0][k] !== 'object');
+        const csvContent = [
+          headers.join(','),
+          ...cleaned.map(row => headers.map(f => `"${String(row[f] ?? '').replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+        downloadBlob(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }), `PrepMaster_${type}_${dateStr}.csv`);
+      } else if (format === 'xlsx') {
+        let xlsxData = cleaned;
+        if (type === 'Roadmaps') {
+          xlsxData = cleaned.map(r => ({
+            ...(!stripIds && { id: r.id }),
+            title: r.title,
+            description: r.description,
+            total_topics: r.topics?.length || 0,
+            topics_summary: r.topics?.map((t: any) => `${t.name} (${t.completed ? '✓' : '○'})`).join(' → ') || '',
+            isActive: r.isActive,
+            createdAt: r.createdAt
+          }));
+        }
+        const ws = XLSX.utils.json_to_sheet(xlsxData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, type.slice(0, 31));
+        XLSX.writeFile(wb, `PrepMaster_${type}_${dateStr}.xlsx`);
+      }
+    } catch (err: any) {
+      alert(`Export failed: ${err.message}`);
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const triggerFullBackup = () => {
-    const backup = {
-      exportedAt: new Date().toISOString(),
-      version: '2.0',
-      data: {
-        subjects: subjects.map(cleanExport),
-        topics: topics.map(cleanExport),
-        questions: questions.map(cleanExport),
-        intelliQuestions: intelliQuestions.map(cleanExport),
-        mistakes: mistakes.map(cleanExport),
-        plans: plans.map(cleanExport),
-        journals: journals.map(cleanExport),
-        roadmaps: roadmaps.map(cleanExport),
-        mockPresetQuestions: mockPresetQuestions.map(cleanExport)
-      }
-    };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    downloadBlob(blob, `PrepMaster_FullBackup_${new Date().toISOString().split('T')[0]}.json`);
+  const triggerFullBackup = async () => {
+    setIsExporting(true);
+    try {
+      // Always fetch ALL topics and questions from Firestore for a complete backup
+      const { allTopics, allQuestions } = await fetchAllForExport();
+
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        version: '2.0',
+        data: {
+          subjects: subjects.map(cleanExport),
+          topics: allTopics.map(cleanExport),
+          questions: allQuestions.map(cleanExport),
+          intelliQuestions: intelliQuestions.map(cleanExport),
+          mistakes: mistakes.map(cleanExport),
+          plans: plans.map(cleanExport),
+          journals: journals.map(cleanExport),
+          roadmaps: roadmaps.map(cleanExport),
+          mockPresetQuestions: mockPresetQuestions.map(cleanExport)
+        }
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      downloadBlob(blob, `PrepMaster_FullBackup_${new Date().toISOString().split('T')[0]}.json`);
+    } catch (err: any) {
+      alert(`Backup failed: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const totalExportRecords = subjects.length + topics.length + questions.length + intelliQuestions.length + mistakes.length + plans.length + journals.length + roadmaps.length + mockPresetQuestions.length;
@@ -1179,11 +1228,20 @@ export default function BulkImportExportCenter({
                 </label>
                 <button
                   onClick={triggerFullBackup}
-                  disabled={totalExportRecords === 0}
+                  disabled={totalExportRecords === 0 || isExporting}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold shadow-lg transition cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                  Full Backup ({totalExportRecords} records)
+                  {isExporting ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Fetching all data...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Full Backup ({totalExportRecords} records)
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1223,14 +1281,18 @@ export default function BulkImportExportCenter({
                       <button
                         key={fmt}
                         onClick={() => triggerDataExport(item.type, fmt)}
-                        disabled={item.count === 0}
+                        disabled={item.count === 0 || isExporting}
                         className={`py-1.5 rounded-lg text-center font-bold transition cursor-pointer disabled:opacity-30 ${
                           fmt === 'xlsx'
                             ? 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/20'
                             : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5'
                         }`}
                       >
-                        {fmt === 'xlsx' ? '.xlsx' : fmt.toUpperCase()}
+                        {isExporting && (item.type === 'Topics' || item.type === 'Questions') ? (
+                          <Loader className="w-3 h-3 animate-spin mx-auto" />
+                        ) : (
+                          fmt === 'xlsx' ? '.xlsx' : fmt.toUpperCase()
+                        )}
                       </button>
                     ))}
                   </div>

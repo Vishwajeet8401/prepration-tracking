@@ -9,7 +9,8 @@ import {
   Topic, Question, JobApplication, Interview, Mistake, StudySession, 
   AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, 
   DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, 
-  PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject, UserSettings, StarStory, MockPresetQuestion 
+  PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject, UserSettings, StarStory, MockPresetQuestion,
+  VocabularyWord, VocabularyStatus, WordDefinition
 } from '../types';
 import { 
   initialTopics, initialQuestions, initialJobApplications, 
@@ -109,6 +110,12 @@ export interface DatabaseContextType {
   handleAddMockPresetQuestion: (newQ: Omit<MockPresetQuestion, 'id' | 'userId'>) => Promise<void>;
   handleDeleteMockPresetQuestion: (id: string) => Promise<void>;
   handleUpdateCustomPrompt: (prompt: string) => Promise<void>;
+  vocabularyWords: VocabularyWord[];
+  handleAddVocabularyWord: (word: Omit<VocabularyWord, 'id' | 'userId' | 'reviewCount' | 'lastReviewDate' | 'createdDate' | 'status'>) => Promise<void>;
+  handleUpdateVocabularyWord: (updated: VocabularyWord) => Promise<void>;
+  handleDeleteVocabularyWord: (id: string) => Promise<void>;
+  handleMarkWordReviewed: (id: string) => Promise<void>;
+  handleSearchWordDefinition: (query: string) => Promise<WordDefinition | null>;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -140,6 +147,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [reminderSettings, setReminderSettings] = useState<PersonalReminderSettings | null>(null);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [mockPresetQuestions, setMockPresetQuestions] = useState<MockPresetQuestion[]>([]);
+  const [vocabularyWords, setVocabularyWords] = useState<VocabularyWord[]>([]);
 
   const globalStats = useGlobalStats(user?.uid);
   const { urgentTopics } = useUrgentTopics(user?.uid);
@@ -168,6 +176,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const reminderLogsRef = useRef(reminderLogs);
   const reminderSettingsRef = useRef(reminderSettings);
   const mockPresetQuestionsRef = useRef(mockPresetQuestions);
+  const vocabularyWordsRef = useRef(vocabularyWords);
 
   useEffect(() => { subjectsRef.current = subjects; }, [subjects]);
   useEffect(() => { topicsRef.current = topics; }, [topics]);
@@ -188,6 +197,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => { reminderLogsRef.current = reminderLogs; }, [reminderLogs]);
   useEffect(() => { reminderSettingsRef.current = reminderSettings; }, [reminderSettings]);
   useEffect(() => { mockPresetQuestionsRef.current = mockPresetQuestions; }, [mockPresetQuestions]);
+  useEffect(() => { vocabularyWordsRef.current = vocabularyWords; }, [vocabularyWords]);
 
   // Toast Notifications Syncer
   useEffect(() => {
@@ -334,6 +344,25 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setMockPresetQuestions(list);
     }, (error) => {
       console.error("Mock preset questions snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setVocabularyWords([]);
+      return;
+    }
+    const q = query(collection(db, 'vocabularyWords'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: VocabularyWord[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as VocabularyWord);
+      });
+      list.sort((a, b) => b.createdDate.localeCompare(a.createdDate));
+      setVocabularyWords(list);
+    }, (error) => {
+      console.error('VocabularyWords snapshot error:', error);
     });
     return () => unsubscribe();
   }, [user]);
@@ -2240,6 +2269,165 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user]);
 
+  // ─── Vocabulary Builder handlers ───────────────────────────────────────────
+
+  // Levenshtein distance for fuzzy matching
+  const levenshtein = (a: string, b: string): number => {
+    const m = a.length, n = b.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+      Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+    );
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+    return dp[m][n];
+  };
+
+  const handleSearchWordDefinition = useCallback(async (queryStr: string): Promise<WordDefinition | null> => {
+    const normalized = queryStr.toLowerCase().trim();
+    if (!normalized) return null;
+
+    // Tier 1: exact match in user vocabulary
+    const exactMatch = vocabularyWordsRef.current.find(
+      w => w.word.toLowerCase() === normalized
+    );
+    if (exactMatch) {
+      return {
+        word: exactMatch.word,
+        pronunciation: exactMatch.pronunciation,
+        englishMeaning: exactMatch.englishMeaning,
+        marathiMeaning: exactMatch.marathiMeaning,
+        exampleSentence: exactMatch.exampleSentence,
+        fetchedAt: exactMatch.createdDate
+      };
+    }
+
+    // Tier 2: check global AI cache in Firestore
+    try {
+      const cachedRef = doc(db, 'wordDefinitions', normalized);
+      const cachedSnap = await getDoc(cachedRef);
+      if (cachedSnap.exists()) {
+        return cachedSnap.data() as WordDefinition;
+      }
+    } catch (err) {
+      console.warn('Word definition cache lookup failed:', err);
+    }
+
+    // Tier 3: fetch from AI (Gemini)
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDummy';
+      const genAI = new GoogleGenAI({ apiKey });
+      const prompt = `You are a dictionary. For the English word "${normalized}", respond ONLY with a valid JSON object (no markdown, no explanation) with exactly these fields:
+{
+  "word": "${normalized}",
+  "pronunciation": "<Devanagari phonetic pronunciation>",
+  "englishMeaning": "<clear English meaning, 1-2 sentences>",
+  "marathiMeaning": "<Marathi meaning in Devanagari script, 1-3 synonyms separated by />",
+  "exampleSentence": "<one natural example sentence using the word>"
+}`;
+      const response = await genAI.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt
+      });
+      const raw = response.text?.trim() || '{}';
+      const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
+      const definition: WordDefinition = { ...parsed, word: normalized, fetchedAt: new Date().toISOString() };
+
+      // Cache result in Firestore for future lookups
+      try {
+        await setDoc(doc(db, 'wordDefinitions', normalized), definition);
+      } catch (cacheErr) {
+        console.warn('Failed to cache word definition:', cacheErr);
+      }
+
+      return definition;
+    } catch (aiErr) {
+      console.error('AI word fetch failed:', aiErr);
+      return null;
+    }
+  }, [user]);
+
+  const handleAddVocabularyWord = useCallback(async (
+    wordData: Omit<VocabularyWord, 'id' | 'userId' | 'reviewCount' | 'lastReviewDate' | 'createdDate' | 'status'>
+  ) => {
+    if (!user) return;
+    // Check for existing entry
+    const exists = vocabularyWordsRef.current.find(
+      w => w.word.toLowerCase() === wordData.word.toLowerCase()
+    );
+    if (exists) {
+      // If already saved, just bump review count
+      await handleMarkWordReviewed(exists.id);
+      return;
+    }
+    const wordId = 'vocab-' + Date.now();
+    const now = new Date().toISOString();
+    const created: VocabularyWord = {
+      ...wordData,
+      id: wordId,
+      userId: user.uid,
+      status: 'Learning',
+      reviewCount: 0,
+      lastReviewDate: now,
+      createdDate: now
+    };
+    try {
+      await setDoc(doc(db, 'vocabularyWords', wordId), created);
+      await pushNotification({
+        title: `"${wordData.word}" added to vocabulary!`,
+        message: `Word saved with meaning: ${wordData.englishMeaning}`,
+        type: 'daily'
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `vocabularyWords/${wordId}`);
+    }
+  }, [user]);
+
+  const handleMarkWordReviewed = useCallback(async (id: string) => {
+    if (!user) return;
+    const existing = vocabularyWordsRef.current.find(w => w.id === id);
+    if (!existing) return;
+    const newCount = existing.reviewCount + 1;
+    let newStatus: VocabularyStatus = existing.status;
+    if (newCount >= 8) newStatus = 'Mastered';
+    else if (newCount >= 3) newStatus = 'Reviewing';
+    const updated: VocabularyWord = {
+      ...existing,
+      reviewCount: newCount,
+      lastReviewDate: new Date().toISOString(),
+      status: newStatus
+    };
+    try {
+      await setDoc(doc(db, 'vocabularyWords', id), updated);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `vocabularyWords/${id}`);
+    }
+  }, [user]);
+
+  const handleUpdateVocabularyWord = useCallback(async (updated: VocabularyWord) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'vocabularyWords', updated.id), { ...updated, userId: user.uid });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `vocabularyWords/${updated.id}`);
+    }
+  }, [user]);
+
+  const handleDeleteVocabularyWord = useCallback(async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'vocabularyWords', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `vocabularyWords/${id}`);
+    }
+  }, [user]);
+
   return (
     <DatabaseContext.Provider value={{
       subjects, topics, topicLimit, setTopicLimit, questions, questionLimit, setQuestionLimit,
@@ -2257,7 +2445,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       handleActionPersonalReminder, handleUpdateReminderSettings, handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport,
       handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead, handleClearAll,
       handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan, handleUpdateTaskInApp,
-      handleDeleteTaskInApp, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion, handleUpdateCustomPrompt
+      handleDeleteTaskInApp, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion, handleUpdateCustomPrompt,
+      vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
+      handleMarkWordReviewed, handleSearchWordDefinition
     }}>
       {children}
     </DatabaseContext.Provider>

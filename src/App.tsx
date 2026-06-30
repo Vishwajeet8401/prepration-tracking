@@ -28,6 +28,7 @@ import MobileOfflineHub from './components/MobileOfflineHub';
 import BulkImportExportCenter from './components/BulkImportExportCenter';
 import PersonalReminders from './components/PersonalReminders';
 import StarStoryBuilder from './components/StarStoryBuilder';
+import VocabularyBuilder from './components/VocabularyBuilder';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
@@ -37,7 +38,7 @@ import { signOut } from 'firebase/auth';
 import { 
   BookOpen, Sparkles, Award, ListTodo, Calendar, 
   Settings, Flame, Activity, Compass, HelpCircle as HelpIcon, Bell, 
-  BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList
+  BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked
 } from 'lucide-react';
 import { AppNotification } from './types';
 
@@ -59,7 +60,9 @@ export default function App() {
     handleUpdatePersonalReminder, handleDeletePersonalReminder, handleActionPersonalReminder, handleUpdateReminderSettings,
     handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
     handleClearAll, handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan,
-    handleUpdateTaskInApp, handleDeleteTaskInApp, handleUpdateCustomPrompt, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion
+    handleUpdateTaskInApp, handleDeleteTaskInApp, handleUpdateCustomPrompt, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion,
+    vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
+    handleMarkWordReviewed, handleSearchWordDefinition
   } = useDatabase();
 
   // Navigation tabs state
@@ -214,6 +217,7 @@ export default function App() {
                       { label: 'Reminders & Habits', icon: Bell },
                       { label: 'Task & Study Planner', icon: ListTodo },
                       { label: 'Experience & Story Builder', icon: ClipboardList },
+                      { label: 'Vocabulary Builder', icon: BookMarked },
                       { label: 'Progress & Analytics', icon: Activity },
                       { label: 'Learning Roadmaps', icon: Layers },
                       { label: 'My Achievements', icon: Award },
@@ -277,6 +281,7 @@ export default function App() {
                 { label: 'Reminders & Habits', icon: Bell },
                 { label: 'Task & Study Planner', icon: ListTodo },
                 { label: 'Experience & Story Builder', icon: ClipboardList },
+                { label: 'Vocabulary Builder', icon: BookMarked },
                 { label: 'Progress & Analytics', icon: Activity },
                 { label: 'Learning Roadmaps', icon: Layers },
                 { label: 'My Achievements', icon: Award },
@@ -558,6 +563,17 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'Vocabulary Builder' && (
+            <VocabularyBuilder
+              vocabularyWords={vocabularyWords}
+              onAddVocabularyWord={handleAddVocabularyWord}
+              onUpdateVocabularyWord={handleUpdateVocabularyWord}
+              onDeleteVocabularyWord={handleDeleteVocabularyWord}
+              onMarkWordReviewed={handleMarkWordReviewed}
+              onSearchWordDefinition={handleSearchWordDefinition}
+            />
+          )}
+
           {activeTab === 'Practice Simulator' && (
             <MockInterviewWorkspace 
               subjects={subjects}
@@ -585,6 +601,7 @@ export default function App() {
 
           {activeTab === 'Backup & Data Settings' && (
             <BulkImportExportCenter 
+              userId={user.uid}
               topics={topics}
               questions={questions}
               intelliQuestions={intelliQuestions}

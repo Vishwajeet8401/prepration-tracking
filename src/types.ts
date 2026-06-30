@@ -367,6 +367,31 @@ export interface MockPresetQuestion {
   roundType: 'Technical' | 'HR' | 'System Design' | 'Behavioral';
 }
 
+export type VocabularyStatus = 'Learning' | 'Reviewing' | 'Mastered';
+
+export interface VocabularyWord {
+  id: string;
+  userId: string;
+  word: string;
+  pronunciation: string;       // Devanagari phonetic e.g. "ऑल्दो"
+  englishMeaning: string;
+  marathiMeaning: string;
+  exampleSentence: string;
+  status: VocabularyStatus;
+  reviewCount: number;
+  lastReviewDate: string;      // ISO date string
+  createdDate: string;         // ISO date string
+}
+
+export interface WordDefinition {
+  word: string;                // normalized lowercase — used as Firestore doc ID
+  pronunciation: string;
+  englishMeaning: string;
+  marathiMeaning: string;
+  exampleSentence: string;
+  fetchedAt: string;           // ISO date string — when AI fetched this
+}
+
 
 
 
