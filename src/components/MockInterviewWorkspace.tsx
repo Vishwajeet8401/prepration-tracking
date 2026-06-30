@@ -6,6 +6,7 @@ import {
   Mic, MicOff, Check, X, Info, Zap, Volume2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { speakNativeText, stopNativeSpeech } from '../utils/mobileScheduler';
 
 interface MockInterviewWorkspaceProps {
   subjects: Subject[];
@@ -219,8 +220,11 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
 
   // Stop speaking when session terminates
   useEffect(() => {
-    if (!isSessionActive && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    if (!isSessionActive) {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      stopNativeSpeech();
     }
   }, [isSessionActive]);
 
@@ -314,6 +318,9 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
 
   // Text to Speech logic
   const speakQuestion = (text: string) => {
+    // Try native mobile speech engine first
+    speakNativeText(text);
+
     if (!window.speechSynthesis) {
       console.warn('Text-to-speech is not supported in this environment.');
       return;
@@ -679,6 +686,7 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
 
     // Capture entry
     const entry = {
+      id: currentQ.id,
       question: currentQ.question,
       answer: answerText,
       evaluation,
@@ -1138,6 +1146,11 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
                                     ⚠️ Hint Used
                                   </span>
                                 )}
+                                {hist.id?.startsWith('ai-') && (
+                                  <span className="text-[7.5px] bg-violet-500/10 border border-violet-500/25 text-violet-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider flex items-center gap-0.5 font-mono">
+                                    ✨ AI Generated
+                                  </span>
+                                )}
                               </div>
                               <span className="font-bold text-indigo-300">Score: {hist.score}%</span>
                             </div>
@@ -1348,7 +1361,15 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
             <div className="bg-indigo-500/5 md:flex items-start gap-4 p-5 rounded-2xl border border-indigo-500/10 space-y-2 md:space-y-0">
               <HelpCircle className="w-8 h-8 text-indigo-455 shrink-0 mt-0.5 animate-bounce" />
               <div className="space-y-1 text-xs">
-                <span className="block text-[8px] font-mono text-slate-500 uppercase tracking-widest font-black">Simulation Prompt</span>
+                <div className="flex items-center gap-2">
+                  <span className="block text-[8px] font-mono text-slate-500 uppercase tracking-widest font-black">Simulation Prompt</span>
+                  {(questionSource === 'AI Generated' || questionsList[currentQuestionIndex]?.id?.startsWith('ai-')) && (
+                    <span className="bg-violet-500/20 border border-violet-500/30 text-violet-300 text-[8px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider flex items-center gap-1 animate-pulse">
+                      <Sparkles className="w-2 h-2 text-violet-400" />
+                      AI Generated
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm font-extrabold text-white leading-relaxed">
                   {questionsList[currentQuestionIndex]?.question}
                 </p>

@@ -5,6 +5,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { PersonalReminder } from '../types';
 
 /**
@@ -326,5 +327,43 @@ export const cancelTimerOverflowNotification = async (taskId: string): Promise<v
     console.log(`Cancelled native timer overflow notification for task: ${taskId}`);
   } catch (err) {
     console.error('Failed to cancel native timer overflow notification:', err);
+  }
+};
+
+/**
+ * Plays vocal speech natively using system voice engines on Android/iOS Capacitor wrapper.
+ */
+export const speakNativeText = async (text: string): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+  try {
+    // Cancel/Stop any previous ongoing speech first
+    await stopNativeSpeech();
+    
+    await TextToSpeech.speak({
+      text: text,
+      lang: 'en-US',
+      rate: 1.0,
+      pitch: 1.0,
+      volume: 1.0,
+      category: 'ambient'
+    });
+  } catch (err) {
+    console.error('Failed to play native system speech:', err);
+  }
+};
+
+/**
+ * Stops any ongoing native voice synthesis.
+ */
+export const stopNativeSpeech = async (): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+  try {
+    await TextToSpeech.stop();
+  } catch (err) {
+    console.error('Failed to stop native system speech:', err);
   }
 };

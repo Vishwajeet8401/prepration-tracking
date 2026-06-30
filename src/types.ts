@@ -244,6 +244,7 @@ export interface MockInterview {
   confidenceScore: number; // 0 - 100
   feedback: string;
   history: Array<{
+    id?: string;
     question: string;
     answer: string;
     evaluation: string;
