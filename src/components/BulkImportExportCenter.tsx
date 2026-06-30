@@ -23,6 +23,7 @@ interface BulkImportExportCenterProps {
   subjects: Subject[];
   userSettings: UserSettings | null;
   onUpdateCerebrasKey: (key: string) => Promise<void>;
+  onUpdateTheme: (theme: string) => Promise<void>;
   onBulkImport: (dataType: string, records: any[], duplicatePolicy: 'skip' | 'replace' | 'keep') => Promise<{ imported: number; updated: number; skipped: number }>;
 }
 
@@ -422,7 +423,7 @@ const sanitizeRecord = (type: string, rec: any): any => {
 
 export default function BulkImportExportCenter({
   topics, questions, intelliQuestions, mistakes, plans, roadmaps, journals, interviews, subjects,
-  userSettings, onUpdateCerebrasKey, onBulkImport
+  userSettings, onUpdateCerebrasKey, onUpdateTheme, onBulkImport
 }: BulkImportExportCenterProps) {
 
   const [activeSubTab, setActiveSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>('import');
@@ -1205,70 +1206,165 @@ export default function BulkImportExportCenter({
       )}
 
       {activeSubTab === 'settings' && (
-        <div className="max-w-xl mx-auto glass-card p-6 border border-white/5 space-y-6 animate-fade-in text-left">
-          <div className="flex items-center gap-3 border-b border-white/5 pb-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Zap className="w-5 h-5" />
+        <div className="max-w-xl mx-auto space-y-6">
+          {/* Card 1: API Key Config */}
+          <div className="glass-card p-6 border border-white/5 space-y-6 animate-fade-in text-left">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Zap className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-sm">Cerebras AI Integrations Config</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Manage token keys used for real-time evaluations and hints.</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-white text-sm">Cerebras AI Integrations Config</h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Manage token keys used for real-time evaluations and hints.</p>
+
+            <div className="space-y-4 text-xs font-sans">
+              <div className="space-y-2">
+                <label className="text-slate-300 font-bold block">Cerebras API Key</label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={localKey}
+                    onChange={e => setLocalKey(e.target.value)}
+                    placeholder="Enter csk-..."
+                    className="w-full pl-3 pr-10 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-3 text-slate-500 hover:text-white cursor-pointer select-none text-[10px] font-bold"
+                  >
+                    {showKey ? 'HIDE' : 'SHOW'}
+                  </button>
+                </div>
+                <p className="text-[9px] text-slate-500 leading-normal">
+                  Don't have a key? Sign up at <a href="https://cloud.cerebras.ai" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline hover:text-indigo-305">cloud.cerebras.ai</a> to get a free developer key.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!localKey.trim()) {
+                    alert('Key cannot be empty.');
+                    return;
+                  }
+                  setIsSavingKey(true);
+                  try {
+                    await onUpdateCerebrasKey(localKey);
+                  } finally {
+                    setIsSavingKey(false);
+                  }
+                }}
+                disabled={isSavingKey}
+                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow transition disabled:opacity-50"
+              >
+                {isSavingKey ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Synchronizing API Settings...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Update Cerebras Key</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          <div className="space-y-4 text-xs font-sans">
-            <div className="space-y-2">
-              <label className="text-slate-300 font-bold block">Cerebras API Key</label>
-              <div className="relative flex items-center">
-                <input
-                  type={showKey ? 'text' : 'password'}
-                  value={localKey}
-                  onChange={e => setLocalKey(e.target.value)}
-                  placeholder="Enter csk-..."
-                  className="w-full pl-3 pr-10 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-3 text-slate-500 hover:text-white cursor-pointer select-none text-[10px] font-bold"
-                >
-                  {showKey ? 'HIDE' : 'SHOW'}
-                </button>
+          {/* Card 2: Theme Selector */}
+          <div className="glass-card p-6 border border-white/5 space-y-6 animate-fade-in text-left">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Tag className="w-5 h-5" />
               </div>
-              <p className="text-[9px] text-slate-500 leading-normal">
-                Don't have a key? Sign up at <a href="https://cloud.cerebras.ai" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline hover:text-indigo-305">cloud.cerebras.ai</a> to get a free developer key.
-              </p>
+              <div>
+                <h3 className="font-bold text-white text-sm">Theme Customization</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Select a custom color palette and mesh-gradient glow for your preparation space.</p>
+              </div>
             </div>
 
-            <button
-              type="button"
-              onClick={async () => {
-                if (!localKey.trim()) {
-                  alert('Key cannot be empty.');
-                  return;
+            <div className="grid grid-cols-2 gap-3 text-xs font-sans">
+              {[
+                {
+                  id: 'cyber-midnight',
+                  name: 'Cyber Midnight',
+                  desc: 'Futuristic Indigo & Slate',
+                  accentBg: 'bg-indigo-500',
+                  previewBg: 'bg-[#0d131f]'
+                },
+                {
+                  id: 'emerald-aurora',
+                  name: 'Emerald Aurora',
+                  desc: 'Focus Mint & Deep Teal',
+                  accentBg: 'bg-emerald-500',
+                  previewBg: 'bg-[#031417]'
+                },
+                {
+                  id: 'solar-sunset',
+                  name: 'Solar Sunset',
+                  desc: 'Vibrant Amber & Crimson',
+                  accentBg: 'bg-amber-500',
+                  previewBg: 'bg-[#120a06]'
+                },
+                {
+                  id: 'amethyst-nebula',
+                  name: 'Amethyst Nebula',
+                  desc: 'Royal Cosmic Purple Glow',
+                  accentBg: 'bg-purple-500',
+                  previewBg: 'bg-[#0b0518]'
+                },
+                {
+                  id: 'slate-minimalist',
+                  name: 'Slate Minimalist',
+                  desc: 'Monochromatic Steel & Gray',
+                  accentBg: 'bg-sky-400',
+                  previewBg: 'bg-[#0a0b0d]'
+                },
+                {
+                  id: 'polaris-light',
+                  name: 'Polaris Light',
+                  desc: 'Crisp Cloud Light Mode',
+                  accentBg: 'bg-indigo-650',
+                  previewBg: 'bg-[#f8fafc] border border-slate-200'
                 }
-                setIsSavingKey(true);
-                try {
-                  await onUpdateCerebrasKey(localKey);
-                } finally {
-                  setIsSavingKey(false);
-                }
-              }}
-              disabled={isSavingKey}
-              className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow transition disabled:opacity-50"
-            >
-              {isSavingKey ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Synchronizing API Settings...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Update Cerebras Key</span>
-                </>
-              )}
-            </button>
+              ].map(themeItem => {
+                const currentTheme = userSettings?.theme || 'cyber-midnight';
+                const isActive = currentTheme === themeItem.id;
+                return (
+                  <button
+                    key={themeItem.id}
+                    type="button"
+                    onClick={() => onUpdateTheme(themeItem.id)}
+                    className={`p-3.5 rounded-xl border flex flex-col justify-between items-start gap-2.5 transition text-left cursor-pointer relative hover:scale-[1.01] ${
+                      isActive 
+                        ? 'bg-indigo-650/5 border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-bold text-white text-xs tracking-wide">{themeItem.name}</span>
+                      {isActive && (
+                        <div className="w-4 h-4 rounded-full bg-indigo-650 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className={`w-8 h-5 rounded-md flex gap-0.5 p-0.5 items-center shrink-0 ${themeItem.previewBg}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${themeItem.accentBg}`} />
+                        <div className="w-1 h-1 rounded-full bg-white/30" />
+                        <div className="w-1 h-1 rounded-full bg-white/10" />
+                      </div>
+                      <span className="text-[10px] text-slate-400 line-clamp-1">{themeItem.desc}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

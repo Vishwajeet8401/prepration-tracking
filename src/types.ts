@@ -338,6 +338,7 @@ export interface UserSettings {
   id: string;
   userId: string;
   cerebrasApiKey: string;
+  theme?: string;
 }
 
 export interface StarStory {

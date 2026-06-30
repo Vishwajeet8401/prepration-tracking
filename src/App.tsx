@@ -56,7 +56,7 @@ export default function App() {
     handleDeleteInterview, handleAddMockInterview, handleDeleteMockInterview, handleAddStarStory, handleUpdateStarStory,
     handleDeleteStarStory, handleAddPersonalReminder,
     handleUpdatePersonalReminder, handleDeletePersonalReminder, handleActionPersonalReminder, handleUpdateReminderSettings,
-    handleUpdateCerebrasKey, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
+    handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
     handleClearAll, handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan,
     handleUpdateTaskInApp, handleDeleteTaskInApp
   } = useDatabase();
@@ -117,7 +117,7 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen text-slate-100 flex flex-col items-center justify-center font-sans antialiased relative">
+      <div data-theme="cyber-midnight" className="min-h-screen text-slate-100 flex flex-col items-center justify-center font-sans antialiased relative">
         <div className="mesh-gradient opacity-80" />
         <Loader className="w-10 h-10 animate-spin text-indigo-400 mb-4" />
         <p className="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Syncing Cloud Services...</p>
@@ -126,7 +126,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col font-sans select-none antialiased relative">
+    <div data-theme={userSettings?.theme || 'cyber-midnight'} className="min-h-screen text-slate-100 flex flex-col font-sans select-none antialiased relative">
       <div className="mesh-gradient" />
       
       {user && (
@@ -587,6 +587,7 @@ export default function App() {
               subjects={subjects}
               userSettings={userSettings}
               onUpdateCerebrasKey={handleUpdateCerebrasKey}
+              onUpdateTheme={handleUpdateTheme}
               onBulkImport={handleBulkImport}
             />
           )}

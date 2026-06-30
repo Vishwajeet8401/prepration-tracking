@@ -88,6 +88,7 @@ export interface DatabaseContextType {
   handleActionPersonalReminder: (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => Promise<void>;
   handleUpdateReminderSettings: (updatedSettings: PersonalReminderSettings) => Promise<void>;
   handleUpdateCerebrasKey: (key: string) => Promise<void>;
+  handleUpdateTheme: (theme: string) => Promise<void>;
   handleAddStarStory: (story: Omit<StarStory, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   handleUpdateStarStory: (story: StarStory) => Promise<void>;
   handleDeleteStarStory: (id: string) => Promise<void>;
@@ -527,7 +528,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUserSettings({
           id: user.uid,
           userId: user.uid,
-          cerebrasApiKey: 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'
+          cerebrasApiKey: 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2',
+          theme: 'cyber-midnight'
         });
       }
     }, (error) => {
@@ -535,7 +537,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setUserSettings({
         id: user.uid,
         userId: user.uid,
-        cerebrasApiKey: 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'
+        cerebrasApiKey: 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2',
+        theme: 'cyber-midnight'
       });
     });
     return () => unsubscribe();
@@ -1661,7 +1664,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         id: user.uid,
         userId: user.uid,
         cerebrasApiKey: key.trim()
-      });
+      }, { merge: true });
       await pushNotification({
         title: 'API Settings Saved',
         message: 'Your Cerebras AI Integration Key has been updated and securely synchronized with Firestore.',
@@ -1669,6 +1672,24 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
     } catch (err) {
       console.error("Error updating API key settings:", err);
+    }
+  }, [user]);
+
+  const handleUpdateTheme = useCallback(async (newTheme: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        theme: newTheme
+      }, { merge: true });
+      await pushNotification({
+        title: 'Theme Settings Saved',
+        message: `Your appearance has been updated to the theme.`,
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error updating theme settings:", err);
     }
   }, [user]);
 
@@ -2142,7 +2163,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       handleAddApplication, handleUpdateApplication, handleDeleteApplication, handleAddInterview, handleUpdateInterview,
       handleDeleteInterview, handleAddMockInterview, handleDeleteMockInterview, handleAddStarStory, handleUpdateStarStory,
       handleDeleteStarStory, handleAddPersonalReminder, handleUpdatePersonalReminder, handleDeletePersonalReminder,
-      handleActionPersonalReminder, handleUpdateReminderSettings, handleUpdateCerebrasKey, handleBulkImport,
+      handleActionPersonalReminder, handleUpdateReminderSettings, handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport,
       handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead, handleClearAll,
       handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan, handleUpdateTaskInApp,
       handleDeleteTaskInApp
