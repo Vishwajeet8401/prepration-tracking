@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { MockInterview, Topic, Subject, Question, InterviewIntelligenceQuestion, MockPresetQuestion } from '../types';
 import { 
   Play, Square, Sparkles, Clock, ListTodo, Award, RefreshCw, 
@@ -6,7 +7,7 @@ import {
   Mic, MicOff, Check, X, Info, Zap, Volume2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { speakNativeText, stopNativeSpeech } from '../utils/mobileScheduler';
+import { speakNativeText, stopNativeSpeech, startNativeSpeechToText, stopNativeSpeechToText } from '../utils/mobileScheduler';
 
 interface MockInterviewWorkspaceProps {
   subjects: Subject[];
@@ -296,6 +297,22 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
   }, []);
 
   const toggleListening = () => {
+    // 1. Native Mobile speech-to-text route
+    if (Capacitor.isNativePlatform()) {
+      if (isListening) {
+        stopNativeSpeechToText();
+        setIsListening(false);
+      } else {
+        setIsListening(true);
+        startNativeSpeechToText((text) => {
+          // Callback that receives transcribed text
+          setUserAnswer(prev => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + text);
+        });
+      }
+      return;
+    }
+
+    // 2. Web browser speech-to-text route
     if (!recognitionRef.current) {
       alert('Speech recognition is not supported in this browser. Try Chrome or Safari.');
       return;
@@ -555,8 +572,12 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
     }
 
     // Stop speech recognition if listening
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
+    if (isListening) {
+      if (Capacitor.isNativePlatform()) {
+        stopNativeSpeechToText();
+      } else if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setIsListening(false);
     }
 
@@ -709,11 +730,15 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
     setHintUsed(false);
 
     // Stop listening on answer submission
-    if (recognitionRef.current && isListening) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        console.error(e);
+    if (isListening) {
+      if (Capacitor.isNativePlatform()) {
+        stopNativeSpeechToText();
+      } else if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error(e);
+        }
       }
       setIsListening(false);
     }

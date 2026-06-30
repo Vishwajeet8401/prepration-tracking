@@ -6,6 +6,7 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
+import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { PersonalReminder } from '../types';
 
 /**
@@ -365,5 +366,83 @@ export const stopNativeSpeech = async (): Promise<void> => {
     await TextToSpeech.stop();
   } catch (err) {
     console.error('Failed to stop native system speech:', err);
+  }
+};
+
+/**
+ * Checks and requests microphone permissions for native speech recognition.
+ */
+export const requestSpeechPermission = async (): Promise<boolean> => {
+  if (!Capacitor.isNativePlatform()) {
+    return false;
+  }
+  try {
+    const status = await SpeechRecognition.checkPermissions();
+    if (status.speechRecognition === 'granted') {
+      return true;
+    }
+    const req = await SpeechRecognition.requestPermissions();
+    return req.speechRecognition === 'granted';
+  } catch (err) {
+    console.error('Speech recognition permission error:', err);
+    return false;
+  }
+};
+
+/**
+ * Starts native speech recognition dictation.
+ */
+export const startNativeSpeechToText = async (
+  onTextReceived: (text: string) => void
+): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+  try {
+    const isAvailable = await SpeechRecognition.available();
+    if (!isAvailable.available) {
+      console.warn('Speech recognition not available on this device');
+      return;
+    }
+    const permission = await requestSpeechPermission();
+    if (!permission) {
+      console.warn('Microphone permission not granted for speech recognition');
+      return;
+    }
+
+    // Stop any previous instance first
+    await stopNativeSpeechToText();
+
+    // Listen for partial results as the candidate speaks
+    await SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
+      if (data.matches && data.matches.length > 0) {
+        onTextReceived(data.matches[0]);
+      }
+    });
+
+    await SpeechRecognition.start({
+      language: 'en-US',
+      partialResults: true,
+      popup: false
+    });
+    console.log('Started native speech dictation');
+  } catch (err) {
+    console.error('Failed to start native speech to text:', err);
+  }
+};
+
+/**
+ * Stops native speech recognition dictation.
+ */
+export const stopNativeSpeechToText = async (): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+  try {
+    await SpeechRecognition.removeAllListeners();
+    await SpeechRecognition.stop();
+    console.log('Stopped native speech dictation');
+  } catch (err) {
+    console.error('Failed to stop native speech to text:', err);
   }
 };
