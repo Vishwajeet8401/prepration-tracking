@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Preparation Tracker</string>
+    <string name="title_activity_main">Preparation Tracker</string>
+    <string name="package_name">com.prep.tracker</string>
+    <string name="custom_url_scheme">com.prep.tracker</string>
+    <string name="server_client_id">992882220557-c5fc854isb3e8oao492ls6fig8aih4fg.apps.googleusercontent.com</string>
+</resources>
