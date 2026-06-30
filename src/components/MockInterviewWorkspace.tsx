@@ -43,6 +43,24 @@ const PRESET_QUESTIONS = {
       question: 'How do you ensure cache consistency between a distributed cache (like Redis) and your primary SQL database?',
       expectedKeywords: ['cache aside', 'write through', 'write behind', 'eviction', 'ttl', 'transactional', 'message queue'],
       idealConcept: 'Cache consistency is commonly maintained using the Cache-Aside pattern (write database, delete cache). Advanced systems use Write-Through, transactional cache invalidation, short TTL boundaries, or CDC (Change Data Capture) via message queues for asynchronous caching sync.'
+    },
+    {
+      id: 't5',
+      question: 'Explain the Javascript Event Loop, Call Stack, Microtask queue, and Macrotask queue hierarchy.',
+      expectedKeywords: ['call stack', 'event loop', 'microtask', 'macrotask', 'promise', 'settimeout', 'callback queue'],
+      idealConcept: 'The JavaScript event loop coordinates execution. Synchronous code runs on the call stack first. Once cleared, the loop processes the microtask queue (Promises, MutationObservers) to completion. Only then does it poll the macrotask queue (setTimeout, I/O tasks) for one callback per tick, ensuring non-blocking operations.'
+    },
+    {
+      id: 't6',
+      question: 'How does indexing speed up database queries, and what are the trade-offs of having too many indexes?',
+      expectedKeywords: ['b-tree', 'index', 'scan', 'seek', 'insert', 'update', 'write overhead', 'disk space'],
+      idealConcept: 'Database indexes (typically B-Trees) provide quick lookup pointers to avoid full table scans, converting O(N) operations to O(log N) seeks. However, indexes introduce write overhead because insert, update, and delete statements must modify the index trees, consuming extra disk space.'
+    },
+    {
+      id: 't7',
+      question: 'Explain the virtual DOM reconciliation process in React, including keys and diffing algorithm.',
+      expectedKeywords: ['reconciliation', 'virtual dom', 'diffing', 'keys', 'fiber', 'render', 'complexity'],
+      idealConcept: 'React uses a Virtual DOM to minimize direct browser reflows. During reconciliation, React walks old and new element trees, matching nodes. By using unique keys, React can track elements across renders, reducing updates from O(N^3) to O(N) by mapping matching tree elements efficiently.'
     }
   ],
   HR: [
@@ -63,6 +81,18 @@ const PRESET_QUESTIONS = {
       question: 'Where do you see your technical career in five years?',
       expectedKeywords: ['architectural', 'mentoring', 'domain master', 'continuous learning', 'system design', 'impact'],
       idealConcept: 'Emphasize your intent to master high-availability backend microservices, lead architectural designs, mentor junior contributors, and translate product visions into scalable cloud-native architectures.'
+    },
+    {
+      id: 'h4',
+      question: 'How do you manage stress and prioritize tasks when faced with tight release deadlines?',
+      expectedKeywords: ['prioritize', 'communication', 'scope', 'time management', 'delegation', 'incremental'],
+      idealConcept: 'I prioritize tasks using the MoSCoW method, identifying critical dependencies. I maintain transparent communication with stakeholders to scope down optional requirements, and focus on delivering high-quality incremental updates instead of rushing large features.'
+    },
+    {
+      id: 'h5',
+      question: 'Why do you want to join our organization, and what value do you expect to bring?',
+      expectedKeywords: ['culture', 'scale', 'domain', 'problem solving', 'alignment', 'contribution'],
+      idealConcept: 'I am highly aligned with your focus on building high-availability, user-centric systems at scale. I bring a strong background in backend performance optimization, a solid problem-solving mindset, and a commitment to collaborative, continuous improvement.'
     }
   ],
   'System Design': [
@@ -76,7 +106,19 @@ const PRESET_QUESTIONS = {
       id: 's2',
       question: 'How would you design a highly consistent, fault-tolerant distributed transaction system?',
       expectedKeywords: ['two-phase commit', '2pc', 'saga pattern', 'compensation', 'outbox pattern', 'idempotency'],
-      idealConcept: 'For strict consistency, two-phase commit is used but limits performance. In microservices, the Saga Pattern is preferred: using orchestration or choreographies with compensating compensation events, backed by transactional outbox pipelines and idempotency guards.'
+      idealConcept: 'For strict consistency, two-phase commit is used but limits performance. In microservices, the Saga Pattern is preferred: using orchestration or choreographies with compensating events, backed by transactional outbox pipelines and idempotency guards.'
+    },
+    {
+      id: 's3',
+      question: 'How would you design a scalable distributed unique ID generator (like Snowflake)?',
+      expectedKeywords: ['snowflake', 'timestamp', 'worker id', 'sequence', 'uuid', 'collision', 'coordination'],
+      idealConcept: 'A distributed ID generator can use Twitter Snowflake structure: 41 bits for timestamp, 10 bits for worker/node ID, and 12 bits for a sequence number. This allows generating 64-bit sortable unique IDs locally on each server without central coordination databases, avoiding latency bottlenecks.'
+    },
+    {
+      id: 's4',
+      question: 'How would you design a high-throughput video uploading and encoding service like YouTube?',
+      expectedKeywords: ['transcoding', 'chunking', 'object storage', 'cdn', 'queue', 'metadata', 'scalability'],
+      idealConcept: 'The design uploads videos in chunks to Object Storage, triggering async jobs in a message queue. Worker pools process chunks in parallel, transcoding them into multiple formats (1080p, 720p, etc.). Video metadata is saved to a database, and encoded files are pushed to Edge CDNs for low-latency playback.'
     }
   ],
   Behavioral: [
@@ -85,6 +127,18 @@ const PRESET_QUESTIONS = {
       question: 'Describe a time you failed to meet a target deadline. What did you learn and how did you manage expectations?',
       expectedKeywords: ['proactive communication', 'transparency', 'prioritization', 'agile', 'timeline modification', 'velocity'],
       idealConcept: 'Highlight proactive communication with stakeholders the moment risks were discovered. Detail how you re-prioritized features, shipped MVP core functionality on time, and adjusted sprint velocity estimations for future projects.'
+    },
+    {
+      id: 'b2',
+      question: 'Tell me about a time you had to take lead on a project with ambiguous or incomplete requirements.',
+      expectedKeywords: ['ambiguity', 'stakeholders', 'requirements', 'proactive', 'feedback loop', 'prototype'],
+      idealConcept: 'When requirements were ambiguous, I took initiative by organizing meetings with key stakeholders to define core goals. I built a simple, low-fidelity prototype to visualize the flow, gather early feedback, and iteratively document refined product specs, reducing scope risks.'
+    },
+    {
+      id: 'b3',
+      question: 'Describe a time you received constructive criticism that impacted your development style. How did you react?',
+      expectedKeywords: ['feedback', 'listening', 'growth mindset', 'improvement', 'refactoring', 'code review'],
+      idealConcept: 'During a code review, a lead developer pointed out that my architecture was overly complex for the feature requirements. I listened with a growth mindset, worked with them to refactor the module for simplicity and readability, and now actively focus on writing simpler, more maintainable code.'
     }
   ]
 };
@@ -218,7 +272,7 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
   // Text to Speech logic
   const speakQuestion = (text: string) => {
     if (!window.speechSynthesis) {
-      alert('Text-to-speech is not supported in this browser.');
+      console.warn('Text-to-speech is not supported in this environment.');
       return;
     }
     window.speechSynthesis.cancel();
@@ -287,6 +341,15 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
 
   // Start Session handler
   const startInterview = async () => {
+    const shuffleArray = <T,>(array: T[]): T[] => {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
     let list: Array<{ id: string; question: string; expectedKeywords: string[]; idealConcept: string }> = [];
 
     if (questionSource === 'Presets') {
@@ -369,6 +432,9 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
       alert(`No questions found in ${questionSource} matching ${difficulty} difficulty. Falling back to presets.`);
       list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
     }
+
+    // Shuffle the loaded questions so they aren't in the same order/duplicates
+    list = shuffleArray(list);
 
     // limit to max 4 questions for high-intensity timed simulator
     setQuestionsList(list.slice(0, 4));
@@ -685,7 +751,28 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
           <div className="lg:col-span-2 space-y-6">
             <div className="glass-card p-6 space-y-5">
               <h3 className="font-bold text-white text-sm border-b border-white/5 pb-2 uppercase tracking-wide">Configure Simulation Round</h3>
-              
+
+              {/* AI Status Indicator */}
+              <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+                cerebrasApiKey 
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' 
+                  : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${cerebrasApiKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  <div className="text-left font-sans">
+                    <span className="font-bold block">
+                      {cerebrasApiKey ? 'AI Engine: Connected' : 'AI Engine: Local Fallback Mode'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      {cerebrasApiKey 
+                        ? 'Cerebras Llama-3.3-70b active for custom question generation and detailed grading.' 
+                        : 'Using keyword matcher and local presets. Add your Cerebras API key in Backup & Data Settings to enable AI.'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
                 <div className="space-y-2">
                   <label className="text-slate-300 font-semibold block">Select Round Stream</label>
