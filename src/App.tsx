@@ -62,7 +62,7 @@ export default function App() {
   } = useDatabase();
 
   // Navigation tabs state
-  const [activeTab, setActiveTab] = useState<string>('Dashboard & Priorities');
+  const [activeTab, setActiveTab] = useState<string>('Home Dashboard');
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
 
@@ -120,7 +120,7 @@ export default function App() {
       <div data-theme="cyber-midnight" className="min-h-screen text-slate-100 flex flex-col items-center justify-center font-sans antialiased relative">
         <div className="mesh-gradient opacity-80" />
         <Loader className="w-10 h-10 animate-spin text-indigo-400 mb-4" />
-        <p className="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Syncing Cloud Services...</p>
+        <p className="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Securing Your Workspace...</p>
       </div>
     );
   }
@@ -139,10 +139,10 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-1.5 leading-none">
-                <span className="font-black text-base tracking-tight text-white font-sans">Preparation Tracker</span>
+                <span className="font-black text-base tracking-tight text-white font-sans">PrepMaster Hub</span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono block mt-0.5 leading-none">
-                Focused Interview Readiness
+                Your Smart Learning & Goal Companion
               </span>
             </div>
           </div>
@@ -152,7 +152,7 @@ export default function App() {
               <span className="font-bold text-slate-200">{user.email}</span>
               <span className="text-[10px] text-indigo-300 font-mono flex items-center gap-0.5">
                 <BadgeCheck className="w-3 h-3 text-emerald-400" />
-                {userProfile?.name || 'Active Candidate'}
+                {userProfile?.name || 'Active Learner'}
               </span>
             </div>
             <button
@@ -205,21 +205,21 @@ export default function App() {
                     </span>
 
                     {[
-                      { label: 'Dashboard & Priorities', icon: Flame },
-                      { label: 'Prep Intelligence Hub', icon: Sparkles },
-                      { label: 'Topic Map & Spacing', icon: Compass },
-                      { label: 'Question Bank & Practice', icon: HelpIcon },
-                      { label: 'Interviews & Applications', icon: Calendar },
-                      { label: 'Personal Reminders', icon: Bell },
-                      { label: 'Activity Planner', icon: ListTodo },
-                      { label: 'STAR Story Builder', icon: ClipboardList },
-                      { label: 'Analytics & Sessions', icon: Activity },
-                      { label: 'Preparation Roadmaps', icon: Layers },
+                      { label: 'Home Dashboard', icon: Flame },
+                      { label: 'AI Learning Assistant', icon: Sparkles },
+                      { label: 'Study Topics & Revisions', icon: Compass },
+                      { label: 'Flashcards & Practice', icon: HelpIcon },
+                      { label: 'Goals & Applications', icon: Calendar },
+                      { label: 'Reminders & Habits', icon: Bell },
+                      { label: 'Task & Study Planner', icon: ListTodo },
+                      { label: 'Experience & Story Builder', icon: ClipboardList },
+                      { label: 'Progress & Analytics', icon: Activity },
+                      { label: 'Learning Roadmaps', icon: Layers },
                       { label: 'My Achievements', icon: Award },
-                      { label: 'Personal Journal', icon: BookOpen },
-                      { label: 'Mock Interview Simulator', icon: Gamepad2 },
-                      { label: 'Mobile & Offline Hub', icon: Smartphone },
-                      { label: 'Import & Export Center', icon: Settings }
+                      { label: 'Daily Journal & Notes', icon: BookOpen },
+                      { label: 'Practice Simulator', icon: Gamepad2 },
+                      { label: 'Mobile Sync Hub', icon: Smartphone },
+                      { label: 'Backup & Data Settings', icon: Settings }
                     ].map(tab => {
                       const Icon = tab.icon;
                       const isActive = activeTab === tab.label;
@@ -268,21 +268,21 @@ export default function App() {
               </span>
 
               {[
-                { label: 'Dashboard & Priorities', icon: Flame },
-                { label: 'Prep Intelligence Hub', icon: Sparkles },
-                { label: 'Topic Map & Spacing', icon: Compass },
-                { label: 'Question Bank & Practice', icon: HelpIcon },
-                { label: 'Interviews & Applications', icon: Calendar },
-                { label: 'Personal Reminders', icon: Bell },
-                { label: 'Activity Planner', icon: ListTodo },
-                { label: 'STAR Story Builder', icon: ClipboardList },
-                { label: 'Analytics & Sessions', icon: Activity },
-                { label: 'Preparation Roadmaps', icon: Layers },
+                { label: 'Home Dashboard', icon: Flame },
+                { label: 'AI Learning Assistant', icon: Sparkles },
+                { label: 'Study Topics & Revisions', icon: Compass },
+                { label: 'Flashcards & Practice', icon: HelpIcon },
+                { label: 'Goals & Applications', icon: Calendar },
+                { label: 'Reminders & Habits', icon: Bell },
+                { label: 'Task & Study Planner', icon: ListTodo },
+                { label: 'Experience & Story Builder', icon: ClipboardList },
+                { label: 'Progress & Analytics', icon: Activity },
+                { label: 'Learning Roadmaps', icon: Layers },
                 { label: 'My Achievements', icon: Award },
-                { label: 'Personal Journal', icon: BookOpen },
-                { label: 'Mock Interview Simulator', icon: Gamepad2 },
-                { label: 'Mobile & Offline Hub', icon: Smartphone },
-                { label: 'Import & Export Center', icon: Settings }
+                { label: 'Daily Journal & Notes', icon: BookOpen },
+                { label: 'Practice Simulator', icon: Gamepad2 },
+                { label: 'Mobile Sync Hub', icon: Smartphone },
+                { label: 'Backup & Data Settings', icon: Settings }
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.label;
@@ -331,9 +331,9 @@ export default function App() {
               <div className="bg-slate-900/60 border border-indigo-500/25 rounded-2xl p-6 text-center shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
                 <Sparkles className="w-10 h-10 text-indigo-400 mx-auto mb-3 animate-bounce" />
-                <h3 className="text-base font-bold text-white mb-1.5 font-sans">Welcome to PrepMaster Cloud Space!</h3>
+                <h3 className="text-base font-bold text-white mb-1.5 font-sans">Welcome to your learning space!</h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto mb-4">
-                  Your sandbox database in Firestore is currently unpopulated. Press the key below to seed with standard Java engineering topics and flashcards to start curves evaluation.
+                  Your database is currently empty. Initialize your dashboard with a standard set of learning topics and flashcards to start tracking your progress.
                 </p>
                 <button
                   onClick={handleSeedSandbox}
@@ -356,7 +356,7 @@ export default function App() {
                 transition={{ duration: 0.28, ease: "easeOut" }}
                 className="w-full flex flex-col gap-6"
               >
-                {activeTab === 'Dashboard & Priorities' && (
+                {activeTab === 'Home Dashboard' && (
               <div className="space-y-6">
                 <Dashboard 
                   topics={topics}
@@ -367,7 +367,7 @@ export default function App() {
                   notifications={notifications}
                   onStartSession={(id) => {
                     setActiveSessionTopicId(id);
-                    setActiveTab('Analytics & Sessions');
+                    setActiveTab('Progress & Analytics');
                   }}
                   onNavigate={(dest) => {
                     setActiveTab(dest);
@@ -404,7 +404,7 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'Prep Intelligence Hub' && (
+            {activeTab === 'AI Learning Assistant' && (
               <IntelligenceHub 
                 topics={topics}
                 questions={questions}
@@ -413,7 +413,7 @@ export default function App() {
                 sessions={sessions}
                 voiceRecordings={voiceRecordings}
                 onStartSession={(id) => {
-                  setActiveTab('Analytics & Sessions');
+                  setActiveTab('Progress & Analytics');
                 }}
                 onNavigate={(dest) => {
                   setActiveTab(dest);
@@ -425,7 +425,7 @@ export default function App() {
               />
             )}
 
-          {activeTab === 'Topic Map & Spacing' && (
+          {activeTab === 'Study Topics & Revisions' && (
             <TopicManagement 
               subjects={subjects}
               onAddSubject={handleAddSubject}
@@ -444,7 +444,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Question Bank & Practice' && (
+          {activeTab === 'Flashcards & Practice' && (
             <QuestionBank 
               questions={questions}
               topics={topics}
@@ -460,7 +460,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Interviews & Applications' && (
+          {activeTab === 'Goals & Applications' && (
             <InterviewTracker 
               applications={applications}
               interviews={interviews}
@@ -477,7 +477,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Analytics & Sessions' && (
+          {activeTab === 'Progress & Analytics' && (
             <Analytics 
               sessions={sessions} 
               subjects={subjects} 
@@ -491,7 +491,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Activity Planner' && (
+          {activeTab === 'Task & Study Planner' && (
             <ActivityPlanner 
               plans={plans}
               tasks={tasks}
@@ -502,7 +502,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Preparation Roadmaps' && (
+          {activeTab === 'Learning Roadmaps' && (
             <PreparationRoadmaps 
               roadmaps={roadmaps}
               topics={topics}
@@ -522,7 +522,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Personal Journal' && (
+          {activeTab === 'Daily Journal & Notes' && (
             <PersonalJournal 
               journals={journals}
               topics={topics}
@@ -534,7 +534,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Personal Reminders' && (
+          {activeTab === 'Reminders & Habits' && (
             <PersonalReminders 
               reminders={personalReminders}
               logs={reminderLogs}
@@ -547,7 +547,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'STAR Story Builder' && (
+          {activeTab === 'Experience & Story Builder' && (
             <StarStoryBuilder 
               starStories={starStories}
               onAddStarStory={handleAddStarStory}
@@ -557,7 +557,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Mock Interview Simulator' && (
+          {activeTab === 'Practice Simulator' && (
             <MockInterviewWorkspace 
               subjects={subjects}
               topics={topics}
@@ -568,14 +568,14 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'Mobile & Offline Hub' && (
+          {activeTab === 'Mobile Sync Hub' && (
             <MobileOfflineHub 
               notifications={notifications}
               onPushNotification={pushNotification}
             />
           )}
 
-          {activeTab === 'Import & Export Center' && (
+          {activeTab === 'Backup & Data Settings' && (
             <BulkImportExportCenter 
               topics={topics}
               questions={questions}
@@ -605,7 +605,7 @@ export default function App() {
 
       <footer className="border-t border-white/5 mt-auto py-5 select-none text-center bg-black/10">
         <div className="max-w-7xl mx-auto px-4 text-xs text-slate-400 font-sans">
-          &copy; 2026 Preparation Tracker. Master interviews with focused, AI-powered preparation.
+          &copy; 2026 PrepMaster Hub. Accelerate learning, track tasks, and achieve your goals with smart companion tools.
         </div>
       </footer>
 

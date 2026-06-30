@@ -981,15 +981,15 @@ const Dashboard = React.memo(function Dashboard({
       >
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight font-display hover:text-indigo-200 transition-colors duration-300">
-            Developer Prep Control Center
+            Personal Study Dashboard
           </h1>
           <p className="text-sm text-slate-400 font-sans">
-            Your high-performance custom spaced-repetition roadmap to absolute technical mastery.
+            Your smart roadmap to progress tracking and goal achievement.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono bg-indigo-500/10 text-indigo-300 px-3 py-1.5 rounded-xl border border-indigo-500/20 shadow-md">
           <Clock className="w-3.5 h-3.5 text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
-          <span>Active Preparation Cadence</span>
+          <span>Active Learning Cadence</span>
         </div>
       </motion.div>
 
@@ -999,7 +999,7 @@ const Dashboard = React.memo(function Dashboard({
           <div className="flex items-center justify-between pb-2 border-b border-white/10">
             <div className="flex items-center gap-1.5">
               <CheckCircle className="w-5 h-5 text-indigo-400" />
-              <h3 className="font-bold text-white text-sm font-display">Daily Mission Goals</h3>
+              <h3 className="font-bold text-white text-sm font-display">Daily Goals</h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
@@ -1283,7 +1283,7 @@ const Dashboard = React.memo(function Dashboard({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest font-mono text-indigo-400 font-extrabold bg-indigo-500/10 px-2 py-0.5 rounded-md">
-                Active Track
+                Active Topic
               </span>
               <span className="text-xs font-mono font-bold text-indigo-300">
                 Today
@@ -1291,13 +1291,13 @@ const Dashboard = React.memo(function Dashboard({
             </div>
             <h2 className="text-lg font-bold text-white tracking-tight font-display pr-5">
               {priorityItems.length > 0
-                ? `Focus: ${priorityItems[0].topic.name} & related concepts`
+                ? `Study Focus: ${priorityItems[0].topic.name}`
                 : 'All clear! No critical concepts need revision today.'}
             </h2>
             <p className="text-xs text-slate-450 leading-relaxed max-w-sm">
               {priorityItems.length > 0
-                ? `Your spacing algorithm selected ${priorityItems.length} high-decay technical concepts for recall testing today. Ensure you evaluate retention gaps.`
-                : 'Your retention metrics look strong. You can review your spacing map or practice new topics.'}
+                ? `Your study tracker selected ${priorityItems.length} high-decay concepts for review today. Keep your memory curves strong.`
+                : 'Your retention metrics look strong. You can review your topics list or practice new cards.'}
             </p>
           </div>
 
@@ -1310,7 +1310,7 @@ const Dashboard = React.memo(function Dashboard({
               className="px-3.5 py-1.5 bg-indigo-650 hover:bg-slate-200 hover:text-indigo-950 text-white rounded-xl text-xs font-bold font-sans transition-all flex items-center gap-1.5 shadow-lg border border-indigo-500/30 group-hover:scale-[1.02]"
               reducedMotion={reducedMotion}
             >
-              <span>Begin Recall Test</span>
+              <span>Begin Practice</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </MagneticButton>
           </div>
@@ -1318,10 +1318,9 @@ const Dashboard = React.memo(function Dashboard({
 
         {/* Box B: Streak (Col Span 1) */}
         <BentoCard className="md:col-span-1 flex flex-col justify-between min-h-[170px] hover:border-orange-500/20" reducedMotion={reducedMotion}>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
+          <div className="space-y-1">            <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest font-mono text-slate-400 font-bold">
-                Daily Study Streak
+                Daily Learning Streak
               </span>
               <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400">
                 <Flame className="w-4 h-4 fill-current animate-pulse" />
@@ -1338,13 +1337,13 @@ const Dashboard = React.memo(function Dashboard({
           </div>
           {renderSparkline(streakSparklineData, 'rgba(249, 115, 22, 0.2)', '#f97316')}
         </BentoCard>
-
+ 
         {/* Box C: ICI (Col Span 1) */}
         <BentoCard className="md:col-span-1 flex flex-col justify-between min-h-[170px] hover:border-indigo-400/20" reducedMotion={reducedMotion}>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest font-mono text-slate-400 font-bold">
-                Interview Confidence
+                Confidence Level
               </span>
               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
                 <TrendingUp className="w-4 h-4" />
@@ -1355,7 +1354,7 @@ const Dashboard = React.memo(function Dashboard({
                 <AnimatedCounter value={calculationsICI.score} suffix="%" />
               </span>
               <span className="text-[10px] text-slate-405 font-sans">
-                ICI composite indicator
+                Overall readiness rating
               </span>
             </div>
           </div>
@@ -1556,11 +1555,11 @@ const Dashboard = React.memo(function Dashboard({
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-300 animate-bounce fill-amber-300" />
               <h2 className="text-base font-bold font-display text-white">
-                Spacing Decay Priorities recommendations
+                Smart Study Recommendations
               </h2>
             </div>
             <span className="text-[10px] text-indigo-300 font-mono ring-1 ring-indigo-500/20 px-2 py-0.5 rounded-full">
-              Algorithm: Ebbinghaus Matrix
+              Learning Engine: Retention Curves
             </span>
           </div>
 
@@ -1627,8 +1626,8 @@ const Dashboard = React.memo(function Dashboard({
             {priorityItems.length === 0 && (
               <div className="col-span-2 text-center py-8 bg-white/5 rounded-xl border border-dashed border-white/10">
                 <CheckCircle className="w-8 h-8 text-indigo-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-white font-display">Clear of spacing recommendations.</p>
-                <p className="text-xs text-slate-400 font-sans">Seeding topics inside your Spacing Map will instantly pop suggestions.</p>
+                <p className="text-sm font-medium text-white font-display">All caught up with revisions.</p>
+                <p className="text-xs text-slate-400 font-sans">Add topics inside your Study Topics to generate instant suggestions.</p>
               </div>
             )}
           </div>
@@ -1641,14 +1640,14 @@ const Dashboard = React.memo(function Dashboard({
       <motion.div variants={itemVariants} className="border-t border-white/10 pt-5 mt-5">
         <h4 className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 justify-center md:justify-start mb-4">
           <Trophy className="w-3.5 h-3.5 animate-bounce" />
-          <span>Consistency Indicators & Path Wayfinders</span>
+          <span>Learning Progress & Milestones</span>
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Active Roadmap Finder Widget */}
           <BentoCard className="flex flex-col justify-between" reducedMotion={reducedMotion}>
             <div className="space-y-1.5 text-left">
-              <span className="text-[8px] font-mono text-slate-400 uppercase tracking-widest block font-bold">Preparation Roadmap</span>
+              <span className="text-[8px] font-mono text-slate-400 uppercase tracking-widest block font-bold">Learning Roadmap</span>
               {(() => {
                 const active = roadmaps.find(r => r.isActive) || (roadmaps.length > 0 ? roadmaps[0] : null);
                 if (!active) return <span className="text-xs text-slate-400 block pb-1">No active target roadmap track.</span>;
