@@ -113,7 +113,7 @@ const prebuiltTemplates = [
   }
 ];
 
-export default function PreparationRoadmaps({
+const PreparationRoadmaps = React.memo(function PreparationRoadmaps({
   roadmaps,
   topics,
   onAddRoadmap,
@@ -710,4 +710,5 @@ export default function PreparationRoadmaps({
 
     </div>
   );
-}
+});
+export default PreparationRoadmaps;

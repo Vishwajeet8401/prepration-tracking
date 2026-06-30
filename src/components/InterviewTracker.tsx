@@ -25,7 +25,7 @@ interface InterviewTrackerProps {
   onDeleteMistake: (id: string) => void;
 }
 
-export default function InterviewTracker({
+const InterviewTracker = React.memo(function InterviewTracker({
   applications,
   interviews,
   mistakes,
@@ -745,4 +745,5 @@ export default function InterviewTracker({
   function setMakeCompany(val: string) {
     setMistakeCompany(val);
   }
-}
+})
+export default InterviewTracker;

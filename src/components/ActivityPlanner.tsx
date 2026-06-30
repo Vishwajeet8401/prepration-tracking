@@ -24,7 +24,7 @@ const CATEGORIES: ActivityCategory[] = [
   'Reading', 'Writing', 'Speaking', 'Listening', 'Fitness', 'Custom'
 ];
 
-export default function ActivityPlanner({
+const ActivityPlanner = React.memo(function ActivityPlanner({
   plans,
   tasks,
   onAddPlan,
@@ -1240,4 +1240,5 @@ export default function ActivityPlanner({
 
     </div>
   );
-}
+});
+export default ActivityPlanner;

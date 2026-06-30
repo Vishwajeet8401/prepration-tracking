@@ -1,9 +1,9 @@
 {
-  "projectId": "YOUR_FIREBASE_PROJECT_ID",
-  "appId": "YOUR_FIREBASE_APP_ID",
-  "apiKey": "YOUR_FIREBASE_API_KEY",
-  "authDomain": "YOUR_FIREBASE_AUTH_DOMAIN",
-  "storageBucket": "YOUR_FIREBASE_STORAGE_BUCKET",
-  "messagingSenderId": "YOUR_FIREBASE_MESSAGING_SENDER_ID",
-  "measurementId": "YOUR_FIREBASE_MEASUREMENT_ID"
+  "projectId": "tracking-prep",
+  "appId": "1:992882220557:web:62d65d181cdda3523fbf44",
+  "apiKey": "AIzaSyCXaQa-okLBWww1wWw4OtqUUUmMvF8KmXw",
+  "authDomain": "tracking-prep.firebaseapp.com",
+  "storageBucket": "tracking-prep.firebasestorage.app",
+  "messagingSenderId": "992882220557",
+  "measurementId": "G-GNFBY6TKVK"
 }

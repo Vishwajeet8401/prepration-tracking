@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MockInterview, Topic, Subject } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { MockInterview, Topic, Subject, Question, InterviewIntelligenceQuestion } from '../types';
 import { 
   Play, Square, Sparkles, Clock, ListTodo, Award, RefreshCw, 
-  ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Flame, BarChart2, BookOpen, Send
+  ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Flame, BarChart2, BookOpen, Send,
+  Mic, MicOff, Check, X, Info, Zap, Volume2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MockInterviewWorkspaceProps {
   subjects: Subject[];
   topics: Topic[];
+  questions: Question[];
+  intelliQuestions: InterviewIntelligenceQuestion[];
   interviews: MockInterview[];
+  cerebrasApiKey?: string;
   onAddInterview: (int: Omit<MockInterview, 'id' | 'userId'>) => Promise<void>;
   onDeleteInterview: (id: string) => Promise<void>;
 }
@@ -72,7 +76,7 @@ const PRESET_QUESTIONS = {
       id: 's2',
       question: 'How would you design a highly consistent, fault-tolerant distributed transaction system?',
       expectedKeywords: ['two-phase commit', '2pc', 'saga pattern', 'compensation', 'outbox pattern', 'idempotency'],
-      idealConcept: 'For strict consistency, two-phase commit is used but limits performance. In microservices, the Saga Pattern is preferred: using orchestration or choreographies with compensating compensation events, backed by transactional outbox pipelines and idompotency guards.'
+      idealConcept: 'For strict consistency, two-phase commit is used but limits performance. In microservices, the Saga Pattern is preferred: using orchestration or choreographies with compensating compensation events, backed by transactional outbox pipelines and idempotency guards.'
     }
   ],
   Behavioral: [
@@ -85,23 +89,44 @@ const PRESET_QUESTIONS = {
   ]
 };
 
-export default function MockInterviewWorkspace({
+const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
   subjects,
   topics,
+  questions,
+  intelliQuestions,
   interviews,
+  cerebrasApiKey,
   onAddInterview,
   onDeleteInterview
 }: MockInterviewWorkspaceProps) {
   // Config state
   const [roundType, setRoundType] = useState<'Technical' | 'HR' | 'System Design' | 'Behavioral'>('Technical');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
+  const [questionSource, setQuestionSource] = useState<'Presets' | 'Question Bank' | 'Intelligence DB' | 'AI Generated'>('Presets');
   const [subjectId, setSubjectId] = useState<string>('');
+  const [experienceLevel, setExperienceLevel] = useState<'Junior' | 'Mid' | 'Senior' | 'Staff'>('Senior');
+  const [companyType, setCompanyType] = useState<'FAANG / Tier 1' | 'Startup / High-Growth' | 'Enterprise / Fintech' | 'General Tech'>('FAANG / Tier 1');
   
   // Active session state
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [questionsList, setQuestionsList] = useState<Array<{ id: string; question: string; expectedKeywords: string[]; idealConcept: string }>>([]);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [vocalPrompts, setVocalPrompts] = useState(true);
+
+  // Hint states
+  const [activeHint, setActiveHint] = useState<string | null>(null);
+  const [activeHintLoading, setActiveHintLoading] = useState(false);
+  const [hintUsed, setHintUsed] = useState(false);
+
+  // Stop speaking when session terminates
+  useEffect(() => {
+    if (!isSessionActive && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  }, [isSessionActive]);
+
   
   // Session logs list for active run
   const [sessionHistory, setSessionHistory] = useState<Array<{
@@ -110,10 +135,28 @@ export default function MockInterviewWorkspace({
     evaluation: string;
     score: number;
     answerTime: number;
+    matchedKeywords: string[];
+    missedKeywords: string[];
+    idealConcept?: string;
+    fillerWordsCount?: number;
+    fillerWordsSpotted?: string[];
+    scores?: { accuracy: number; modeling: number; clarity: number; depth: number };
+    hintUsed?: boolean;
   }>>([]);
 
+  // Speech Recognition state
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Time boundaries per question
+  const limitSecondsPerQuestion = useMemo(() => {
+    if (difficulty === 'Easy') return 180; // 3 min
+    if (difficulty === 'Medium') return 120; // 2 min
+    return 60; // 1 min countdown
+  }, [difficulty]);
+
   // Timing states
-  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerSeconds, setTimerSeconds] = useState(limitSecondsPerQuestion);
   const [totalTimerSeconds, setTotalTimerSeconds] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -124,71 +167,411 @@ export default function MockInterviewWorkspace({
 
   const totalAnsweredCount = interviews.reduce((sum, i) => sum + i.answeredCount, 0);
 
+  // Web Speech recognition setup
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+
+      rec.onresult = (event: any) => {
+        const text = event.results[event.results.length - 1][0].transcript;
+        setUserAnswer(prev => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + text);
+      };
+
+      rec.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser. Try Chrome or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  // Text to Speech logic
+  const speakQuestion = (text: string) => {
+    if (!window.speechSynthesis) {
+      alert('Text-to-speech is not supported in this browser.');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 1.0;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Auto-read question on load/change
+  useEffect(() => {
+    if (isSessionActive && questionsList[currentQuestionIndex] && vocalPrompts) {
+      const timer = setTimeout(() => {
+        speakQuestion(questionsList[currentQuestionIndex].question);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isSessionActive, currentQuestionIndex, questionsList, vocalPrompts]);
+
+  // Real-time hint generator from Cerebras Llama 3.3 70b
+  const requestHint = async () => {
+    const currentQ = questionsList[currentQuestionIndex];
+    if (!currentQ) return;
+    setActiveHintLoading(true);
+    try {
+      const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cerebrasApiKey || 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b",
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert tech interviewer coach. Provide a short, constructive, one-sentence hint to help the candidate structure their answer to the question. Do not answer it directly; give a helpful structural tip."
+            },
+            {
+              role: "user",
+              content: `Question: ${currentQ.question}`
+            }
+          ],
+          temperature: 0.5,
+          max_completion_tokens: 80
+        })
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        const hintText = resData.choices[0].message.content.trim();
+        setActiveHint(hintText);
+        setHintUsed(true);
+      } else {
+        throw new Error("Failed response status");
+      }
+    } catch (e) {
+      console.warn("Cerebras hint generation failed, generating local fallback hint:", e);
+      setActiveHint(`Focus on structuring your thoughts around: ${currentQ.expectedKeywords.slice(0, 3).join(', ')}.`);
+      setHintUsed(true);
+    } finally {
+      setActiveHintLoading(false);
+    }
+  };
+
+
+
   // Start Session handler
-  const startInterview = () => {
-    const list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
-    // Shuffle slightly or take subset
-    setQuestionsList(list);
+  const startInterview = async () => {
+    let list: Array<{ id: string; question: string; expectedKeywords: string[]; idealConcept: string }> = [];
+
+    if (questionSource === 'Presets') {
+      list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
+    } else if (questionSource === 'Question Bank') {
+      const filtered = questions.filter(q => {
+        const diffMatch = q.difficulty === difficulty;
+        return diffMatch;
+      });
+      list = filtered.map((q, idx) => ({
+        id: q.id || `qb-${idx}`,
+        question: q.question,
+        expectedKeywords: q.tags && q.tags.length > 0 ? q.tags : ['concept', 'explanation'],
+        idealConcept: q.answer
+      }));
+    } else if (questionSource === 'Intelligence DB') {
+      const filtered = intelliQuestions.filter(q => q.difficulty === difficulty);
+      list = filtered.map((q, idx) => ({
+        id: q.id || `iq-${idx}`,
+        question: q.question,
+        expectedKeywords: [q.topic.toLowerCase(), 'architecture', 'implementation'],
+        idealConcept: q.answer
+      }));
+    } else {
+      // AI Generated
+      setIsGeneratingQuestions(true);
+      const subjectName = subjectId ? (subjects.find(s => s.id === subjectId)?.name || '') : 'General Software Engineering';
+      try {
+        const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${cerebrasApiKey || 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'}`
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b",
+            messages: [
+              {
+                role: "system",
+                content: `You are an expert technical interviewer at a top-tier tech company.
+                Your task is to generate exactly 3 challenging, thinking-based, scenario-oriented interview questions for a candidate.
+                Avoid simple definitions like "what is oops" or "what is a class". 
+                Generate scenario-based questions that test deep technical/conceptual knowledge, system design choices, or soft skills/problem-solving based on the stream.
+                
+                You must return a JSON array containing exactly 3 objects. Each object must have these fields:
+                - "id": a unique string ID (e.g. "ai-q1")
+                - "question": the scenario-based question text
+                - "expectedKeywords": an array of 5-8 lowercase strings representing key technical terms/concepts candidate should reference in their response
+                - "idealConcept": a 3-4 sentence detailed ideal answer that represents an expert/mastered response
+                
+                Format the response strictly as a valid JSON array. Do not wrap the JSON output in markdown backticks or explanation text.`
+              },
+              {
+                role: "user",
+                content: `Generate questions for a ${roundType} round targeting ${difficulty} difficulty. Subject Focus: ${subjectName}. Target seniority level: ${experienceLevel}. Focus style matching this company profile: ${companyType}.`
+              }
+            ],
+            temperature: 0.7,
+            max_completion_tokens: 800
+          })
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          const text = resData.choices[0].message.content.trim();
+          const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+          list = JSON.parse(cleaned);
+        } else {
+          throw new Error("Failed to contact Cerebras AI");
+        }
+      } catch (err) {
+        console.warn("Cerebras question generation failed, falling back to presets:", err);
+        list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
+      } finally {
+        setIsGeneratingQuestions(false);
+      }
+    }
+
+    if (list.length === 0) {
+      alert(`No questions found in ${questionSource} matching ${difficulty} difficulty. Falling back to presets.`);
+      list = PRESET_QUESTIONS[roundType] || PRESET_QUESTIONS.Technical;
+    }
+
+    // limit to max 4 questions for high-intensity timed simulator
+    setQuestionsList(list.slice(0, 4));
     setCurrentQuestionIndex(0);
     setUserAnswer('');
     setSessionHistory([]);
-    setTimerSeconds(0);
+    setTimerSeconds(limitSecondsPerQuestion);
     setTotalTimerSeconds(0);
     setIsSessionActive(true);
 
-    // Initial timer starter
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
-      setTimerSeconds(prev => prev + 1);
+      setTimerSeconds(prev => {
+        if (prev <= 1) {
+          triggerAutoSubmit();
+          return limitSecondsPerQuestion;
+        }
+        return prev - 1;
+      });
       setTotalTimerSeconds(prev => prev + 1);
     }, 1000);
   };
 
-  // Skip / Submit Answer handler
-  const submitAnswer = async () => {
-    if (!userAnswer.trim()) {
-      alert('Please type or dictate an answer before submitting.');
+  const triggerAutoSubmit = () => {
+    alert('Time limit reached for this question! Auto-submitting response.');
+    submitAnswer(true);
+  };
+
+  // Submit Answer handler
+  const submitAnswer = async (forceAutoSubmit = false) => {
+    if (!userAnswer.trim() && !forceAutoSubmit) {
+      alert('Please type or dictate an answer before submitting, or wait for the timer to expire.');
       return;
+    }
+
+    // Stop speech recognition if listening
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
     }
 
     const currentQ = questionsList[currentQuestionIndex];
     if (!currentQ) return;
 
-    // CLIENT ACTION EVALUATION ENGINE
-    const answerLower = userAnswer.toLowerCase();
-    const matched = currentQ.expectedKeywords.filter(kw => answerLower.includes(kw));
-    const matchRatio = matched.length / currentQ.expectedKeywords.length;
+    const answerText = userAnswer.trim() || '[No Answer Provided / Time Out]';
+    const answerLower = answerText.toLowerCase();
 
-    // Intelligence evaluation
-    let score = Math.min(100, Math.round(matchRatio * 75 + (userAnswer.length > 120 ? 25 : userAnswer.length / 5)));
-    if (score < 30) score = 30 + Math.round(Math.random() * 15); // baseline
+    // Matching Engine
+    const matched = currentQ.expectedKeywords.filter(kw => answerLower.includes(kw.toLowerCase()));
+    const missed = currentQ.expectedKeywords.filter(kw => !answerLower.includes(kw.toLowerCase()));
+    const matchRatio = currentQ.expectedKeywords.length > 0 ? matched.length / currentQ.expectedKeywords.length : 1;
+
+    // Strict evaluation rules
+    let score = Math.round(matchRatio * 75);
+    
+    // Detailed length bonus
+    if (answerText.length > 150) {
+      score += 25;
+    } else if (answerText.length > 60) {
+      score += 15;
+    } else if (answerText.length > 10) {
+      score += 5;
+    }
+
+    // Filler word analysis
+    const fillers = ['um', 'uh', 'like', 'basically', 'actually', 'you know', 'literally', 'so', 'essentially'];
+    const words = answerText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").split(/\s+/);
+    const spottedFillers: string[] = [];
+    let fillerCount = 0;
+    words.forEach(w => {
+      if (fillers.includes(w)) {
+        fillerCount++;
+        if (!spottedFillers.includes(w)) spottedFillers.push(w);
+      }
+    });
+    const youKnowMatches = (answerText.toLowerCase().match(/you know/g) || []).length;
+    if (youKnowMatches > 0) {
+      fillerCount += youKnowMatches;
+      if (!spottedFillers.includes('you know')) spottedFillers.push('you know');
+    }
+
+    // Skip/Empty penalty
+    if (forceAutoSubmit && !userAnswer.trim()) {
+      score = 0;
+    }
+
+    score = Math.min(100, Math.max(0, score));
 
     let evaluation = '';
     if (score >= 80) {
-      evaluation = `Superb explanation. You successfully matched key concepts: ${matched.join(', ')}. Your phrasing demonstrates clear production authority on the subject. Expected keywords were thoroughly covered aligned with ideal architectural standards.`;
-    } else if (score >= 55) {
-      evaluation = `Solid answer but can be enhanced. You hit core concepts: ${matched.join(', ')}. However, to move into Mastered level, make sure to explicitly cite: ${currentQ.expectedKeywords.filter(k => !matched.includes(k)).join(', ')}. Try to expand your details with practical application instances of these definitions.`;
+      evaluation = `Superb explanation. You successfully matched key concepts: ${matched.join(', ')}. Your response demonstrates clear production authority on the subject. Expected keywords were thoroughly covered aligned with ideal architectural standards.`;
+    } else if (score >= 50) {
+      evaluation = `Solid answer but can be enhanced. You hit core concepts: ${matched.join(', ')}. However, to move into Mastered level, make sure to explicitly cite: ${missed.join(', ')}. Try to expand your details with practical application instances of these definitions.`;
     } else {
-      evaluation = `Conceptual gaps identified. You mentioned few descriptors: ${matched.length > 0 ? matched.join(', ') : 'none'}. For high-tier selections, you must incorporate essential terms like: ${currentQ.expectedKeywords.join(', ')}. Review the ideal definition framework below carefully.`;
+      evaluation = `Conceptual gaps identified. You mentioned few descriptors: ${matched.length > 0 ? matched.join(', ') : 'none'}. For high-tier selections, you must incorporate essential terms like: ${currentQ.expectedKeywords.join(', ')}. Review the ideal definition framework carefully.`;
     }
+
+    let dynamicScores = {
+      accuracy: Math.round(score * 1.05 > 100 ? 100 : score * 1.05),
+      modeling: Math.round(score * 0.95),
+      clarity: Math.max(20, Math.round(score - (fillerCount * 5))),
+      depth: Math.round(score)
+    };
+
+    // Attempt AI evaluation via Cerebras Llama 3.3 70b
+    try {
+      const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cerebrasApiKey || 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert technical interviewer evaluating a candidate's answer for a mock interview question.
+              You must return a JSON object with these exact fields:
+              - "score": a number from 0 to 100 representing overall answer accuracy and quality.
+              - "evaluation": a 3-4 sentence detailed review explaining what they did well, what concepts they missed, and how to improve.
+              - "accuracy": a number 0-100 evaluating conceptual and technical accuracy.
+              - "modeling": a number 0-100 evaluating structural and systems thinking logic.
+              - "clarity": a number 0-100 evaluating explanation structure and communication clarity.
+              - "depth": a number 0-100 evaluating comprehensive detail level.
+              
+              Strictly output valid JSON only. Do not wrap in markdown or markdown code blocks.`
+            },
+            {
+              role: "user",
+              content: `Question: ${currentQ.question}
+              Expected Key Concepts/Keywords: ${currentQ.expectedKeywords.join(', ')}
+              Ideal/Better Answer Reference: ${currentQ.idealConcept}
+              Candidate Answer: ${answerText}`
+            }
+          ],
+          temperature: 0.1,
+          max_completion_tokens: 220
+        })
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        const text = resData.choices[0].message.content.trim();
+        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiEval = JSON.parse(cleaned);
+        if (typeof aiEval.score === 'number' && aiEval.evaluation) {
+          score = Math.min(100, Math.max(0, aiEval.score));
+          evaluation = aiEval.evaluation;
+          dynamicScores = {
+            accuracy: typeof aiEval.accuracy === 'number' ? aiEval.accuracy : score,
+            modeling: typeof aiEval.modeling === 'number' ? aiEval.modeling : score,
+            clarity: typeof aiEval.clarity === 'number' ? aiEval.clarity : score,
+            depth: typeof aiEval.depth === 'number' ? aiEval.depth : score
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("Cerebras evaluation failed, falling back to keyword heuristic evaluation", err);
+    }
+
+    setIsEvaluating(false);
+
+    const elapsedSeconds = limitSecondsPerQuestion - timerSeconds;
 
     // Capture entry
     const entry = {
       question: currentQ.question,
-      answer: userAnswer,
+      answer: answerText,
       evaluation,
       score,
-      answerTime: timerSeconds
+      answerTime: elapsedSeconds,
+      matchedKeywords: matched,
+      missedKeywords: missed,
+      idealConcept: currentQ.idealConcept,
+      fillerWordsCount: fillerCount,
+      fillerWordsSpotted: spottedFillers,
+      scores: dynamicScores,
+      hintUsed: hintUsed
     };
 
     const nextHistory = [...sessionHistory, entry];
     setSessionHistory(nextHistory);
 
+    // Reset hint states for next question
+    setActiveHint(null);
+    setHintUsed(false);
+
+    // Stop listening on answer submission
+    if (recognitionRef.current && isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error(e);
+      }
+      setIsListening(false);
+    }
+
     // Advance
     if (currentQuestionIndex + 1 < questionsList.length) {
       setCurrentQuestionIndex(prev => prev + 1);
       setUserAnswer('');
-      setTimerSeconds(0); // reset per-question timer
+      setTimerSeconds(limitSecondsPerQuestion); // reset countdown timer
     } else {
       // Finished!
       if (intervalRef.current) {
@@ -206,13 +589,30 @@ export default function MockInterviewWorkspace({
         ? `Pending Decision. Strong attempt on ${roundType}, but gaps in specific conceptual segments should be resolved prior to live panels.`
         : `Rejected. Found multiple gaps across essential keywords. Review custom revisions and study weak sections to consolidate foundational tracks.`;
 
-      const topicsCovered = Array.from(new Set(topics.slice(0, 3).map(t => t.name)));
+      // Extract actual topics covered dynamically
+      const topicsCovered = Array.from(new Set(
+        questionsList.map(q => {
+          if (questionSource === 'Question Bank') {
+            const qbQuestion = questions.find(questionItem => questionItem.question === q.question);
+            if (qbQuestion && qbQuestion.topicId) {
+              const matchedTopic = topics.find(t => t.id === qbQuestion.topicId);
+              if (matchedTopic) return matchedTopic.name;
+            }
+          } else if (questionSource === 'Intelligence DB') {
+            const intellQ = intelliQuestions.find(iq => iq.question === q.question);
+            if (intellQ) return intellQ.topic;
+          }
+          return roundType;
+        }).filter(Boolean)
+      )) as string[];
 
       await onAddInterview({
         roundType,
         difficulty,
         subjectId: subjectId || undefined,
-        topicsCovered: topicsCovered.length > 0 ? topicsCovered : ['Enterprise architecture', 'Technical strategy'],
+        experienceLevel,
+        companyType,
+        topicsCovered: topicsCovered.length > 0 ? topicsCovered : ['Enterprise Architecture'],
         answeredCount: nextHistory.length,
         totalQuestions: questionsList.length,
         score: overallScore,
@@ -251,10 +651,10 @@ export default function MockInterviewWorkspace({
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-4 gap-4">
         <div>
           <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-400" />
-            <span>Interactive Mock Interview Workspace</span>
+            <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
+            <span>Mock Interview Simulator</span>
           </h2>
-          <p className="text-xs text-slate-400">Evaluate your live communication and memory retrieval accuracy in simulation rounds.</p>
+          <p className="text-xs text-slate-404 mt-0.5">Evaluate your live communication and memory retrieval accuracy in simulation rounds.</p>
         </div>
 
         {/* Top KPI trackers */}
@@ -262,7 +662,7 @@ export default function MockInterviewWorkspace({
           <div className="bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl flex items-center gap-2">
             <Flame className="w-4 h-4 text-orange-400" />
             <div className="text-left font-sans">
-              <span className="block text-[8px] text-slate-400 uppercase tracking-widest leading-none">Interviews Complete</span>
+              <span className="block text-[8px] text-slate-400 uppercase tracking-widest leading-none">Rounds Complete</span>
               <span className="text-sm font-extrabold text-white font-mono leading-none">{interviews.length}</span>
             </div>
           </div>
@@ -270,7 +670,7 @@ export default function MockInterviewWorkspace({
           <div className="bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl flex items-center gap-2">
             <Award className="w-4 h-4 text-indigo-400" />
             <div className="text-left font-sans">
-              <span className="block text-[8px] text-slate-400 uppercase tracking-widest leading-none">Avg Answer Accuracy</span>
+              <span className="block text-[8px] text-slate-400 uppercase tracking-widest leading-none">Avg Scorecard Accuracy</span>
               <span className="text-sm font-extrabold text-indigo-300 font-mono leading-none">{avgPerformanceScore}%</span>
             </div>
           </div>
@@ -283,22 +683,22 @@ export default function MockInterviewWorkspace({
           
           {/* SETUP CONTROL PANEL (Span 2) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="glass-card p-6 space-y-4">
+            <div className="glass-card p-6 space-y-5">
               <h3 className="font-bold text-white text-sm border-b border-white/5 pb-2 uppercase tracking-wide">Configure Simulation Round</h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
                 <div className="space-y-2">
                   <label className="text-slate-300 font-semibold block">Select Round Stream</label>
-                  <p className="text-[10px] text-slate-400">Each category targets a distinct selection framework.</p>
+                  <p className="text-[10px] text-slate-500">Each category targets a distinct selection framework.</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {(Object.keys(PRESET_QUESTIONS) as Array<keyof typeof PRESET_QUESTIONS>).map(opt => (
+                    {['Technical', 'HR', 'System Design', 'Behavioral'].map(opt => (
                       <button
                         key={opt}
-                        onClick={() => setRoundType(opt)}
-                        className={`py-2 px-3 rounded-lg border text-left font-semibold transition ${
+                        onClick={() => setRoundType(opt as any)}
+                        className={`py-2 px-3 rounded-lg border text-left font-bold transition cursor-pointer ${
                           roundType === opt
-                            ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/50'
-                            : 'bg-white/5 text-slate-300 border-white/5 hover:bg-white/10'
+                            ? 'bg-indigo-650 text-white border-indigo-500/50 shadow-md'
+                            : 'bg-white/5 text-slate-350 border-white/5 hover:bg-white/10'
                         }`}
                       >
                         {opt}
@@ -307,13 +707,60 @@ export default function MockInterviewWorkspace({
                   </div>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
+                  <label className="text-slate-300 font-semibold block">Question Pool Source</label>
+                  <p className="text-[10px] text-slate-500">Select where the questions should be loaded from.</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {['Presets', 'Question Bank', 'Intelligence DB', 'AI Generated'].map(src => (
+                      <button
+                        key={src}
+                        type="button"
+                        onClick={() => setQuestionSource(src as any)}
+                        className={`py-2 px-1 rounded-lg border text-center font-bold text-[10px] transition cursor-pointer ${
+                          questionSource === src
+                            ? 'bg-violet-650 text-white border-violet-500/50 shadow'
+                            : 'bg-white/5 text-slate-350 border-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        {src}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-slate-300 font-semibold block">Simulation Difficulty (Time constraints)</label>
+                  <p className="text-[10px] text-slate-500">Countdown speed per response target.</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: 'Easy', time: '3m' },
+                      { key: 'Medium', time: '2m' },
+                      { key: 'Hard', time: '1m' }
+                    ].map(dopt => (
+                      <button
+                        key={dopt.key}
+                        type="button"
+                        onClick={() => setDifficulty(dopt.key as any)}
+                        className={`py-2 px-1 rounded-lg border text-center font-bold transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                          difficulty === dopt.key
+                            ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500/50'
+                            : 'bg-white/5 text-slate-350 border-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="text-[11px]">{dopt.key}</span>
+                        <span className="text-[8px] opacity-70 font-mono">{dopt.time} limit</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <label className="text-slate-300 font-semibold block">Target Subject Focus (Optional)</label>
-                  <p className="text-[10px] text-slate-400">Records which subject this mock evaluation targets.</p>
+                  <p className="text-[10px] text-slate-500">Record subject alignment in historic profiles.</p>
                   <select
                     value={subjectId}
                     onChange={e => setSubjectId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm font-sans cursor-pointer glass-input bg-[#111827]"
+                    className="w-full px-3 py-2 border rounded-xl glass-input text-slate-205 cursor-pointer bg-[#111827]"
                   >
                     <option value="" className="bg-[#111827]">General / Mixed</option>
                     {subjects.map(s => (
@@ -323,47 +770,86 @@ export default function MockInterviewWorkspace({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-slate-300 font-semibold block">Simulation Difficulty</label>
-                  <p className="text-[10px] text-slate-400">Controls time expectations per core answer response.</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Easy', 'Medium', 'Hard'].map(dopt => (
-                      <button
-                        key={dopt}
-                        onClick={() => setDifficulty(dopt as any)}
-                        className={`py-2 px-1 rounded-lg border text-center font-semibold transition ${
-                          difficulty === dopt
-                            ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500/50'
-                            : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
-                        }`}
-                      >
-                        {dopt}
-                      </button>
-                    ))}
+                  <label className="text-slate-300 font-semibold block">Target Experience Level</label>
+                  <p className="text-[10px] text-slate-500">Tailors question complexities & expectations.</p>
+                  <select
+                    value={experienceLevel}
+                    onChange={e => setExperienceLevel(e.target.value as any)}
+                    className="w-full px-3 py-2 border rounded-xl glass-input text-slate-205 cursor-pointer bg-[#111827]"
+                  >
+                    <option value="Junior" className="bg-[#111827]">Junior / Associate (0-2 YOE)</option>
+                    <option value="Mid" className="bg-[#111827]">Mid-Level (3-5 YOE)</option>
+                    <option value="Senior" className="bg-[#111827]">Senior Engineer (5-8 YOE)</option>
+                    <option value="Staff" className="bg-[#111827]">Staff / Principal Architect (8+ YOE)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-slate-300 font-semibold block">Company Style Profile</label>
+                  <p className="text-[10px] text-slate-500">Aligns questions with specific company structures.</p>
+                  <select
+                    value={companyType}
+                    onChange={e => setCompanyType(e.target.value as any)}
+                    className="w-full px-3 py-2 border rounded-xl glass-input text-slate-205 cursor-pointer bg-[#111827]"
+                  >
+                    <option value="FAANG / Tier 1" className="bg-[#111827]">FAANG / Tier 1 (Scale, latency, theory)</option>
+                    <option value="Startup / High-Growth" className="bg-[#111827]">Startup / Fast Growth (Speed, deployment)</option>
+                    <option value="Enterprise / Fintech" className="bg-[#111827]">Enterprise / Fintech (Security, compliance, reliability)</option>
+                    <option value="General Tech" className="bg-[#111827]">General Tech Companies</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2 flex flex-col justify-end pb-1">
+                  <div 
+                    onClick={() => setVocalPrompts(!vocalPrompts)}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/5 bg-white/5 cursor-pointer select-none hover:bg-white/10 transition"
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={vocalPrompts} 
+                      onChange={() => {}} 
+                      className="w-4 h-4 rounded text-indigo-600 cursor-pointer accent-indigo-500"
+                    />
+                    <div className="text-left">
+                      <span className="block text-[11px] font-bold text-white leading-tight">Interviewer Vocal Prompts</span>
+                      <span className="block text-[8px] text-slate-400">Auto-read questions aloud</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Instructions Brief */}
-              <div className="bg-[#111827]/40 border border-indigo-500/10 p-4 rounded-xl space-y-2 text-xs leading-normal">
+              <div className="bg-[#111827]/40 border border-indigo-500/10 p-4 rounded-xl space-y-2 text-xs leading-normal text-slate-350">
                 <span className="font-bold text-white flex items-center gap-1">
                   <HelpCircle className="w-4 h-4 text-indigo-400" />
                   <span>How Mock Simulator Evaluation Works</span>
                 </span>
-                <ul className="list-disc pl-4 space-y-1 text-slate-400">
-                  <li>You will be presented a sequence of curated high-frequency questions.</li>
-                  <li>Type your response clearly in the text box.</li>
-                  <li>Our intelligent assessment engine compiles your matching core keywords to render precise scores and gaps in real-time.</li>
-                  <li>Completing the round updates your historic analytics profile automatically!</li>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>You will be presented a sequence of up to 4 high-frequency questions.</li>
+                  <li>Use the **hands-free microphone dictation** or type your response clearly in the text box.</li>
+                  <li>Our matching algorithm scores your answer against expected keywords with a strict countdown timer.</li>
+                  <li>If the timer expires, the answer will be auto-submitted to test your pressure-retention metrics.</li>
                 </ul>
               </div>
 
               {/* Start Trigger */}
               <button
+                type="button"
                 onClick={startInterview}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl font-bold font-sans flex items-center justify-center gap-2 shadow-lg transition-all"
+                disabled={isGeneratingQuestions}
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-550 hover:to-indigo-650 text-white rounded-xl font-bold font-sans flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
               >
-                <Play className="w-5 h-5 fill-current" />
-                <span>Begin Real-Time Mock Interview Simulation</span>
+                {isGeneratingQuestions ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Cerebras AI generating custom scenario questions...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-5 h-5 fill-current" />
+                    <span>Begin Real-Time Mock Interview Simulation</span>
+                  </>
+                )}
               </button>
             </div>
 
@@ -373,21 +859,23 @@ export default function MockInterviewWorkspace({
               
               <div className="space-y-3">
                 {interviews.map(item => (
-                  <div key={item.id} className="glass-card p-4 space-y-3 border border-white/5 hover:border-white/10 transition">
+                  <div key={item.id} className="glass-card p-4 space-y-3 border border-white/5 hover:border-white/10 transition text-slate-300">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
                       <div className="space-y-0.5 text-left">
-                        <span className="text-[9px] font-mono text-indigo-405 font-bold uppercase tracking-widest">
+                        <span className="text-[9px] font-mono text-indigo-300 font-bold uppercase tracking-widest block">
                           {item.roundType} &bull; {item.difficulty}
+                          {item.experienceLevel ? ` • ${item.experienceLevel}` : ''}
+                          {item.companyType ? ` • ${item.companyType}` : ''}
                           {item.subjectId && subjects.find(s => s.id === item.subjectId) ? ` • ${subjects.find(s => s.id === item.subjectId)?.name}` : ''}
                         </span>
                         <h4 className="font-bold text-white text-sm">{new Date(item.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} Scorecard</h4>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-450 font-mono">Avg time: {item.averageAnswerTime}s</span>
+                        <span className="text-xs text-slate-500 font-mono">Avg time: {item.averageAnswerTime}s</span>
                         <span className={`text-base font-extrabold font-mono px-2.5 py-1 rounded-lg ${
-                          item.score >= 80 ? 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20' :
-                          item.score >= 55 ? 'bg-amber-500/10 text-amber-450 border border-amber-500/20' :
+                          item.score >= 80 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                          item.score >= 55 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                           'text-rose-400 bg-red-500/10 border border-red-500/20'
                         }`}>
                           {item.score}% Acc
@@ -399,16 +887,97 @@ export default function MockInterviewWorkspace({
 
                     {/* Historical breakdown nested drawers */}
                     <details className="text-xs font-sans text-slate-400 group">
-                      <summary className="cursor-pointer text-[10px] font-mono text-indigo-400 hover:text-indigo-300 font-bold select-none outline-none">
+                      <summary className="cursor-pointer text-[10px] font-mono text-indigo-400 hover:text-indigo-305 font-bold select-none outline-none">
                         View Detailed Questions Breakdown &rarr;
                       </summary>
-                      <div className="space-y-3 pt-3 pl-3 border-l border-white/5 mt-2 max-h-60 overflow-y-auto custom-scrollbar">
+                      <div className="space-y-3 pt-3.5 pl-3 border-l border-white/10 mt-2 max-h-72 overflow-y-auto custom-scrollbar">
                         {item.history?.map((hist, idx) => (
-                          <div key={idx} className="space-y-1.5 p-3 rounded-lg bg-white/5 border border-white/5 text-left">
-                            <span className="block text-[8px] font-mono text-slate-400">Question {idx + 1} &bull; {hist.answerTime}s</span>
-                            <p className="font-bold text-white">{hist.question}</p>
-                            <p className="text-[10px] bg-black/20 p-2 rounded italic text-slate-400 border border-white/5">Your raw answer: "{hist.answer}"</p>
-                            <p className="text-emerald-400 text-[11px] leading-relaxed mt-1">{hist.evaluation}</p>
+                          <div key={idx} className="space-y-2.5 p-3.5 rounded-xl bg-white/5 border border-white/5 text-left">
+                            <div className="flex justify-between items-center text-[8px] font-mono text-slate-450">
+                              <div className="flex items-center gap-1.5">
+                                <span>Question {idx + 1} &bull; {hist.answerTime}s</span>
+                                {hist.hintUsed && (
+                                  <span className="text-[7.5px] bg-amber-500/10 border border-amber-500/25 text-amber-400 px-1 rounded font-bold uppercase tracking-wider">
+                                    ⚠️ Hint Used
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-bold text-indigo-300">Score: {hist.score}%</span>
+                            </div>
+                            <p className="font-bold text-white text-xs leading-normal">{hist.question}</p>
+                            
+                            {/* Key matching feedback badge grid */}
+                            <div className="space-y-1">
+                              <span className="text-[8px] font-mono uppercase text-slate-500 block">Keywords Checked:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {hist.matchedKeywords?.map(kw => (
+                                  <span key={kw} className="text-[8px] font-mono bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 px-1.5 py-0.2 rounded font-bold flex items-center gap-0.5"><Check className="w-2 h-2" />{kw}</span>
+                                ))}
+                                {hist.missedKeywords?.map(kw => (
+                                  <span key={kw} className="text-[8px] font-mono bg-rose-500/10 border border-rose-500/20 text-rose-350 px-1.5 py-0.2 rounded font-bold flex items-center gap-0.5"><X className="w-2 h-2" />{kw}</span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Filler words alert */}
+                            {hist.fillerWordsCount !== undefined && hist.fillerWordsCount > 0 && (
+                              <div className="bg-[#111827] border border-rose-500/10 p-2 rounded-xl text-[10px] text-rose-350 leading-relaxed font-sans mt-1.5">
+                                🎙️ <span className="font-semibold">Filler words spotted:</span> {hist.fillerWordsCount} times. Spotted: <span className="font-mono text-rose-300">{hist.fillerWordsSpotted?.join(', ')}</span>.
+                              </div>
+                            )}
+
+                            {/* Multi-dimensional grading scores */}
+                            {hist.scores && (
+                              <div className="grid grid-cols-2 gap-2 bg-[#111827] p-2.5 rounded-xl border border-white/5 mt-1.5">
+                                <div>
+                                  <span className="block text-[8px] uppercase text-slate-400 font-mono">Technical Accuracy</span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className="flex-1 bg-white/5 h-1 rounded-full overflow-hidden">
+                                      <div className="bg-indigo-500 h-full" style={{ width: `${hist.scores.accuracy}%` }} />
+                                    </div>
+                                    <span className="text-[8px] font-bold text-white font-mono">{hist.scores.accuracy}%</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="block text-[8px] uppercase text-slate-400 font-mono">Systems Thinking</span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className="flex-1 bg-white/5 h-1 rounded-full overflow-hidden">
+                                      <div className="bg-violet-500 h-full" style={{ width: `${hist.scores.modeling}%` }} />
+                                    </div>
+                                    <span className="text-[8px] font-bold text-white font-mono">{hist.scores.modeling}%</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="block text-[8px] uppercase text-slate-400 font-mono">Communication Clarity</span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className="flex-1 bg-white/5 h-1 rounded-full overflow-hidden">
+                                      <div className="bg-emerald-500 h-full" style={{ width: `${hist.scores.clarity}%` }} />
+                                    </div>
+                                    <span className="text-[8px] font-bold text-white font-mono">{hist.scores.clarity}%</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="block text-[8px] uppercase text-slate-400 font-mono">Detail Depth</span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className="flex-1 bg-white/5 h-1 rounded-full overflow-hidden">
+                                      <div className="bg-amber-500 h-full" style={{ width: `${hist.scores.depth}%` }} />
+                                    </div>
+                                    <span className="text-[8px] font-bold text-white font-mono">{hist.scores.depth}%</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <p className="text-[10px] bg-black/30 p-2.5 rounded-lg italic text-slate-400 border border-white/5 mt-2">Your raw answer: "{hist.answer}"</p>
+                            
+                            {hist.idealConcept && (
+                              <div className="space-y-1.5 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-left mt-2">
+                                <span className="block text-[8.5px] font-mono uppercase text-emerald-400 font-bold">💡 Better Reference Answer (To Upgrade Your Response):</span>
+                                <p className="text-[11px] text-slate-205 leading-relaxed font-sans">{hist.idealConcept}</p>
+                              </div>
+                            )}
+
+                            <p className="text-emerald-400 text-[11px] leading-relaxed mt-1 font-medium bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10 mt-2">{hist.evaluation}</p>
                           </div>
                         ))}
                       </div>
@@ -420,7 +989,7 @@ export default function MockInterviewWorkspace({
                   <div className="text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center p-4">
                     <Award className="w-8 h-8 text-indigo-400 opacity-60 mb-2" />
                     <span className="text-xs font-semibold text-white">No simulated scorecards generated yet</span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">Start your first simulated interview above to pop study KPI scores here.</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">Start your first simulated interview above to pop study KPI scores here.</span>
                   </div>
                 )}
               </div>
@@ -432,7 +1001,7 @@ export default function MockInterviewWorkspace({
             <div className="glass-card p-5 space-y-4">
               <h3 className="font-bold text-white text-sm border-b border-white/5 pb-2 uppercase tracking-wide">Workspace Analytics Insights</h3>
               
-              <div className="space-y-3 text-xs leading-relaxed font-sans">
+              <div className="space-y-3 text-xs leading-relaxed font-sans text-slate-300">
                 <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
                   <span className="text-slate-400 font-medium">Evaluation Average:</span>
                   <span className="text-sm font-extrabold text-white font-mono">{avgPerformanceScore}%</span>
@@ -452,7 +1021,7 @@ export default function MockInterviewWorkspace({
               {/* Tips */}
               <div className="bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-xl text-xs space-y-1">
                 <span className="font-bold text-amber-300 block">💡 Core Selection Pro-Tip</span>
-                <p className="text-[10px] leading-relaxed text-slate-400">
+                <p className="text-[10px] leading-relaxed text-slate-450">
                   Leading organizations value concise structural answers over highly verbose descriptions. Highlight the core technology framework, mention architectural trade-offs, and state a tangible benchmark metric when possible.
                 </p>
               </div>
@@ -462,44 +1031,146 @@ export default function MockInterviewWorkspace({
         </div>
       ) : (
         /* ACTIVE TIMED APPLICATION FRAMEWORK */
-        <div className="max-w-3xl mx-auto glass-card p-6 border border-indigo-500/20 space-y-6 animate-fade-in text-left">
+        <div className="max-w-3xl mx-auto glass-card p-6 border border-indigo-500/20 space-y-6 animate-fade-in text-slate-300 text-left">
           
           {/* Active run Header */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-indigo-400">
-                ACTIVE ROUND: {roundType} ({difficulty})
-              </span>
-              <h3 className="font-extrabold text-white text-base">
-                Question {currentQuestionIndex + 1} of {questionsList.length}
-              </h3>
+          <div className="border-b border-white/10 pb-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-indigo-400">
+                  ACTIVE ROUND: {roundType} ({difficulty})
+                </span>
+                <h3 className="font-extrabold text-white text-base">
+                  Question {currentQuestionIndex + 1} of {questionsList.length}
+                </h3>
+              </div>
+
+              {/* Timers */}
+              <div className="flex items-center gap-3 font-mono text-xs font-bold text-slate-300">
+                <button
+                  type="button"
+                  onClick={() => setTimerSeconds(prev => prev + 15)}
+                  className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/20 text-indigo-300 rounded-lg text-[10px] font-bold flex items-center transition cursor-pointer"
+                  title="Extend time limit by 15 seconds"
+                >
+                  +15s
+                </button>
+                <span className={`flex items-center gap-1.5 border px-3 py-1.5 rounded-xl transition-all duration-300 ${
+                  timerSeconds <= 15 
+                    ? 'bg-rose-500/20 border-rose-500/35 text-rose-350 animate-pulse' 
+                    : 'bg-white/5 border-white/5 text-slate-305'
+                }`}>
+                  <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span>Timer: {timerSeconds}s</span>
+                </span>
+                <span className="text-slate-500">|</span>
+                <span>Total: {totalTimerSeconds}s</span>
+              </div>
             </div>
 
-            {/* Timers */}
-            <div className="flex items-center gap-3 font-mono text-xs font-bold text-slate-300">
-              <span className="flex items-center gap-1 bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg">
-                <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span>Timer: {timerSeconds}s</span>
-              </span>
-              <span className="text-slate-500">|</span>
-              <span>Total: {totalTimerSeconds}s</span>
+            {/* Time pressure shrinking bar */}
+            <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden border border-white/5">
+              <div 
+                className={`h-full rounded-full transition-all duration-1000 ${
+                  timerSeconds <= 15 ? 'bg-rose-500 animate-pulse' : 'bg-indigo-500'
+                }`}
+                style={{ width: `${(timerSeconds / limitSecondsPerQuestion) * 100}%` }}
+              />
             </div>
           </div>
 
-          {/* Active Question Box */}
-          <div className="bg-indigo-500/5 md:flex items-start gap-4 p-5 rounded-2xl border border-indigo-500/10 space-y-2 md:space-y-0">
-            <HelpCircle className="w-8 h-8 text-indigo-400 shrink-0 mt-0.5" />
-            <div className="space-y-1 text-xs">
-              <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-widest font-black">Simulation Prompt</span>
-              <p className="text-sm font-extrabold text-white leading-relaxed">
-                {questionsList[currentQuestionIndex]?.question}
-              </p>
+          {/* Interviewer State Avatar & Active Question Box */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-indigo-500/5 p-3 rounded-2xl border border-indigo-500/10">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className={`w-8 h-8 rounded-full bg-indigo-600/30 flex items-center justify-center border border-indigo-550/20 ${isListening ? 'animate-ping absolute inset-0' : ''}`} />
+                  <div className="w-8 h-8 rounded-full bg-indigo-650 flex items-center justify-center text-[10px] font-bold text-white border border-indigo-400/20 relative z-10">
+                    AI
+                  </div>
+                </div>
+                <div className="text-left font-sans">
+                  <span className="block text-[10px] font-bold text-white">Interviewer Sim</span>
+                  <span className="text-[8px] text-indigo-300 font-mono font-bold uppercase tracking-wider block mt-0.5">
+                    {isListening ? '🎙️ Listening to vocal response...' : '⏱️ Awaiting candidate input'}
+                  </span>
+                </div>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => speakQuestion(questionsList[currentQuestionIndex]?.question)}
+                className="p-1.5 px-3 bg-indigo-500/10 hover:bg-indigo-500/25 text-indigo-300 rounded-xl flex items-center justify-center gap-1.5 font-bold transition cursor-pointer text-[10px]"
+                title="Speak Question aloud"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>Repeat Question</span>
+              </button>
+            </div>
+
+            <div className="bg-indigo-500/5 md:flex items-start gap-4 p-5 rounded-2xl border border-indigo-500/10 space-y-2 md:space-y-0">
+              <HelpCircle className="w-8 h-8 text-indigo-455 shrink-0 mt-0.5 animate-bounce" />
+              <div className="space-y-1 text-xs">
+                <span className="block text-[8px] font-mono text-slate-500 uppercase tracking-widest font-black">Simulation Prompt</span>
+                <p className="text-sm font-extrabold text-white leading-relaxed">
+                  {questionsList[currentQuestionIndex]?.question}
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Input text prompt */}
           <div className="space-y-2 text-xs">
-            <label className="text-slate-300 font-semibold block">Type your response below:</label>
+            <div className="flex justify-between items-center">
+              <label className="text-slate-300 font-semibold block">Type or dictate your response below:</label>
+              
+              <div className="flex items-center gap-2">
+                {/* Request Hint button */}
+                <button
+                  type="button"
+                  onClick={requestHint}
+                  disabled={activeHintLoading || activeHint !== null}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold bg-white/5 border-white/10 hover:bg-white/10 text-amber-300 transition cursor-pointer disabled:opacity-50"
+                  title="Receive a structural hint from the interviewer"
+                >
+                  {activeHintLoading ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      <span>Requesting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3 h-3" />
+                      <span>{activeHint ? 'Hint Provided' : 'Request Hint'}</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Hands-free Voice Dictation controller */}
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold transition duration-300 cursor-pointer ${
+                    isListening 
+                      ? 'bg-rose-500/20 border-rose-500/40 text-rose-300' 
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300'
+                  }`}
+                >
+                  {isListening ? (
+                    <>
+                      <Mic className="w-3.5 h-3.5 animate-pulse text-rose-400" />
+                      <span>Listening (Click to Stop)</span>
+                    </>
+                  ) : (
+                    <>
+                      <MicOff className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Voice Dictate Answering</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
             <textarea
               rows={6}
               value={userAnswer}
@@ -507,9 +1178,17 @@ export default function MockInterviewWorkspace({
               placeholder="Structure your answer, cite expected keywords, explain your system design choices..."
               className="w-full p-4 rounded-2xl text-xs leading-relaxed glass-input focus:ring-1 focus:ring-indigo-500 resize-none"
             />
+
+            {/* Hint Display */}
+            {activeHint && (
+              <div className="bg-amber-500/5 border border-amber-500/20 p-3 rounded-xl text-[11px] text-amber-350 flex items-start gap-2 mt-1">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <p className="leading-relaxed italic">" {activeHint} "</p>
+              </div>
+            )}
             
-            <div className="flex items-center justify-between text-[11px] text-slate-405 px-1 py-0.5">
-              <span>Expected Keywords to reference: <span className="font-mono text-indigo-305 font-bold">{questionsList[currentQuestionIndex]?.expectedKeywords.join(', ')}</span></span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-slate-500 gap-1.5 px-1">
+              <span>Expected keywords to reference: <span className="font-mono text-indigo-300 font-bold">{questionsList[currentQuestionIndex]?.expectedKeywords?.join(', ')}</span></span>
               <span>Count: {userAnswer.length} characters</span>
             </div>
           </div>
@@ -517,14 +1196,25 @@ export default function MockInterviewWorkspace({
           {/* Core submit buttons */}
           <div className="flex flex-col sm:flex-row items-center gap-3 pt-3">
             <button
-              onClick={submitAnswer}
-              className="w-full sm:flex-1 py-3 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl font-bold font-sans flex items-center justify-center gap-2 cursor-pointer shadow transition"
+              onClick={() => submitAnswer(false)}
+              disabled={isEvaluating}
+              className="w-full sm:flex-1 py-3 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-600 hover:to-indigo-650 text-white rounded-xl font-bold font-sans flex items-center justify-center gap-2 cursor-pointer shadow transition disabled:opacity-50"
             >
-              <Send className="w-4 h-4" />
-              <span>
-                {currentQuestionIndex + 1 === questionsList.length ? 'Finalize Scorecard' : 'Submit Answer & Proceed'}
-              </span>
+              {isEvaluating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Cerebras AI Evaluating response...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>
+                    {currentQuestionIndex + 1 === questionsList.length ? 'Finalize Scorecard' : 'Submit Answer & Proceed'}
+                  </span>
+                </>
+              )}
             </button>
+
 
             <button
               onClick={terminateSessionEarly}
@@ -539,4 +1229,6 @@ export default function MockInterviewWorkspace({
 
     </div>
   );
-}
+});
+
+export default MockInterviewWorkspace;

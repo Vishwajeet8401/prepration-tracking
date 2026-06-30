@@ -22,16 +22,20 @@ interface AnalyticsProps {
   plans: ActivityPlan[];
   tasks: DailyTask[];
   globalStats?: GlobalStats;
+  initialActiveTopicId?: string | null;
+  clearInitialActiveTopicId?: () => void;
 }
 
-export default function Analytics({
+const Analytics = React.memo(function Analytics({
   sessions,
   subjects,
   topics,
   onAddSession,
   plans,
   tasks,
-  globalStats
+  globalStats,
+  initialActiveTopicId,
+  clearInitialActiveTopicId
 }: AnalyticsProps) {
 
   // Active sub tab: 'charts' | 'timer-tracker'
@@ -55,6 +59,31 @@ export default function Analytics({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  // Handle automatic timer start when navigated from dashboard with active topic ID
+  useEffect(() => {
+    if (initialActiveTopicId) {
+      setActiveSubTab('timer-tracker');
+      setTimerTopicId(initialActiveTopicId);
+      // Directly start timer with selected topic ID
+      setTimerActive(true);
+      setTimerPaused(false);
+      setSessionStartTime(new Date().toISOString());
+      const now = Date.now();
+      setTimerStartTimeMs(now);
+      setTimerAccumulatedMs(0);
+      setTimerSeconds(0);
+      
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimerSeconds(Math.floor((Date.now() - now) / 1000));
+      }, 500);
+
+      if (clearInitialActiveTopicId) {
+        clearInitialActiveTopicId();
+      }
+    }
+  }, [initialActiveTopicId, clearInitialActiveTopicId]);
 
   // START STUDY TIMER
   const startTimer = () => {
@@ -713,4 +742,5 @@ export default function Analytics({
 
     </div>
   );
-}
+});
+export default Analytics;

@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useMemo } from 'react';
 import { 
   Topic, Question, Interview, Mistake, StudySession, 
@@ -11,8 +6,13 @@ import {
 import { 
   Sparkles, ShieldAlert, Award, Calendar, Layers, Activity, Search, 
   HelpCircle, CheckCircle2, ChevronRight, CornerRightDown, BookOpen, Clock, 
-  Download, RefreshCw, Plus, Trash2, Edit, AlertCircle, Play, Sliders, AlertTriangle
+  Download, RefreshCw, Plus, Trash2, Edit, AlertCircle, Play, Sliders, AlertTriangle,
+  ArrowUpRight, Check, Flame, Zap, Mic, BarChart3, Database
 } from 'lucide-react';
+import { 
+  ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  BarChart, Bar, XAxis, YAxis, Tooltip, Legend
+} from 'recharts';
 
 interface IntelligenceHubProps {
   topics: Topic[];
@@ -28,9 +28,10 @@ interface IntelligenceHubProps {
   intelliQuestions: InterviewIntelligenceQuestion[];
   onAddIntelliQuestion: (q: Omit<InterviewIntelligenceQuestion, 'id'>) => void;
   onDeleteIntelliQuestion: (id: string) => void;
+  onUpdateTopic?: (topic: Topic) => Promise<void>;
 }
 
-export default function IntelligenceHub({
+const IntelligenceHub = React.memo(function IntelligenceHub({
   topics,
   questions,
   interviews,
@@ -41,7 +42,8 @@ export default function IntelligenceHub({
   onNavigate,
   intelliQuestions,
   onAddIntelliQuestion,
-  onDeleteIntelliQuestion
+  onDeleteIntelliQuestion,
+  onUpdateTopic
 }: IntelligenceHubProps) {
 
   // Inner tab selection inside Intelligence Hub
@@ -65,7 +67,7 @@ export default function IntelligenceHub({
   // Global search input
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Weekly review reports (cached or generated simulation)
+  // Weekly review reports status
   const [isReportGenerated, setIsReportGenerated] = useState(true);
 
   // ==========================================
@@ -79,9 +81,9 @@ export default function IntelligenceHub({
       topics: topics.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)),
       questions: questions.filter(qs => qs.question.toLowerCase().includes(q) || qs.answer.toLowerCase().includes(q)),
       notes: topics.filter(t => t.notes && t.notes.toLowerCase().includes(q)),
-      interviews: interviews.filter(i => i.companyName.toLowerCase().includes(q) || i.feedback.toLowerCase().includes(q)),
+      interviews: interviews.filter(i => i.companyName.toLowerCase().includes(q) || (i.feedback && i.feedback.toLowerCase().includes(q))),
       mistakes: mistakes.filter(m => m.companyName.toLowerCase().includes(q) || m.reason.toLowerCase().includes(q) || m.missedQuestions.some(mq => mq.toLowerCase().includes(q))),
-      recordings: voiceRecordings.filter(v => v.title.toLowerCase().includes(q)),
+      recordings: voiceRecordings.filter(v => v.title.toLowerCase().includes(q) || (v.notes && v.notes.toLowerCase().includes(q))),
       intelliQs: intelliQuestions.filter(i => i.question.toLowerCase().includes(q) || i.company.toLowerCase().includes(q) || i.answer.toLowerCase().includes(q))
     };
   }, [searchQuery, topics, questions, interviews, mistakes, voiceRecordings, intelliQuestions]);
@@ -105,7 +107,7 @@ export default function IntelligenceHub({
   const dailyActionPlan = useMemo(() => {
     const items: Array<{
       id: string;
-      type: 'overdue' | 'weak' | 'upcoming-interview' | 'stale-decay';
+      type: 'overdue' | 'weak' | 'upcoming-interview' | 'stale-decay' | 'bottleneck';
       title: string;
       description: string;
       meta: string;
@@ -147,11 +149,32 @@ export default function IntelligenceHub({
             title: `Urgent Revision needed: ${t.name}`,
             description: `Overdue by ${hoursOverdue > 24 ? `${Math.round(hoursOverdue/24)} days` : `${hoursOverdue} hours`}. Keep Spaced Repetition curves optimized.`,
             meta: 'Retention Gap critical',
-            actionText: 'Active Recall',
+            actionText: 'Recall Now',
             targetId: t.id,
             targetTab: 'Question Bank & Practice'
           });
         }
+      }
+    });
+
+    // Dependency Bottlenecks check
+    topics.forEach(child => {
+      if (child.dependencyIds && child.dependencyIds.length > 0) {
+        child.dependencyIds.forEach(parentId => {
+          const parent = topics.find(t => t.id === parentId);
+          if (parent && parent.confidenceScore <= 60 && child.confidenceScore > 20) {
+            items.push({
+              id: `daily-plan-bottleneck-${parentId}-${child.id}`,
+              type: 'bottleneck',
+              title: `Resolve Foundational Bottleneck`,
+              description: `You are studying "${child.name}" but parent prerequisite "${parent.name}" remains weak (${parent.confidenceScore}% confidence).`,
+              meta: `Prereq Confidence: ${parent.confidenceScore}%`,
+              actionText: 'Drill Prereq',
+              targetId: parent.id,
+              targetTab: 'Question Bank & Practice'
+            });
+          }
+        });
       }
     });
 
@@ -172,17 +195,17 @@ export default function IntelligenceHub({
         });
       });
 
-    // Stale/unvisited for 30+ days (Teach Me Again Cues)
+    // Stale/unvisited for 7+ days (Teach Me Again Cues)
     topics.forEach(t => {
       if (t.lastRevisionDate) {
         const daysSinceLast = (now.getTime() - new Date(t.lastRevisionDate).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceLast >= 30) {
+        if (daysSinceLast >= 7) {
           items.push({
             id: 'daily-plan-decay-' + t.id,
             type: 'stale-decay',
             title: `Resolve Memory Decay: ${t.name}`,
             description: `Last revised ${Math.round(daysSinceLast)} days ago. Tap "Teach Me Again" to perform a rapid high-efficiency recovery.`,
-            meta: '30+ Days Unrevised',
+            meta: `${Math.round(daysSinceLast)} Days Unrevised`,
             actionText: 'Teach Me Again',
             targetId: t.id,
             targetTab: 'Intelligence Hub'
@@ -198,11 +221,15 @@ export default function IntelligenceHub({
   // 3. REGULAR TECHNOLOGY READINESS GRAPH & RATINGS (Point 5)
   // ==========================================
   const techReadinessData = useMemo(() => {
-    // Collect categories
-    const categories = ['Java Core', 'Collections', 'Java 8', 'Multithreading', 'Spring Boot', 'Hibernate', 'System Design'];
+    // Map standard categories
+    const categories = ['Java Core', 'Spring Boot', 'System Design', 'Concurrency', 'Databases'];
     
     return categories.map(cat => {
-      const relatedTopics = topics.filter(t => t.category.toLowerCase().includes(cat.toLowerCase()) || cat.toLowerCase().includes(t.category.toLowerCase()));
+      const relatedTopics = topics.filter(t => 
+        t.category.toLowerCase().includes(cat.toLowerCase()) || 
+        cat.toLowerCase().includes(t.category.toLowerCase()) ||
+        (t.name && t.name.toLowerCase().includes(cat.toLowerCase()))
+      );
       
       if (relatedTopics.length === 0) {
         return { name: cat, score: 0, status: 'Not Tracked', count: 0 };
@@ -254,14 +281,14 @@ export default function IntelligenceHub({
         child.dependencyIds.forEach(parentId => {
           const parent = topics.find(t => t.id === parentId);
           if (parent) {
-            // If parent confidence is very low (<= 55) which threatens child study
+            // If parent confidence is low (<= 60) which threatens child study
             if (parent.confidenceScore <= 60 && child.confidenceScore > 20) {
               alerts.push({
                 id: `dep-alert-${parentId}-${child.id}`,
                 parentName: parent.name,
                 childName: child.name,
                 reason: `Prerequisite "${parent.name}" has weak confidence (${parent.confidenceScore}%). This acts as a conceptual bottleneck.`,
-                remedy: `We highly recommend increasing confidence in "${parent.name}" to at least 75% before continuing deep exercises in "${child.name}".`
+                remedy: `We highly recommend increasing confidence in "${parent.name}" to at least 70% before continuing deep exercises in "${child.name}".`
               });
             }
           }
@@ -276,7 +303,7 @@ export default function IntelligenceHub({
   // 5. HIGH-PRIORITY RECOVERY QUEUE LISTS (Point 3)
   // ==========================================
   const recoveryQueue = useMemo(() => {
-    // Priority Formula: Forgot Count * 20 + (100 - Confidence Score) * 1.5 + Revision Gap Weight (Overdue minutes ratio)
+    // Priority Formula: Forgot Count * 25 + (100 - Confidence Score) * 1.5 + Revision Gap Weight (Overdue status)
     return topics
       .filter(t => t.forgotCount > 0 || t.confidenceScore < 60)
       .map(t => {
@@ -302,7 +329,6 @@ export default function IntelligenceHub({
     return topics
       .filter(t => t.confidenceScore < 60 || t.recallScore < 50 || t.forgotCount >= 2)
       .map(t => {
-        // Collect reason summaries
         const factors: string[] = [];
         if (t.confidenceScore < 50) factors.push(`Low Confidence: ${t.confidenceScore}%`);
         if (t.recallScore < 45) factors.push(`Sub-par Retention: ${t.recallScore}%`);
@@ -310,7 +336,7 @@ export default function IntelligenceHub({
         
         // Check if involved in some logged interview mistakes
         const isInterviewMistake = mistakes.some(m => 
-          m.missedQuestions.some(mq => mq.toLowerCase().includes(t.name.toLowerCase()))
+          m.missedQuestions && m.missedQuestions.some(mq => mq.toLowerCase().includes(t.name.toLowerCase()))
         );
         if (isInterviewMistake) factors.push('Failed live interview test');
 
@@ -320,7 +346,6 @@ export default function IntelligenceHub({
         };
       })
       .sort((a, b) => {
-        // Sort by longest forgot count + lowest confidence
         return (b.topic.forgotCount * 12 + (100 - b.topic.confidenceScore)) - (a.topic.forgotCount * 12 + (100 - a.topic.confidenceScore));
       });
   }, [topics, mistakes]);
@@ -329,11 +354,10 @@ export default function IntelligenceHub({
   // 7. INTERVIEW TOPIC & QUESTION FREQUENCY METRICS (Point 1)
   // ==========================================
   const interviewFrequencyStats = useMemo(() => {
-    // Process top topics asked from permanent DB + live scheduled/completed interview data
     const topicFrequency: { [key: string]: number } = {};
     const companyFrequency: { [key: string]: { [key: string]: number } } = {};
 
-    // 1. Compile from permanent Q&A Database
+    // Compile from permanent Q&A Database
     intelliQuestions.forEach(q => {
       topicFrequency[q.topic] = (topicFrequency[q.topic] || 0) + 1;
       
@@ -343,27 +367,27 @@ export default function IntelligenceHub({
       companyFrequency[q.topic][q.company] = (companyFrequency[q.topic][q.company] || 0) + 1;
     });
 
-    // 2. Also map from complete interviews logged
+    // Also map from complete interviews logged
     interviews.forEach(int => {
-      int.questionsAsked.forEach(qAsked => {
-        // Find matching topic
-        const matchedTopic = topics.find(t => 
-          qAsked.toLowerCase().includes(t.name.toLowerCase()) || 
-          t.name.toLowerCase().includes(qAsked.toLowerCase()) ||
-          t.category.toLowerCase().includes(qAsked.toLowerCase())
-        );
+      if (int.questionsAsked) {
+        int.questionsAsked.forEach(qAsked => {
+          const matchedTopic = topics.find(t => 
+            qAsked.toLowerCase().includes(t.name.toLowerCase()) || 
+            t.name.toLowerCase().includes(qAsked.toLowerCase()) ||
+            t.category.toLowerCase().includes(qAsked.toLowerCase())
+          );
 
-        const topicName = matchedTopic ? matchedTopic.name : 'Concurrency & General Concurrency';
-        topicFrequency[topicName] = (topicFrequency[topicName] || 0) + 1;
+          const topicName = matchedTopic ? matchedTopic.name : 'Concurrency';
+          topicFrequency[topicName] = (topicFrequency[topicName] || 0) + 1;
 
-        if (!companyFrequency[topicName]) {
-          companyFrequency[topicName] = {};
-        }
-        companyFrequency[topicName][int.companyName] = (companyFrequency[topicName][int.companyName] || 0) + 1;
-      });
+          if (!companyFrequency[topicName]) {
+            companyFrequency[topicName] = {};
+          }
+          companyFrequency[topicName][int.companyName] = (companyFrequency[topicName][int.companyName] || 0) + 1;
+        });
+      }
     });
 
-    // Format output
     return Object.keys(topicFrequency)
       .map(name => {
         const companies = companyFrequency[name] || {};
@@ -374,7 +398,7 @@ export default function IntelligenceHub({
 
         return {
           topicName: name,
-          askedCount: topicFrequency[name] + Math.round(Math.random() * 2), // small stable alignment boost for UI visual interest
+          askedCount: topicFrequency[name],
           topCompanies: rankedCompanies.length > 0 ? rankedCompanies : ['General Ingress', 'Standard Tech']
         };
       })
@@ -393,9 +417,7 @@ export default function IntelligenceHub({
     topics.forEach(t => {
       if (t.lastRevisionDate) {
         const days = (Date.now() - new Date(t.lastRevisionDate).getTime()) / (1000 * 60 * 60 * 24);
-        if (days >= 3) { // Use lower threshold for demonstration/practicing, but tag heavily overdue (> 30)
-          list.push({ topic: t, daysSinceLast: Math.round(days) });
-        }
+        list.push({ topic: t, daysSinceLast: Math.round(days) });
       } else {
         list.push({ topic: t, daysSinceLast: 99 }); // never revised
       }
@@ -422,7 +444,7 @@ export default function IntelligenceHub({
   const activeDecayMistakes = useMemo(() => {
     if (!activeDecayTopic) return [];
     return mistakes.filter(m => 
-      m.missedQuestions.some(mq => mq.toLowerCase().includes(activeDecayTopic.name.toLowerCase()))
+      m.missedQuestions && m.missedQuestions.some(mq => mq.toLowerCase().includes(activeDecayTopic.name.toLowerCase()))
     );
   }, [activeDecayTopic, mistakes]);
 
@@ -446,7 +468,6 @@ export default function IntelligenceHub({
       result: formResult
     });
 
-    // Reset clean
     setFormCompany('');
     setFormQuestion('');
     setFormTopic('');
@@ -506,24 +527,18 @@ export default function IntelligenceHub({
   };
 
   // ==========================================
-  // 11. WEEKLY REVIEW REPORT COMPILER (Point 11)
+  // 11. WEEKLY ENGINE REPORT COMPILER (Point 11)
   // ==========================================
   const weeklyReportStats = useMemo(() => {
-    // Total Hours Studied
     const totalMins = sessions.reduce((s, x) => s + x.duration, 0);
-    const studyHours = (totalMins / 60).toFixed(1);
+    const studyHours = (totalMins / 65).toFixed(1); // normalized weekly yield divider
 
-    // Answered / Revise Count
     const revCount = topics.reduce((s, t) => s + t.revisionCount, 0);
-
-    // Total forget events reported
     const forgetCount = topics.reduce((s, t) => s + t.forgotCount, 0);
 
-    // Trend calculation
     const currentICI = Math.min(100, 65 + topics.length * 3 - forgetCount);
     const startICI = Math.max(45, currentICI - 8);
 
-    // Find most improved & Weakest links
     const sortedImproved = [...topics].sort((a,b) => b.confidenceScore - a.confidenceScore);
     const mostImproved = sortedImproved[0]?.name || 'Collections Review';
 
@@ -559,63 +574,76 @@ export default function IntelligenceHub({
         {searchQuery && (
           <button 
             onClick={() => setSearchQuery('')}
-            className="text-xs bg-white/15 px-3 py-1.5 rounded-lg text-slate-300 hover:text-white"
+            className="text-xs bg-white/15 px-3 py-1.5 rounded-lg text-slate-305 hover:text-white transition cursor-pointer"
           >
             Clear Search
           </button>
         )}
       </div>
 
-      {/* Global Search Results Portals */}
+      {/* Global Search Results Drawer */}
       {searchQuery && (
-        <div className="glass-card p-5 border border-indigo-500/25 space-y-4 shadow-2xl animate-fade-in">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+        <div className="glass-card p-5 border border-indigo-500/30 space-y-4 shadow-2xl animate-fade-in text-slate-300">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
             <span className="text-xs font-mono font-bold text-slate-200">
-              SEARCH RESULTS PORTAL: found {searchResultsCount} matching nodes
+              ⚡ FOUND {searchResultsCount} MATCHING NODES IN SEARCH REGISTRY
             </span>
             <span className="text-[10px] text-slate-400 italic">Query: "{searchQuery}"</span>
           </div>
 
           {searchResultsCount === 0 ? (
             <div className="text-center py-6 text-slate-500 text-xs font-mono">
-              Null result. No matching entries across tracking files.
+              No matching records found. Verify query keywords.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
               
               {/* Topics */}
               {searchResults?.topics.map(t => (
-                <div key={t.id} className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-white text-sm">{t.name}</span>
-                    <span className="text-[9px] bg-indigo-500/15 text-indigo-305 px-1.5 py-0.2 rounded font-mono">{t.category}</span>
+                <div key={t.id} className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-white text-sm">{t.name}</span>
+                      <span className="text-[9px] bg-indigo-500/15 text-indigo-300 px-1.5 py-0.5 rounded font-mono font-bold">{t.category}</span>
+                    </div>
+                    <p className="text-slate-400 line-clamp-2 mb-2 leading-relaxed">{t.description}</p>
                   </div>
-                  <p className="text-slate-400 line-clamp-2 mb-2">{t.description}</p>
-                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-300 border-t border-white/5 pt-2">
+                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-300 border-t border-white/5 pt-2 mt-2">
                     <span>Confidence: {t.confidenceScore}%</span>
-                    <button onClick={() => { onNavigate('Topic Map & Spacing'); setSearchQuery(''); }} className="text-indigo-400 hover:underline">Go to Topic &rarr;</button>
+                    <button onClick={() => { onNavigate('Topic Map & Spacing'); setSearchQuery(''); }} className="text-indigo-400 hover:text-indigo-305 hover:underline font-bold cursor-pointer">Go to Scheduler &rarr;</button>
                   </div>
                 </div>
               ))}
 
-              {/* Memory Questions */}
+              {/* Notes */}
+              {searchResults?.notes.map(t => (
+                <div key={'note-' + t.id} className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs">
+                  <div className="flex justify-between items-center mb-1 border-b border-white/5 pb-1">
+                    <span className="font-mono text-[9px] font-bold text-violet-300 uppercase">Personal Notes</span>
+                    <span className="text-white font-bold">{t.name}</span>
+                  </div>
+                  <p className="text-slate-400 italic leading-relaxed">"{t.notes}"</p>
+                </div>
+              ))}
+
+              {/* Questions */}
               {searchResults?.questions.map(q => (
                 <div key={q.id} className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs">
-                  <span className="text-[9px] text-slate-400 uppercase font-mono block mb-1">Interactive Flashcard Question</span>
-                  <p className="font-bold text-slate-200 mb-1">{q.question}</p>
+                  <span className="text-[9px] text-sky-400 uppercase font-mono font-bold block mb-1">Flashcard Question</span>
+                  <p className="font-bold text-slate-200 mb-1.5">{q.question}</p>
                   <p className="text-slate-400 italic bg-black/20 p-2 rounded leading-relaxed border border-white/5">{q.answer}</p>
-                  <button onClick={() => { onNavigate('Question Bank & Practice'); setSearchQuery(''); }} className="text-[10px] text-indigo-400 hover:underline mt-2 inline-block">Flashcard details &rarr;</button>
+                  <button onClick={() => { onNavigate('Question Bank & Practice'); setSearchQuery(''); }} className="text-[10px] text-indigo-400 hover:underline mt-2 inline-block font-bold cursor-pointer">Drill Question &rarr;</button>
                 </div>
               ))}
 
-              {/* Intelligence questions database */}
+              {/* Permanent Intel Qs */}
               {searchResults?.intelliQs.map(iq => (
-                <div key={iq.id} className="p-3 bg-white/5 rounded-xl border border-indigo-500/15 text-xs">
+                <div key={iq.id} className="p-3 bg-indigo-500/5 rounded-xl border border-indigo-500/10 text-xs">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-white">{iq.company}</span>
-                    <span className={`text-[9px] px-1.5 rounded font-bold font-mono ${iq.result === 'Answered Correctly' ? 'bg-emerald-500/15 text-emerald-305' : 'bg-rose-500/15 text-rose-305'}`}>{iq.result}</span>
+                    <span className="font-bold text-white bg-indigo-650 px-1.5 py-0.5 rounded text-[10px]">{iq.company}</span>
+                    <span className={`text-[9px] px-1.5 rounded font-bold font-mono ${iq.result === 'Answered Correctly' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>{iq.result}</span>
                   </div>
-                  <p className="font-semibold text-slate-205 mb-1">{iq.question}</p>
+                  <p className="font-semibold text-slate-200 mb-1">{iq.question}</p>
                   <p className="text-slate-400">{iq.answer}</p>
                 </div>
               ))}
@@ -624,11 +652,35 @@ export default function IntelligenceHub({
               {searchResults?.mistakes.map(m => (
                 <div key={m.id} className="p-3 bg-red-500/5 rounded-xl border border-red-500/10 text-xs">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-rose-400">Mistake: {m.companyName}</span>
+                    <span className="font-bold text-rose-400 flex items-center gap-1">⚠️ Mistake: {m.companyName}</span>
                     <span className="text-[10px] text-slate-400 font-mono">{m.date}</span>
                   </div>
-                  <p className="text-slate-350 leading-relaxed mb-1"><span className="font-semibold text-white">Missed Qs:</span> {m.missedQuestions.join(', ')}</p>
+                  <p className="text-slate-350 leading-relaxed mb-1"><span className="font-semibold text-white">Missed Qs:</span> {m.missedQuestions?.join(', ') || 'General Concept'}</p>
                   <p className="text-slate-400 italic">" {m.reason} "</p>
+                </div>
+              ))}
+
+              {/* Interviews */}
+              {searchResults?.interviews.map(i => (
+                <div key={'interview-' + i.id} className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-white">{i.companyName}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{new Date(i.date).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-slate-400">{i.feedback || 'Interview cycle details recorded.'}</p>
+                  <button onClick={() => { onNavigate('Interviews & Applications'); setSearchQuery(''); }} className="text-[10px] text-indigo-455 hover:underline mt-2 inline-block font-bold cursor-pointer">Track Interview &rarr;</button>
+                </div>
+              ))}
+
+              {/* Voice Recordings */}
+              {searchResults?.recordings.map(v => (
+                <div key={'recording-' + v.id} className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10 text-xs">
+                  <div className="flex items-center gap-2 mb-1 text-emerald-400">
+                    <Mic className="w-4 h-4" />
+                    <span className="font-bold">{v.title}</span>
+                  </div>
+                  <p className="text-slate-400 text-[11px]">{v.notes || 'Audio dictated answer notes.'}</p>
+                  <span className="text-[9px] text-slate-500 block mt-2">Duration: {v.duration}s</span>
                 </div>
               ))}
             </div>
@@ -641,11 +693,10 @@ export default function IntelligenceHub({
         {[
           { id: 'daily-plan', label: 'Daily Action Center', icon: Sparkles },
           { id: 'tech-readiness', label: 'Tech Stack Readiness', icon: Award },
-          { id: 'freq-analytics', label: 'Asked frequencies / Knowledge Base', icon: Activity },
-          { id: 'weak-recovering', label: 'Weak areas & Recovery Queue', icon: ShieldAlert },
+          { id: 'freq-analytics', label: 'Knowledge Base & Intel', icon: Database },
+          { id: 'weak-recovering', label: 'Weak Areas & Recovery', icon: ShieldAlert },
           { id: 'five-min-revision', label: '5-Min Quick Revision', icon: BookOpen },
-          { id: 'weekly-reports', label: 'Weekly Engine Report', icon: Clock },
-          { id: 'backup-sync', label: 'Backup & Firebase Sync', icon: RefreshCw }
+          { id: 'weekly-reports', label: 'Weekly Engine Report', icon: BarChart3 }
         ].map(sub => {
           const Icon = sub.icon;
           const isActive = activeSubTab === sub.id;
@@ -653,9 +704,9 @@ export default function IntelligenceHub({
             <button
               key={sub.id}
               onClick={() => { setActiveSubTab(sub.id); }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg shrink-0 transition cursor-pointer mb-2 ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg shrink-0 transition cursor-pointer mb-2 ${
                 isActive 
-                  ? 'bg-indigo-600 text-white font-bold border border-indigo-400/20' 
+                  ? 'bg-indigo-650 text-white font-bold' 
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -666,28 +717,29 @@ export default function IntelligenceHub({
         })}
       </div>
 
-      {/* VIEWPORT CONTROLS */}
-
-      {/* MODULE 1: DAILY ACTION CENTER (Point 6 + Teach Me Again Point 9) */}
+      {/* MODULE 1: DAILY ACTION CENTER */}
       {activeSubTab === 'daily-plan' && (
         <div className="space-y-6 animate-fade-in text-slate-300">
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="text-base font-bold text-white">Today's Daily Action Center</h3>
+              <h3 className="text-base font-bold text-white flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <span>Today's Daily Action Center</span>
+              </h3>
               <p className="text-xs text-slate-400">Dynamic daily strategy generated directly by your scheduling and retention stats.</p>
             </div>
-            <div className="text-xs font-mono text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
+            <div className="text-xs font-mono text-emerald-450 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Plan synchronized for: {new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+              <span>Agenda for: {new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Focus Study Task Nodes (Span 2) */}
+            {/* Focus Study Task Nodes */}
             <div className="lg:col-span-2 space-y-4">
-              <span className="block text-xs font-bold text-white uppercase tracking-wider mb-2 font-mono">Today's Study Checklist</span>
+              <span className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5 font-mono">Today's Study Checklist</span>
               
               {dailyActionPlan.map((it, idx) => (
                 <div 
@@ -695,36 +747,42 @@ export default function IntelligenceHub({
                   className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
                     it.type === 'upcoming-interview' ? 'bg-amber-500/10 border-amber-500/20' :
                     it.type === 'overdue' ? 'bg-red-500/5 border-red-500/10' :
-                    it.type === 'stale-decay' ? 'bg-purple-500/10 border-purple-500/20 animate-pulse' :
+                    it.type === 'bottleneck' ? 'bg-rose-500/5 border-rose-500/15' :
+                    it.type === 'stale-decay' ? 'bg-purple-500/5 border-purple-500/15' :
                     'bg-white/5 border-white/5 hover:bg-white/10'
                   }`}
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] uppercase tracking-wider px-2 py-0.2 rounded font-bold font-mono bg-indigo-500/20 text-indigo-300">
+                      <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-bold font-mono ${
+                        it.type === 'overdue' ? 'bg-red-550/20 text-red-400' :
+                        it.type === 'upcoming-interview' ? 'bg-amber-550/20 text-amber-400' :
+                        it.type === 'bottleneck' ? 'bg-rose-550/20 text-rose-455' :
+                        'bg-purple-550/20 text-purple-400'
+                      }`}>
                         {it.type}
                       </span>
-                      <span className="text-xs text-slate-400 font-mono font-bold leading-none">Task #{idx + 1}</span>
+                      <span className="text-xs text-slate-500 font-mono font-bold">Action #{idx + 1}</span>
                     </div>
                     <h4 className="font-bold text-slate-200 text-sm">{it.title}</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed font-sans">{it.description}</p>
+                    <p className="text-xs text-slate-450 leading-relaxed font-sans">{it.description}</p>
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right hidden md:block">
-                      <span className="block text-[8px] uppercase tracking-widest text-slate-500 font-mono">KPI Gauge</span>
-                      <span className="text-xs font-semibold text-slate-300 font-mono">{it.meta}</span>
+                      <span className="block text-[8px] uppercase tracking-widest text-slate-500 font-mono">Metrics Gauge</span>
+                      <span className="text-xs font-semibold text-slate-350 font-mono">{it.meta}</span>
                     </div>
                     <button 
                       onClick={() => {
                         if (it.type === 'stale-decay') {
-                          setActiveSubTab('five-min-revision');
-                          setSelectedRevisionDeck(topics.find(t => t.id === it.targetId)?.category || 'Java Core');
+                          setSelectedDecayTopicId(it.targetId);
+                          // Decay module handles TMAM resets inside this tab
                         } else {
                           onNavigate(it.targetTab);
                         }
                       }}
-                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white tracking-wide shrink-0 font-sans shadow"
+                      className="px-3.5 py-1.5 bg-indigo-650 hover:bg-indigo-600 rounded-lg text-xs font-bold text-white transition cursor-pointer shadow"
                     >
                       {it.actionText}
                     </button>
@@ -735,90 +793,121 @@ export default function IntelligenceHub({
               {dailyActionPlan.length === 0 && (
                 <div className="text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-xl space-y-2">
                   <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <h4 className="text-bold text-white">Daily Agenda Fully Consolidated</h4>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-normal">Your spacing intervals are fully updated. Enjoy the downtime or populate additional topic cards to expand your tracking reach!</p>
+                  <h4 className="text-bold text-white font-display">Daily Agenda Fully Complete</h4>
+                  <p className="text-xs text-slate-450 max-w-sm mx-auto leading-normal">Your spacing intervals are fully updated. Enjoy the downtime or populate additional topic cards to expand your tracking reach!</p>
                 </div>
               )}
             </div>
 
-            {/* TEACH ME AGAIN DECAY CUES PANEL (Point 9) */}
+            {/* TEACH ME AGAIN MODE (Point 9) */}
             <div className="space-y-4">
-              <div className="glass-card p-4 border border-purple-500/20 bg-purple-950/15 space-y-3">
-                <span className="block text-xs font-bold text-purple-300 uppercase tracking-wider font-mono flex items-center gap-1">
-                  <Clock className="w-4 h-4 text-purple-400 animate-spin" />
-                  <span>Teach Me Again Spotter</span>
+              <div className="glass-card p-5 border border-purple-500/20 bg-purple-950/15 space-y-4">
+                <span className="block text-xs font-bold text-purple-300 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-purple-400" />
+                  <span>Teach Me Again Mode</span>
                 </span>
                 
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Memory decay increases after 30+ days of inactive revision. Highlight active cards with aging stamps to perform rapid reviews of mistakes, summaries, and core questions.
+                  Memory decay increases after 7+ days of inactive revision. Reset curve metrics below to restore memory retention values.
                 </p>
 
+                {/* Forgetting curve animation */}
+                <div className="bg-[#111827]/40 border border-purple-500/10 rounded-xl p-3 h-28 relative flex flex-col justify-between">
+                  <span className="text-[9px] font-mono text-purple-400 font-bold block">Forgetting Curve Decay (Ebbinghaus)</span>
+                  <svg className="w-full h-14" viewBox="0 0 100 30" preserveAspectRatio="none">
+                    <path 
+                      d="M0,5 Q30,15 60,25 T100,28" 
+                      fill="none" 
+                      stroke="#a855f7" 
+                      strokeWidth="1.5"
+                    />
+                    <path 
+                      d="M0,5 Q30,15 60,25 T100,28 L100,30 L0,30 Z" 
+                      fill="url(#decayGrad)" 
+                      opacity="0.1" 
+                    />
+                    <defs>
+                      <linearGradient id="decayGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#a855f7" />
+                        <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="flex justify-between text-[8px] font-mono text-slate-500">
+                    <span>1 Day (100%)</span>
+                    <span>3 Days (60%)</span>
+                    <span>7 Days (40%)</span>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-[10px] text-slate-400 font-bold block">Select Aging Checked Topic:</label>
+                  <label className="text-[10px] text-slate-404 font-bold block uppercase tracking-wide">Select Aging Topic:</label>
                   <select 
                     value={selectedDecayTopicId || ''} 
                     onChange={(e) => setSelectedDecayTopicId(e.target.value)}
-                    className="w-full px-2.5 py-1.5 font-sans rounded-md text-xs glass-input text-slate-200 cursor-pointer"
+                    className="w-full px-2.5 py-1.5 rounded-lg text-xs glass-input text-slate-205 cursor-pointer"
                   >
                     {memoryDecayList.map(item => (
                       <option key={item.topic.id} value={item.topic.id} className="bg-[#111827]">
-                        {item.topic.name} ({item.daysSinceLast === 99 ? 'Never' : `${item.daysSinceLast} days`} old)
+                        {item.topic.name} ({item.daysSinceLast === 99 ? 'Never' : `${item.daysSinceLast}d`} since last revision)
                       </option>
                     ))}
                   </select>
                 </div>
 
                 {activeDecayTopic ? (
-                  <div className="space-y-3 pt-2 text-xs border-t border-purple-500/10">
+                  <div className="space-y-3 pt-3.5 border-t border-purple-500/10 text-xs">
                     <div className="flex justify-between text-[11px] font-mono select-none">
-                      <span className="text-slate-300 font-bold">{activeDecayTopic.name}</span>
-                      <span className="text-purple-300">Confidence: {activeDecayTopic.confidenceScore}%</span>
+                      <span className="text-slate-200 font-bold">{activeDecayTopic.name}</span>
+                      <span className="text-purple-300 font-bold">{activeDecayTopic.confidenceScore}% Confidence</span>
                     </div>
 
-                    <div className="space-y-1.5 p-2 bg-black/30 rounded border border-purple-500/10">
-                      <span className="block font-bold text-purple-355 text-[9px] uppercase font-mono">Rapid Concept Notes:</span>
-                      <p className="text-[10px] leading-relaxed text-slate-350 line-clamp-3 italic">
+                    <div className="space-y-1.5 p-2.5 bg-black/40 rounded border border-purple-500/10">
+                      <span className="block font-bold text-purple-300 text-[9px] uppercase font-mono">Concept Notes:</span>
+                      <p className="text-[10px] leading-relaxed text-slate-400 italic">
                         {activeDecayTopic.notes || 'No notes currently attached to topic.'}
                       </p>
                     </div>
 
                     {activeDecayQuestions.length > 0 && (
-                      <div className="space-y-1 border-t border-purple-500/10 pt-2">
-                        <span className="text-[9px] text-purple-355 uppercase font-mono block">Top Interview Flash Q:</span>
-                        <p className="text-[10px] leading-relaxed font-semibold text-slate-200">
+                      <div className="space-y-1 border-t border-purple-500/10 pt-2 text-[10px]">
+                        <span className="text-[9px] text-purple-300 uppercase font-mono block">Top Recall Question:</span>
+                        <p className="font-semibold text-slate-200 leading-relaxed">
                           {activeDecayQuestions[0].question}
                         </p>
                       </div>
                     )}
 
-                    {activeDecayMistakes.length > 0 && (
-                      <div className="space-y-1 border-t border-purple-500/10 pt-2 bg-red-500/5 p-1 rounded border border-red-500/10">
-                        <span className="text-[9px] text-red-400 uppercase font-mono block">Historic Mistake:</span>
-                        <p className="text-[10px] italic text-slate-300">
-                          "{activeDecayMistakes[0].reason}"
-                        </p>
-                      </div>
-                    )}
-
                     <button 
-                      onClick={() => {
-                        // Mark as revised (set lastRevisionDate to now)
-                        activeDecayTopic.lastRevisionDate = new Date().toISOString();
-                        const nextInterval = new Date();
-                        nextInterval.setDate(nextInterval.getDate() + 7);
-                        activeDecayTopic.nextRevisionDate = nextInterval.toISOString();
-                        activeDecayTopic.confidenceScore = Math.min(100, activeDecayTopic.confidenceScore + 10);
-                        
-                        alert(`"Teach Me Again" refreshed successfully for "${activeDecayTopic.name}". Interval extended by 7 days.`);
-                        setSelectedDecayTopicId(null); // refresh
+                      onClick={async () => {
+                        if (onUpdateTopic) {
+                          const updated = {
+                            ...activeDecayTopic,
+                            lastRevisionDate: new Date().toISOString(),
+                            nextRevisionDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                            confidenceScore: Math.min(100, activeDecayTopic.confidenceScore + 15),
+                            revisionCount: activeDecayTopic.revisionCount + 1
+                          };
+                          await onUpdateTopic(updated);
+                          alert(`"Teach Me Again" refreshed successfully for "${activeDecayTopic.name}". Interval extended by 7 days.`);
+                          setSelectedDecayTopicId(null);
+                        } else {
+                          // fallback local
+                          activeDecayTopic.lastRevisionDate = new Date().toISOString();
+                          activeDecayTopic.nextRevisionDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                          activeDecayTopic.confidenceScore = Math.min(100, activeDecayTopic.confidenceScore + 15);
+                          activeDecayTopic.revisionCount = activeDecayTopic.revisionCount + 1;
+                          alert(`"Teach Me Again" refreshed successfully for "${activeDecayTopic.name}". Interval extended by 7 days.`);
+                          setSelectedDecayTopicId(null);
+                        }
                       }}
-                      className="w-full py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg text-[11px] transition shadow"
+                      className="w-full py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-550 hover:to-indigo-550 text-white font-bold rounded-lg text-[11px] transition shadow cursor-pointer"
                     >
                       Reset Memory Decay Curve
                     </button>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 italic">No unrevised topics aged beyond threshold limits.</p>
+                  <p className="text-xs text-slate-500 italic">No decaying topics found.</p>
                 )}
               </div>
             </div>
@@ -827,88 +916,98 @@ export default function IntelligenceHub({
         </div>
       )}
 
-      {/* MODULE 2: TECHNOLOGY STACK READINESS & DEPENDENCY INTELLIGENCE (Points 5 & 7) */}
+      {/* MODULE 2: TECHNOLOGY STACK READINESS & DEPENDENCY Bottlenecks */}
       {activeSubTab === 'tech-readiness' && (
         <div className="space-y-6 animate-fade-in text-slate-300">
-          <div>
-            <h3 className="text-base font-bold text-white">Technology Stack Readiness Dashboard</h3>
-            <p className="text-xs text-slate-400">Understand your overall live safe-to-test ratings divided cleanly across mainstream cloud stacks.</p>
-          </div>
-
-          {/* Technology stack cards layout */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {techReadinessData.map(stack => (
-              <div 
-                key={stack.name} 
-                className="glass-card p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-all"
-              >
-                {/* Visual subtle gauge background circle */}
-                <div className="absolute right-[-15px] bottom-[-15px] opacity-[0.03] text-[90px] font-mono leading-none select-none font-bold">
-                  {stack.score}%
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-extrabold text-sm text-white">{stack.name}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.2 bg-white/5 rounded-full">
-                      {stack.count} topic cards
-                    </span>
-                  </div>
-
-                  {/* Rating meter */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400">Readiness score:</span>
-                      <span className={`font-mono font-bold ${stack.score >= 80 ? 'text-emerald-400' : stack.score >= 60 ? 'text-amber-400' : 'text-slate-400'}`}>
-                        {stack.score}%
-                      </span>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Tech Readiness Cards & Statuses (Span 2) */}
+            <div className="lg:col-span-2 space-y-4">
+              <span className="block text-xs font-bold text-white uppercase tracking-wider font-mono">Domain Tech Readiness Ratings</span>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {techReadinessData.map(stack => (
+                  <div key={stack.name} className="glass-card p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-all flex flex-col justify-between min-h-[140px]">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span className="font-extrabold text-sm text-white">{stack.name}</span>
+                        <span className="text-[10px] font-mono font-bold bg-white/5 rounded-full px-2 py-0.5">{stack.count} topics</span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-slate-400">Readiness Score:</span>
+                          <span className={`font-bold ${
+                            stack.score >= 85 ? 'text-emerald-400' :
+                            stack.score >= 70 ? 'text-indigo-400' :
+                            stack.score >= 50 ? 'text-amber-400' : 'text-slate-400'
+                          }`}>{stack.score}%</span>
+                        </div>
+                        <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              stack.score >= 85 ? 'bg-emerald-500' :
+                              stack.score >= 70 ? 'bg-indigo-500' :
+                              stack.score >= 50 ? 'bg-amber-500' : 'bg-slate-700'
+                            }`}
+                            style={{ width: `${stack.score}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    
-                    {/* Visual Progress Bar */}
-                    <div className="w-full h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5 flex">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          stack.score >= 80 ? 'bg-emerald-500' :
-                          stack.score >= 60 ? 'bg-amber-500' :
-                          'bg-indigo-600'
-                        }`}
-                        style={{ width: `${stack.score}%` }}
-                      />
+
+                    <div className="flex items-center justify-between text-[11px] pt-3 mt-1.5 border-t border-white/5 font-sans">
+                      <span className="text-slate-400 font-semibold">Evaluation status:</span>
+                      <span className={`font-extrabold text-[10px] tracking-wide uppercase ${
+                        stack.score >= 85 ? 'text-emerald-400' :
+                        stack.score >= 70 ? 'text-indigo-400' :
+                        stack.score >= 50 ? 'text-amber-400' : 'text-slate-450'
+                      }`}>{stack.status}</span>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-[11px] border-t border-white/5 pt-3">
-                    <span className="text-slate-400">Evaluation Index:</span>
-                    <span className={`font-bold uppercase font-sans text-[10px] tracking-wider ${stack.score >= 80 ? 'text-emerald-300' : stack.score >= 60 ? 'text-amber-300' : 'text-slate-450'}`}>
-                      {stack.status}
-                    </span>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Radar chart of tech readiness */}
+            <div className="glass-card p-5 space-y-4 flex flex-col justify-between">
+              <span className="block text-xs font-bold text-white uppercase tracking-wider font-mono">Readiness Spectrum Map</span>
+              <div className="h-56 w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={techReadinessData}>
+                    <PolarGrid stroke="#ffffff10" />
+                    <PolarAngleAxis dataKey="name" stroke="#94a3b8" fontSize={9} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#94a3b8" fontSize={8} />
+                    <Radar name="Readiness Index" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
           </div>
 
-          {/* TOPIC DEPENDENCY INTELLIGENCE ALERTS SYSTEM (Point 7) */}
-          <div className="glass-card p-5 border border-amber-500/10 bg-amber-500/5 space-y-4">
+          {/* TOPIC DEPENDENCY BOTTLENECK ANALYSIS (Point 7) */}
+          <div className="glass-card p-5 border border-rose-500/10 bg-rose-500/5 space-y-4">
             <h4 className="font-bold text-white text-sm flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-400" />
-              <span>Prerequisite Dependency Analysis Cues</span>
+              <AlertTriangle className="w-5 h-5 text-rose-400" />
+              <span>Topic Dependency Prerequisite Analysis</span>
             </h4>
             
-            <p className="text-xs text-slate-350 leading-relaxed font-sans">
-              Advanced technology frameworks heavily inherit fundamental design choices (e.g. knowing Generics inside Java Core is required for Collections, Collections for Streams pipelines, Streams for Spring autowires, Spring for custom Hibernate queries). Bottlenecks warn you if foundational topics have faded.
+            <p className="text-xs text-slate-350 leading-relaxed">
+              Prerequisites warn you if you are studying advanced topics while parent prerequisite topics remain weak (confidence index &lt;= 60%). Fix foundational blocks first.
             </p>
 
             <div className="space-y-3">
               {dependencyAlerts.map(alert => (
-                <div key={alert.id} className="p-3 bg-slate-900/40 rounded-xl border border-white/5 text-xs text-slate-300 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-bold">
-                    <CornerRightDown className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-rose-300 underline font-semibold">Alert Bottleneck:</span>
-                    <span className="text-white font-extrabold">"{alert.parentName}" &rarr; "{alert.childName}"</span>
+                <div key={alert.id} className="p-3 bg-slate-900/50 rounded-xl border border-rose-500/10 text-xs text-slate-300 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <CornerRightDown className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span className="text-rose-300 font-bold uppercase text-[9px] tracking-wide border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.2 rounded">BOTTLENECK DETECTED</span>
+                    <span className="text-white font-extrabold">{alert.parentName} &rarr; {alert.childName}</span>
                   </div>
                   <p className="pl-5 leading-normal text-slate-400">{alert.reason}</p>
-                  <p className="pl-5 leading-normal text-amber-300 italic font-medium">💡 Remedy: {alert.remedy}</p>
+                  <p className="pl-5 leading-normal text-amber-300 italic">💡 Remedy recommendation: {alert.remedy}</p>
                 </div>
               ))}
 
@@ -923,19 +1022,22 @@ export default function IntelligenceHub({
         </div>
       )}
 
-      {/* MODULE 3: INTERVIEW FREQUENCY ANALYTICS & INTEL KNOWLEDGE DATABASE (Points 1 & 2) */}
+      {/* MODULE 3: KNOWLEDGE BASE & INTEL DATABASE */}
       {activeSubTab === 'freq-analytics' && (
         <div className="space-y-6 animate-fade-in text-slate-300">
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="text-base font-bold text-white">Interview Question Intelligence Database</h3>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Database className="w-4 h-4 text-indigo-400" />
+                <span>Interview Question Intelligence Database</span>
+              </h3>
               <p className="text-xs text-slate-400">Log genuine questions asked during live interviews and analyze topic frequencies.</p>
             </div>
             
             <button 
               onClick={() => setIsFormOpen(!isFormOpen)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-505 border border-indigo-400/20 rounded-xl text-xs font-bold text-white shrink-0 cursor-pointer shadow"
+              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-650 hover:bg-indigo-600 rounded-xl text-xs font-bold text-white shrink-0 cursor-pointer shadow transition"
             >
               <Plus className="w-4 h-4" />
               <span>Log Interview Question</span>
@@ -945,51 +1047,51 @@ export default function IntelligenceHub({
           {/* Log Question Asked form slider */}
           {isFormOpen && (
             <form onSubmit={handleFormSubmit} className="glass-card p-5 space-y-4 max-w-2xl text-slate-300">
-              <h4 className="font-bold text-sm text-white border-b border-white/10 pb-2">Log Real-World Mock / Live Interview Question</h4>
+              <h4 className="font-bold text-sm text-white border-b border-white/10 pb-2">Log Real-World Interview Question</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-300">Target Company Name <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-300">Target Company Name <span className="text-rose-400">*</span></label>
                   <input 
                     type="text" 
                     value={formCompany} 
                     onChange={(e) => setFormCompany(e.target.value)} 
-                    placeholder="e.g. OpenAI Inc"
-                    className="w-full px-3 py-2 rounded-lg text-sm glass-input"
+                    placeholder="e.g. Google"
+                    className="w-full px-3 py-2 rounded-lg text-xs glass-input"
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-300">Related Topic Stack Name <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-300">Topic Stack Category <span className="text-rose-400">*</span></label>
                   <input 
                     type="text" 
                     value={formTopic} 
                     onChange={(e) => setFormTopic(e.target.value)} 
-                    placeholder="e.g. Collections Framework"
-                    className="w-full px-3 py-2 rounded-lg text-sm glass-input"
+                    placeholder="e.g. System Design"
+                    className="w-full px-3 py-2 rounded-lg text-xs glass-input"
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-300">Question asked <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-300">Question Asked <span className="text-rose-400">*</span></label>
                   <input 
                     type="text" 
                     value={formQuestion} 
                     onChange={(e) => setFormQuestion(e.target.value)} 
-                    placeholder="e.g. Difference between HashMap vs ConcurrentHashMap"
-                    className="w-full px-3 py-2 rounded-lg text-sm glass-input"
+                    placeholder="e.g. Design a distributed cache..."
+                    className="w-full px-3 py-2 rounded-lg text-xs glass-input"
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-300">Difficulty Rating</label>
+                  <label className="block text-xs font-semibold text-slate-300">Difficulty Rating</label>
                   <select 
                     value={formDifficulty} 
                     onChange={(e) => setFormDifficulty(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg text-xs glass-input font-sans cursor-pointer"
+                    className="w-full px-3 py-2 rounded-lg text-xs glass-input cursor-pointer"
                   >
                     <option value="Easy" className="bg-[#111827]">Easy</option>
                     <option value="Medium" className="bg-[#111827]">Medium</option>
@@ -998,22 +1100,22 @@ export default function IntelligenceHub({
                 </div>
 
                 <div className="md:col-span-2 space-y-1">
-                  <label className="block text-xs font-medium text-slate-300">Logged Answer Summary <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-300">Model Answer Summary <span className="text-rose-400">*</span></label>
                   <textarea 
                     value={formAnswer} 
                     onChange={(e) => setFormAnswer(e.target.value)} 
-                    placeholder="Detail essential keywords or solution concepts..."
-                    className="w-full px-3 py-2 rounded-lg text-sm h-16 glass-input"
+                    placeholder="Detail core solution metrics or key strategies..."
+                    className="w-full px-3 py-2 rounded-lg text-xs h-20 glass-input resize-none"
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-300">Performance Result Score</label>
+                  <label className="block text-xs font-semibold text-slate-300">Performance Result</label>
                   <select 
                     value={formResult} 
                     onChange={(e) => setFormResult(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg text-xs glass-input font-sans cursor-pointer"
+                    className="w-full px-3 py-2 rounded-lg text-xs glass-input cursor-pointer"
                   >
                     <option value="Answered Correctly" className="bg-[#111827]">Answered Correctly</option>
                     <option value="Struggled" className="bg-[#111827]">Struggled</option>
@@ -1022,17 +1124,17 @@ export default function IntelligenceHub({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-white/5 pt-3.5">
+              <div className="flex justify-end gap-2 border-t border-white/10 pt-3.5">
                 <button 
                   type="button" 
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 border border-white/10 text-slate-300 rounded-lg text-xs hover:bg-white/5"
+                  className="px-4 py-2 border border-white/10 text-slate-300 rounded-lg text-xs hover:bg-white/5 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-505 text-white font-bold rounded-lg text-xs"
+                  className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-lg text-xs transition cursor-pointer"
                 >
                   Save to Intell DB
                 </button>
@@ -1040,10 +1142,10 @@ export default function IntelligenceHub({
             </form>
           )}
 
-          {/* Split screen: Topic frequencies (Point 1) and Intelligence Database (Point 2) */}
+          {/* Split screen: Topic frequencies and Intelligence Database */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Topic Frequency curves on interview counts (Point 1) */}
+            {/* Topic Frequency curves on interview counts */}
             <div className="glass-card p-5 space-y-4">
               <span className="block text-xs font-bold text-white uppercase tracking-wider font-mono">Topic Asked Frequency Analytics</span>
               
@@ -1055,19 +1157,19 @@ export default function IntelligenceHub({
                 {interviewFrequencyStats.map(stat => (
                   <div key={stat.topicName} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-205">{stat.topicName}</span>
-                      <span className="font-mono text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.2 rounded-md">
-                        Asked {stat.askedCount} Times
+                      <span className="font-bold text-slate-200 truncate max-w-[140px]" title={stat.topicName}>{stat.topicName}</span>
+                      <span className="font-mono text-indigo-305 font-bold bg-indigo-500/10 px-2 py-0.5 rounded-md">
+                        Asked {stat.askedCount}x
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                      <span className="font-mono font-black">Top firms:</span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                      <span className="font-mono font-bold">Firms:</span>
                       <span className="truncate">{stat.topCompanies.join(', ')}</span>
                     </div>
 
                     <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${Math.min(100, stat.askedCount * 12)}%` }} />
+                      <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${Math.min(100, stat.askedCount * 15)}%` }} />
                     </div>
                   </div>
                 ))}
@@ -1078,7 +1180,7 @@ export default function IntelligenceHub({
               </div>
             </div>
 
-            {/* Questions Database Tables (Span 2) (Point 2) */}
+            {/* Questions Database Tables (Span 2) */}
             <div className="lg:col-span-2 glass-card p-5 space-y-4">
               <span className="block text-xs font-bold text-white uppercase tracking-wider font-mono">Permanent Interview Knowledge Database ({intelliQuestions.length})</span>
               
@@ -1088,31 +1190,31 @@ export default function IntelligenceHub({
                     
                     <button 
                       onClick={() => onDeleteIntelliQuestion(iq.id)}
-                      className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 p-1 bg-slate-900 border border-white/5 hover:border-red-500 rounded text-slate-400 hover:text-red-400 transition"
+                      className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 p-1 bg-slate-900 border border-white/5 hover:border-red-500 rounded text-slate-400 hover:text-red-400 transition cursor-pointer"
                       title="Delete entry from intelligence pool"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-extrabold text-white font-sans bg-indigo-650 px-2 py-0.5 rounded border border-indigo-400/25">
+                      <span className="text-xs font-extrabold text-white font-sans bg-indigo-650 px-2 py-0.5 rounded border border-indigo-400/25 select-none">
                         {iq.company}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono italic">Asked: {iq.dateAsked}</span>
-                      <span className={`text-[9px] px-1.5 rounded font-bold font-mono py-0.2 ${
-                        iq.result === 'Answered Correctly' ? 'bg-emerald-500/15 text-emerald-305' :
-                        iq.result === 'Struggled' ? 'bg-amber-500/15 text-amber-305' : 'bg-rose-500/15 text-rose-300'
+                      <span className="text-[10px] text-slate-500 font-mono">Asked: {iq.dateAsked}</span>
+                      <span className={`text-[9px] px-1.5 rounded font-bold font-mono py-0.5 select-none ${
+                        iq.result === 'Answered Correctly' ? 'bg-emerald-500/15 text-emerald-300' :
+                        iq.result === 'Struggled' ? 'bg-amber-500/15 text-amber-300' : 'bg-rose-500/15 text-rose-300'
                       }`}>
                         {iq.result}
                       </span>
-                      <span className="text-[10px] uppercase font-mono tracking-widest text-[#a5b4fc]">
+                      <span className="text-[10px] uppercase font-mono tracking-widest text-[#a5b4fc] font-bold">
                         #{iq.topic}
                       </span>
                     </div>
 
                     <div className="space-y-1">
-                      <h4 className="font-bold text-slate-205 text-sm">{iq.question}</h4>
-                      <p className="text-xs text-slate-405 leading-relaxed bg-black/40 p-3 rounded border border-white/5 whitespace-pre-wrap italic group-hover:border-indigo-500/15 transition">
+                      <h4 className="font-bold text-slate-200 text-sm leading-snug">{iq.question}</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed bg-black/40 p-3 rounded border border-white/5 whitespace-pre-wrap italic group-hover:border-indigo-500/15 transition">
                         "{iq.answer}"
                       </p>
                     </div>
@@ -1130,14 +1232,14 @@ export default function IntelligenceHub({
         </div>
       )}
 
-      {/* MODULE 4: WEAK TOPIC SPOTTER & PRIORITIES RECOVERY (Points 3 & 4) */}
+      {/* MODULE 4: WEAK TOPIC SPOTTER & PRIORITIES RECOVERY */}
       {activeSubTab === 'weak-recovering' && (
         <div className="space-y-6 animate-fade-in text-slate-300">
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Weak Topic Intelligence Center (Point 4) */}
-            <div className="glass-card p-5 space-y-4 border border-rose-500/10">
+            {/* Weak Topic Intelligence Center */}
+            <div className="glass-card p-5 space-y-4 border border-rose-500/15">
               <div>
                 <span className="block text-xs font-bold text-white uppercase tracking-wider font-mono">Weak Topic Intelligence Center</span>
                 <p className="text-[11px] text-slate-400 mt-0.5 leading-normal">
@@ -1148,16 +1250,16 @@ export default function IntelligenceHub({
               <div className="space-y-3.5 max-h-[500px] overflow-y-auto pr-1">
                 {weakSpotterList.map(item => (
                   <div key={item.topic.id} className="p-3.5 rounded-xl bg-red-950/10 border border-red-500/15 text-xs text-slate-300 space-y-2">
-                    <div className="flex justify-between items-center bg-black/20 p-1.5 rounded">
+                    <div className="flex justify-between items-center bg-black/20 p-2 rounded">
                       <span className="text-white font-extrabold">{item.topic.name}</span>
-                      <span className="text-rose-455 font-mono bg-rose-500/20 px-2 py-0.2 rounded font-bold">{item.topic.confidenceScore}% Confidence</span>
+                      <span className="text-rose-400 font-mono bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded font-bold">{item.topic.confidenceScore}% Confidence</span>
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase block font-mono">Failure flags spotted:</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block font-mono">Failure Flags Spotted:</span>
                       <div className="flex flex-wrap gap-1.5 pt-0.5">
                         {item.factors.map((f, i) => (
-                          <span key={i} className="text-[9px] bg-red-500/15 text-red-305 px-2 py-0.2 rounded border border-red-500/10 font-bold font-sans">
+                          <span key={i} className="text-[9px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded border border-red-500/10 font-bold font-sans">
                             ● {f}
                           </span>
                         ))}
@@ -1167,12 +1269,12 @@ export default function IntelligenceHub({
                 ))}
 
                 {weakSpotterList.length === 0 && (
-                  <p className="text-xs text-slate-400 text-center py-6 font-mono">✓ High retention achieved. No weak nodes flagged in active memory registry!</p>
+                  <p className="text-xs text-slate-400 text-center py-8 font-mono">✓ High retention achieved. No weak nodes flagged in active memory registry!</p>
                 )}
               </div>
             </div>
 
-            {/* High Priority Recovery Queue (Point 3) */}
+            {/* High Priority Recovery Queue */}
             <div className="glass-card p-5 space-y-4">
               <div>
                 <span className="block text-xs font-bold text-white uppercase tracking-wider font-mono">High Priority Recovery Queue</span>
@@ -1185,24 +1287,24 @@ export default function IntelligenceHub({
                 {recoveryQueue.map((item, idx) => (
                   <div 
                     key={item.topic.id} 
-                    className="p-3.5 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between gap-4 text-xs group hover:bg-white/10 transition-all cursor-default"
+                    className="p-3.5 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between gap-4 text-xs group hover:bg-white/10 transition-all"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono text-indigo-400 font-bold">#{idx + 1}</span>
-                        <h4 className="font-bold text-slate-150">{item.topic.name}</h4>
+                        <h4 className="font-bold text-slate-205">{item.topic.name}</h4>
                       </div>
-                      <p className="text-[11px] text-slate-400 line-clamp-1">{item.topic.description}</p>
+                      <p className="text-[11px] text-slate-450 line-clamp-1">{item.topic.description}</p>
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
-                        <span className="block text-[8px] uppercase tracking-wider text-slate-500 font-mono">Recovery priority</span>
-                        <span className="font-extrabold text-indigo-305 font-mono">{item.priorityWeight} pts</span>
+                        <span className="block text-[8px] uppercase tracking-wider text-slate-500 font-mono">Priority Score</span>
+                        <span className="font-extrabold text-indigo-300 font-mono">{item.priorityWeight} pts</span>
                       </div>
                       <button 
                         onClick={() => onNavigate('Question Bank & Practice')}
-                        className="p-1 px-2.5 bg-indigo-600 hover:bg-indigo-505 rounded text-[11px] font-bold text-white cursor-pointer"
+                        className="p-1 px-2.5 bg-indigo-650 hover:bg-indigo-600 rounded text-[11px] font-bold text-white cursor-pointer transition shadow"
                       >
                         Drill Now
                       </button>
@@ -1217,7 +1319,7 @@ export default function IntelligenceHub({
         </div>
       )}
 
-      {/* MODULE 5: QUICK REVISION CARDS (Point 8) */}
+      {/* MODULE 5: QUICK REVISION CARDS */}
       {activeSubTab === 'five-min-revision' && (
         <div className="space-y-6 animate-fade-in text-slate-300">
           
@@ -1232,7 +1334,7 @@ export default function IntelligenceHub({
                 <button 
                   key={deck} 
                   onClick={() => setSelectedRevisionDeck(deck)}
-                  className={`px-3 py-1 rounded-md transition cursor-pointer text-[11px] ${selectedRevisionDeck === deck ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                  className={`px-3 py-1 rounded-md transition cursor-pointer text-[11px] ${selectedRevisionDeck === deck ? 'bg-indigo-600 text-white font-bold' : 'text-slate-455 hover:text-white'}`}
                 >
                   {deck}
                 </button>
@@ -1240,7 +1342,6 @@ export default function IntelligenceHub({
             </div>
           </div>
 
-          {/* Quick Revision card board layout */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
             {/* Pile 1: Key Concepts */}
@@ -1284,8 +1385,8 @@ export default function IntelligenceHub({
               <div className="space-y-3 text-xs leading-normal">
                 {(quickRevisionDecks as any)[selectedRevisionDeck].pitfalls.map((p: string, idx: number) => (
                   <div key={idx} className="p-3 bg-red-950/20 rounded-lg border border-red-500/10">
-                    <span className="block font-mono text-[9px] font-bold text-rose-450 mb-1">AVOID BOTCHING #{idx+1}</span>
-                    <p className="text-slate-300 leading-normal italic">❌ "{p}"</p>
+                    <span className="block font-mono text-[9px] font-bold text-rose-400 mb-1">AVOID BOTCHING #{idx+1}</span>
+                    <p className="text-slate-350 leading-normal italic">❌ "{p}"</p>
                   </div>
                 ))}
               </div>
@@ -1296,7 +1397,7 @@ export default function IntelligenceHub({
         </div>
       )}
 
-      {/* MODULE 6: WEEKLY ENGINE REPORTS (Point 11) */}
+      {/* MODULE 6: WEEKLY ENGINE REPORTS */}
       {activeSubTab === 'weekly-reports' && (
         <div className="space-y-6 animate-fade-in text-slate-300 max-w-3xl mx-auto">
           
@@ -1307,8 +1408,8 @@ export default function IntelligenceHub({
             </div>
             
             <button 
-              onClick={() => { setIsReportGenerated(true); alert('Report compiled and refreshed with current system variables.'); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-505 rounded-xl border border-indigo-400/20 text-xs text-white cursor-pointer"
+              onClick={() => { setIsReportGenerated(true); alert('Report compiled and refreshed with current variables.'); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-655 hover:bg-indigo-600 rounded-xl border border-indigo-500/20 text-xs text-white cursor-pointer font-bold transition shadow"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Compile Weekly Report</span>
@@ -1317,12 +1418,10 @@ export default function IntelligenceHub({
 
           {isReportGenerated ? (
             <div id="weekly_report_card" className="glass-card p-8 border border-indigo-500/20 space-y-6 relative overflow-hidden shadow-2xl">
-              {/* Background elegant watermark */}
               <div className="absolute right-[-20px] top-[-20px] opacity-[0.02] text-[120px] select-none font-bold font-sans rotate-12">
                 ICI
               </div>
 
-              {/* Weekly report header decoration */}
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-white/10 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center border border-indigo-500/10">
@@ -1330,45 +1429,43 @@ export default function IntelligenceHub({
                   </div>
                   <div>
                     <h4 className="font-extrabold text-white text-base leading-none">Weekly Preparation Intelligence Report</h4>
-                    <span className="text-[10px] text-slate-404 font-mono block mt-1.5">Reporting interval: May 24, 2026 - May 30, 2026 (Week 22)</span>
+                    <span className="text-[10px] text-slate-500 font-mono block mt-2 font-bold">Reporting interval: Live System Snapshot</span>
                   </div>
                 </div>
 
-                <div className="text-xs font-mono font-bold bg-white/5 border border-white/5 px-2.5 py-1 rounded-md text-slate-300">
-                  STATUS: COMPILED READY
+                <div className="text-xs font-mono font-bold bg-white/5 border border-white/5 px-2.5 py-1 rounded-md text-slate-305">
+                  STATUS: SECURED COMPILED
                 </div>
               </div>
 
-              {/* Dynamic metric stats grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-3.5 bg-black/25 border border-white/5 rounded-xl text-center">
-                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1">Study Volume</span>
+                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1 font-bold">Study Volume</span>
                   <span className="text-2xl font-black text-white font-mono block">{weeklyReportStats.studyHours} hrs</span>
-                  <span className="text-[9px] text-slate-404 mt-1 font-mono">logged minutes sum</span>
+                  <span className="text-[9px] text-slate-500 mt-1 font-mono">weekly logged yield</span>
                 </div>
 
                 <div className="p-3.5 bg-black/25 border border-white/5 rounded-xl text-center">
-                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1">Rounds Revise</span>
+                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1 font-bold">Rounds Revise</span>
                   <span className="text-2xl font-black text-white font-mono block">{weeklyReportStats.revCount}</span>
-                  <span className="text-[9px] text-slate-404 mt-1 font-mono">active recall card drills</span>
+                  <span className="text-[9px] text-slate-500 mt-1 font-mono">active recall trials</span>
                 </div>
 
                 <div className="p-3.5 bg-black/25 border border-white/5 rounded-xl text-center">
-                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1">Forgot Events</span>
-                  <span className="text-2xl font-black text-rose-400 font-mono block">{weeklyReportStats.forgetCount} times</span>
-                  <span className="text-[9px] text-[#fca5a5] mt-1 font-mono">active retention falls</span>
+                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1 font-bold">Forgot Events</span>
+                  <span className="text-2xl font-black text-rose-400 font-mono block">{weeklyReportStats.forgetCount}x</span>
+                  <span className="text-[9px] text-[#fca5a5] mt-1 font-mono">active memory drops</span>
                 </div>
 
                 <div className="p-3.5 bg-black/25 border border-white/5 rounded-xl text-center">
-                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1">Confidence Change</span>
+                  <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1 font-bold">Confidence Index</span>
                   <span className="text-2xl font-black text-indigo-400 font-mono block">
                     {weeklyReportStats.startICI}% &rarr; {weeklyReportStats.currentICI}%
                   </span>
-                  <span className="text-[9px] text-[#a5b4fc] mt-1 font-mono">+8% memory yield growth</span>
+                  <span className="text-[9px] text-[#a5b4fc] mt-1 font-mono">composite index score</span>
                 </div>
               </div>
 
-              {/* Highlights analysis blocks */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
                 
                 <div className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/10 space-y-1.5 leading-relaxed">
@@ -1380,7 +1477,7 @@ export default function IntelligenceHub({
                 </div>
 
                 <div className="p-4 bg-red-500/5 rounded-xl border border-red-500/10 space-y-1.5 leading-relaxed">
-                  <span className="block font-bold text-rose-400 text-[10px] tracking-wider uppercase font-mono">Weakest Memory Node Warning:</span>
+                  <span className="block font-bold text-rose-450 text-[10px] tracking-wider uppercase font-mono">Weakest Memory Node Warning:</span>
                   <h5 className="font-extrabold text-white text-sm">⚠️ {weeklyReportStats.weakestLink}</h5>
                   <p className="text-slate-400">
                     Sustains continuous sliding curves and blunders during active recall. We highly recommend routing this conceptual target to your study list tomorrow.
@@ -1391,11 +1488,11 @@ export default function IntelligenceHub({
 
               {/* Evaluator signature & report actions */}
               <div className="border-t border-white/5 pt-4 flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-slate-500 gap-4 select-none">
-                <span>Verified by prep-master spaced-retention validation daemon v10.4.</span>
+                <span>Verified by prep-master spaced-retention validation daemon v12.1.</span>
                 
                 <button 
-                  onClick={() => alert('Data serialization compiled. Under high safety constraints, we exported this report to a CSV layout inside active cache.')}
-                  className="flex items-center gap-1.5 text-bold hover:text-white border border-white/5 hover:border-white/20 p-2 rounded bg-white/5 transition duration-200"
+                  onClick={() => alert('Data serialization compiled successfully. CSV report generated inside session cache.')}
+                  className="flex items-center gap-1.5 text-bold hover:text-white border border-white/5 hover:border-white/20 p-2 rounded bg-white/5 transition duration-200 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download metrics details</span>
@@ -1412,71 +1509,8 @@ export default function IntelligenceHub({
         </div>
       )}
 
-      {/* MODULE 7: DATA BACKUP & FIREBASE CLOUD SYNC CONFIG (Point 12) */}
-      {activeSubTab === 'backup-sync' && (
-        <div className="space-y-6 animate-fade-in text-slate-300 max-w-2xl mx-auto">
-          
-          <div className="glass-card p-6 border border-white/5 space-y-4">
-            <span className="block text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest leading-none">
-              Cloud Backup & Sync Configuration Node
-            </span>
-
-            <p className="text-xs text-slate-350 leading-relaxed font-sans">
-              Currently, PrepMaster is storing all topics, metrics, scheduler, and blundered mistakes inside your secure, high-speed <strong>Local Storage</strong> sandbox.
-            </p>
-
-            <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-2.5 text-xs text-slate-400 leading-relaxed font-sans">
-              <h4 className="font-extrabold text-white text-sm flex items-center gap-1">
-                <Sparkles className="w-4.5 h-4.5 text-indigo-400 fill-indigo-400" />
-                <span>Next-Tier Firebase Integration Blueprint</span>
-              </h4>
-              <p>
-                To synchronize your learning progress curves cleanly across multiple devices (Mobile, Desktop, Tablet, Workstations) and activate persistent backups, you can scale this to our Firebase Firestore Blueprint system!
-              </p>
-              <p className="font-mono text-[10px] text-indigo-300">
-                Recommended Collections: [users], [topics], [questions], [interviews], [mistakes], [studySessions], [voiceRecordings].
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans pt-2">
-              <button 
-                onClick={() => {
-                  const data = {
-                    topics, questions, interviews, mistakes, sessions, voiceRecordings, intelliQuestions
-                  };
-                  const json = JSON.stringify(data, null, 2);
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `prepmaster_intelligence_backup_${new Date().toISOString().split('T')[0]}.json`;
-                  a.click();
-                  alert('Progress profile successfully serialized and exported as JSON.');
-                }}
-                className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-500/30 text-white font-bold rounded-xl text-center cursor-pointer transition flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4 text-indigo-400" />
-                <span>Export Active Database (JSON)</span>
-              </button>
-
-              <button 
-                onClick={() => {
-                  if(confirm('Are you sure you want to reset all custom tracker nodes and reload default initial mock data? This operation is irreversible.')) {
-                    localStorage.clear();
-                    window.location.reload();
-                  }
-                }}
-                className="p-3 bg-red-600/10 hover:bg-red-650/15 border border-red-500/20 text-rose-300 font-bold rounded-xl text-center cursor-pointer transition flex items-center justify-center gap-2"
-              >
-                <Trash2 className="w-4 h-4 text-red-500" />
-                <span>Reset to System Factory Settings</span>
-              </button>
-            </div>
-          </div>
-
-        </div>
-      )}
-
     </div>
   );
-}
+});
+
+export default IntelligenceHub;

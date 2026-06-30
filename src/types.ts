@@ -53,6 +53,8 @@ export interface Topic {
   forgotCount: number;
   notes: string;
   dependencyIds: string[]; // Topic IDs that this topic is dependent on
+  easeFactor?: number;     // SM-2 Ease Factor
+  intervalDays?: number;   // SM-2 Interval in days
 }
 
 export interface Question {
@@ -77,6 +79,7 @@ export interface VoiceRecording {
   audioUrl: string; // Blob or Data URI URL
   duration: number; // seconds
   date: string;
+  notes?: string;
 }
 
 export interface StudySession {
@@ -231,6 +234,8 @@ export interface MockInterview {
   roundType: 'Technical' | 'HR' | 'System Design' | 'Behavioral';
   difficulty: 'Easy' | 'Medium' | 'Hard';
   subjectId?: string;
+  experienceLevel?: string;
+  companyType?: string;
   topicsCovered: string[];
   answeredCount: number;
   totalQuestions: number;
@@ -244,6 +249,13 @@ export interface MockInterview {
     evaluation: string;
     score: number;
     answerTime: number;
+    matchedKeywords?: string[];
+    missedKeywords?: string[];
+    idealConcept?: string;
+    fillerWordsCount?: number;
+    fillerWordsSpotted?: string[];
+    scores?: { accuracy: number; modeling: number; clarity: number; depth: number };
+    hintUsed?: boolean;
   }>;
   createdAt: string; // ISO string
 }
@@ -320,6 +332,27 @@ export interface PersonalReminderSettings {
   dndEnabled: boolean;
   dndStart: string; // "23:00"
   dndEnd: string; // "07:00"
+}
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  cerebrasApiKey: string;
+}
+
+export interface StarStory {
+  id: string;
+  userId: string;
+  title: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  aiScore?: number;
+  aiFeedback?: string;
 }
 
 

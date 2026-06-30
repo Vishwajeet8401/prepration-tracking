@@ -150,7 +150,7 @@ function MagneticButton({ children, onClick, className = '', disabled = false, r
   );
 }
 
-export default function Dashboard({
+const Dashboard = React.memo(function Dashboard({
   topics,
   questions,
   interviews,
@@ -426,7 +426,7 @@ export default function Dashboard({
         if (revDate < now) {
           overdue++;
         } else {
-          const oneDayMs = 24 * 60 * 60 * 1050;
+          const oneDayMs = 24 * 60 * 60 * 1000;
           if (revDate.getTime() - now.getTime() < oneDayMs) {
             due++;
           }
@@ -1297,6 +1297,30 @@ export default function Dashboard({
         </BentoCard>
 
       </motion.div>
+
+      {/* Due Today + Questions Quick-Links row */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-rose-500/5 border border-rose-500/10 p-3 rounded-xl text-center">
+          <span className="block text-[9px] font-mono text-rose-300 font-bold uppercase">Topics Due Today</span>
+          <span className="block text-2xl font-black text-white mt-0.5">{revisionStats.due + revisionStats.overdue}</span>
+          <button onClick={() => onNavigate('Topic Map & Spacing')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">View Scheduler →</button>
+        </div>
+        <div className="bg-indigo-500/5 border border-indigo-500/10 p-3 rounded-xl text-center">
+          <span className="block text-[9px] font-mono text-indigo-300 font-bold uppercase">Overdue Topics</span>
+          <span className="block text-2xl font-black text-white mt-0.5">{revisionStats.overdue}</span>
+          <button onClick={() => onNavigate('Topic Map & Spacing')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Reschedule →</button>
+        </div>
+        <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl text-center">
+          <span className="block text-[9px] font-mono text-emerald-300 font-bold uppercase">Total Questions</span>
+          <span className="block text-2xl font-black text-white mt-0.5">{questions.length}</span>
+          <button onClick={() => onNavigate('Question Bank & Practice')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Practice →</button>
+        </div>
+        <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl text-center">
+          <span className="block text-[9px] font-mono text-amber-300 font-bold uppercase">Hard Questions</span>
+          <span className="block text-2xl font-black text-white mt-0.5">{questions.filter(q => q.difficulty === 'Hard').length}</span>
+          <button onClick={() => onNavigate('Question Bank & Practice')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Drill Hard →</button>
+        </div>
+      </motion.div>
       {/* 3. Revision Queue & Split Modules */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -1528,7 +1552,7 @@ export default function Dashboard({
                     reducedMotion={reducedMotion}
                   >
                     <Play className="w-3 h-3 fill-current" />
-                    <span>Practice</span>
+                    <span>Practice Questions</span>
                   </MagneticButton>
                 </div>
               </motion.div>
@@ -1959,4 +1983,5 @@ export default function Dashboard({
 
     </motion.div>
   );
-}
+});
+export default Dashboard;

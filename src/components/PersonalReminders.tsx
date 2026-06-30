@@ -23,7 +23,7 @@ interface PersonalRemindersProps {
   onUpdateSettings: (settings: PersonalReminderSettings) => Promise<void>;
 }
 
-export default function PersonalReminders({
+const PersonalReminders = React.memo(function PersonalReminders({
   reminders,
   logs,
   settings,
@@ -1310,4 +1310,5 @@ export default function PersonalReminders({
 
     </div>
   );
-}
+});
+export default PersonalReminders;

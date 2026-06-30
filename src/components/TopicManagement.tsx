@@ -5,12 +5,13 @@
 
 import React, { useState, useMemo, useRef, useEffect, forwardRef } from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
-import { Topic, Subject } from '../types';
+import { Topic, Subject, Question } from '../types';
 import { useStackedPanelHistory } from '../hooks/useStackedPanelHistory';
 import { useAllTopics } from '../hooks/useAllTopics';
 import { 
   Plus, Edit2, Trash2, Search, Link2, AlertTriangle, Book, HelpCircle, 
-  Check, Save, Eye, ArrowRight, ShieldAlert, Sparkles, BookOpen, Layers
+  Check, Save, Eye, ArrowRight, ShieldAlert, Sparkles, BookOpen, Layers,
+  Calendar, RotateCcw, Flame, Award
 } from 'lucide-react';
 
 interface TopicManagementProps {
@@ -19,11 +20,14 @@ interface TopicManagementProps {
   onUpdateSubject: (s: Subject) => void;
   onDeleteSubject: (id: string) => void;
   topics: Topic[];
+  questions?: Question[];
   onAddTopic: (topic: Omit<Topic, 'id' | 'revisionCount' | 'forgotCount'>) => void;
   onUpdateTopic: (topic: Topic) => void;
   onDeleteTopic: (id: string) => void;
   onMergeTopics: (primaryTopicId: string, duplicateTopicIds: string[]) => void;
+  onRecallResponse: (questionId: string | null, topicId: string, response: 'Remembered' | 'Partially' | 'Forgot') => void;
   onLoadMore?: () => void;
+  onNavigate?: (tab: string) => void;
   userId?: string;
 }
 
@@ -46,25 +50,28 @@ const ItemContainer = forwardRef<HTMLDivElement, any>(({ 'data-index': index, co
 });
 ItemContainer.displayName = 'ItemContainer';
 
-export default function TopicManagement({
+const TopicManagement = React.memo(function TopicManagement({
   subjects,
   onAddSubject,
   onUpdateSubject,
   onDeleteSubject,
   topics,
+  questions = [],
   onAddTopic,
   onUpdateTopic,
   onDeleteTopic,
   onMergeTopics,
+  onRecallResponse,
   onLoadMore,
+  onNavigate,
   userId
 }: TopicManagementProps) {
 
   // Fetch full lightweight topic list for dependency mapping to bypass pagination limit
   const { allTopics } = useAllTopics(userId);
   
-  // Tabs: 'subjects' | 'all' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'
-  const [activeSubTab, setActiveSubTab] = useState<'subjects' | 'all' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'>('all');
+  // Tabs: 'subjects' | 'all' | 'scheduler' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'
+  const [activeSubTab, setActiveSubTab] = useState<'subjects' | 'all' | 'scheduler' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'>('all');
   
   // removed unused infinite scroll observer reference
   
@@ -99,6 +106,14 @@ export default function TopicManagement({
   // Merge Topics State
   const [mergePrimaryId, setMergePrimaryId] = useState<string>('');
   const [mergeDuplicateIds, setMergeDuplicateIds] = useState<string[]>([]);
+  
+  // Active spaced study session states
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionIndex, setSessionIndex] = useState(0);
+  const [sessionShowNotes, setSessionShowNotes] = useState(false);
+  const [sessionFinished, setSessionFinished] = useState(false);
+  const [sessionTopics, setSessionTopics] = useState<Topic[]>([]);
+  const [sessionResponseTracker, setSessionResponseTracker] = useState<{name: string, status: string}[]>([]);
   
   // Smart auto-suggestion effect
   React.useEffect(() => {
@@ -323,6 +338,45 @@ export default function TopicManagement({
     }
   ];
 
+  // Spaced Repetition Timeline Bins Calculation
+  const schedulerBins = useMemo(() => {
+    const today: Topic[] = [];
+    const tomorrow: Topic[] = [];
+    const upcoming: Topic[] = [];
+    const longTerm: Topic[] = [];
+    const unscheduled: Topic[] = [];
+
+    const now = new Date();
+    // Normalize today date bounds to ignore time
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+    const startOfInTwoDays = new Date(startOfToday.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const startOfInEightDays = new Date(startOfToday.getTime() + 8 * 24 * 60 * 60 * 1000);
+
+    topics.forEach(t => {
+      if (!t.nextRevisionDate) {
+        if (t.status !== 'Not Started') {
+          today.push(t);
+        } else {
+          unscheduled.push(t);
+        }
+      } else {
+        const revDate = new Date(t.nextRevisionDate);
+        if (revDate < startOfTomorrow) {
+          today.push(t);
+        } else if (revDate >= startOfTomorrow && revDate < startOfInTwoDays) {
+          tomorrow.push(t);
+        } else if (revDate >= startOfInTwoDays && revDate < startOfInEightDays) {
+          upcoming.push(t);
+        } else {
+          longTerm.push(t);
+        }
+      }
+    });
+
+    return { today, tomorrow, upcoming, longTerm, unscheduled };
+  }, [topics]);
+
   return (
     <div className="space-y-6">
       
@@ -342,9 +396,15 @@ export default function TopicManagement({
           </button>
           <button 
             onClick={() => { setActiveSubTab('all'); closeEditor(); }}
-            className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'all' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'all' ? 'bg-indigo-650 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
             All Topics
+          </button>
+          <button 
+            onClick={() => { setActiveSubTab('scheduler'); closeEditor(); }}
+            className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeSubTab === 'scheduler' ? 'bg-indigo-650 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
+          >
+            Study Scheduler
           </button>
           <button 
             onClick={() => { setActiveSubTab('dependencies'); closeEditor(); }}
@@ -726,6 +786,20 @@ export default function TopicManagement({
                         <span>Forgot count: <strong className={`${topic.forgotCount > 0 ? 'text-red-400' : 'text-slate-200'} font-mono`}>{topic.forgotCount}</strong></span>
                       </div>
 
+                      {/* Question count badge */}
+                      {questions.length > 0 && (() => {
+                        const qCount = questions.filter(q => q.topicId === topic.id).length;
+                        return qCount > 0 ? (
+                          <button
+                            onClick={() => onNavigate?.('Question Bank & Practice')}
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-lg bg-indigo-500/10 border border-indigo-500/15 hover:bg-indigo-500/20 hover:border-indigo-500/30 text-[10px] font-mono font-bold text-indigo-305 transition cursor-pointer"
+                          >
+                            <span>📖 {qCount} question{qCount !== 1 ? 's' : ''} linked</span>
+                            <span className="text-indigo-400 text-[9px]">Drill →</span>
+                          </button>
+                        ) : null;
+                      })()}
+
                       <div className="flex items-center justify-between gap-1 border-t border-white/5 pt-3">
                         <span className={`text-[10px] font-sans px-2.5 py-0.5 rounded-full font-bold ${
                           topic.status === 'Mastered' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/10' :
@@ -843,6 +917,327 @@ export default function TopicManagement({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SUB-TAB: STUDY SCHEDULER TIMELINE */}
+      {activeSubTab === 'scheduler' && (
+        <div className="glass-card p-5 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
+            <div className="space-y-1">
+              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                <Calendar className="text-indigo-400 w-5 h-5" />
+                <span>Spaced Repetition Scheduler</span>
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                Review your study targets according to an adaptive SM-2 algorithm. Complete due topics to optimize your memory retention.
+              </p>
+            </div>
+          </div>
+
+          {!sessionActive ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Timeline Overview & Session Launcher */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* Timeline status header cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                  <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-xl">
+                    <span className="block text-xs font-mono text-rose-350 font-bold uppercase">Due Today</span>
+                    <span className="block text-2xl font-black text-white mt-1">{schedulerBins.today.length}</span>
+                  </div>
+                  <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-xl">
+                    <span className="block text-xs font-mono text-amber-300 font-bold uppercase">Tomorrow</span>
+                    <span className="block text-2xl font-black text-white mt-1">{schedulerBins.tomorrow.length}</span>
+                  </div>
+                  <div className="bg-indigo-500/5 border border-indigo-500/10 p-4 rounded-xl">
+                    <span className="block text-xs font-mono text-indigo-300 font-bold uppercase">Next 7 Days</span>
+                    <span className="block text-2xl font-black text-white mt-1">{schedulerBins.upcoming.length}</span>
+                  </div>
+                  <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl">
+                    <span className="block text-xs font-mono text-emerald-300 font-bold uppercase">Long-Term</span>
+                    <span className="block text-2xl font-black text-white mt-1">{schedulerBins.longTerm.length}</span>
+                  </div>
+                </div>
+
+                {/* Session launcher CTA */}
+                <div className="glass-card p-6 border border-indigo-500/20 bg-indigo-950/10 text-center space-y-4">
+                  <div className="max-w-md mx-auto space-y-2">
+                    <h4 className="font-extrabold text-white text-base">Adaptive Recall Session</h4>
+                    <p className="text-xs text-slate-400 leading-normal">
+                      Initiating a session will walk you through concept cards scheduled for review today. Score your retention accuracy to automatically expand spacing intervals.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (schedulerBins.today.length === 0) return;
+                      const shuffled = [...schedulerBins.today].sort(() => Math.random() - 0.5);
+                      setSessionTopics(shuffled);
+                      setSessionIndex(0);
+                      setSessionShowNotes(false);
+                      setSessionResponseTracker([]);
+                      setSessionFinished(false);
+                      setSessionActive(true);
+                    }}
+                    disabled={schedulerBins.today.length === 0}
+                    className="px-6 py-3 bg-indigo-650 hover:bg-indigo-600 disabled:opacity-50 disabled:hover:bg-indigo-650 text-white rounded-xl font-bold text-xs shadow-lg transition flex items-center justify-center gap-2 mx-auto cursor-pointer"
+                  >
+                    <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
+                    <span>Start {schedulerBins.today.length} Due Reviews</span>
+                  </button>
+                </div>
+
+                {/* Detailed timeline schedule grid */}
+                <div className="space-y-4">
+                  <h4 className="font-bold text-white text-sm">Visual Timeline Schedule</h4>
+                  
+                  <div className="space-y-3 font-sans">
+                    {[
+                      { name: 'Due Today / Overdue', list: schedulerBins.today, color: 'border-red-500/25 bg-red-500/5 text-rose-305' },
+                      { name: 'Due Tomorrow', list: schedulerBins.tomorrow, color: 'border-amber-500/25 bg-amber-500/5 text-amber-305' },
+                      { name: 'Upcoming Bins (Next 7 Days)', list: schedulerBins.upcoming, color: 'border-indigo-500/25 bg-indigo-500/5 text-indigo-305' },
+                      { name: 'Long-Term Bins (> 7 Days)', list: schedulerBins.longTerm, color: 'border-emerald-500/25 bg-emerald-500/5 text-emerald-305' }
+                    ].map(bin => (
+                      <div key={bin.name} className={`p-4 rounded-xl border ${bin.color} space-y-3`}>
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <span className="text-xs font-bold font-mono uppercase">{bin.name} ({bin.list.length})</span>
+                        </div>
+                        {bin.list.length === 0 ? (
+                          <span className="text-[10px] text-slate-505 block italic">No topics scheduled in this bin.</span>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {bin.list.map(t => {
+                              const subj = subjects.find(s => s.id === t.subjectId);
+                              return (
+                                <div key={t.id} className="p-3 bg-white/5 border border-white/5 rounded-lg text-xs flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className="font-extrabold text-white truncate max-w-[150px]">{t.name}</span>
+                                      <span className="text-[9px] bg-white/5 px-2 py-0.2 rounded font-mono text-slate-400 truncate max-w-[80px]">{t.category}</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-3">{t.description}</p>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 border-t border-white/5 pt-2">
+                                    <span className="flex items-center gap-1">
+                                      <span className={`w-2 h-2 rounded-full ${subj ? subj.color : 'bg-slate-405'}`} />
+                                      <span>EF: {(t.easeFactor || 2.5).toFixed(1)}</span>
+                                    </span>
+                                    <span>Interval: {t.intervalDays || 1}d</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Sidebar stats & explanation cards */}
+              <div className="space-y-6">
+                <div className="glass-card p-5 space-y-4">
+                  <h4 className="font-bold text-white text-sm border-b border-white/5 pb-2">SM-2 Spacing Stats</h4>
+                  <div className="space-y-3 text-xs font-sans">
+                    <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5">
+                      <span className="text-slate-400">Total In-Progress Topics:</span>
+                      <span className="font-bold text-white font-mono">{topics.filter(t => t.status !== 'Not Started').length}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5">
+                      <span className="text-slate-400">Average Ease Factor:</span>
+                      <span className="font-bold text-indigo-305 font-mono">
+                        {(topics.filter(t => t.status !== 'Not Started').reduce((s, t) => s + (t.easeFactor || 2.5), 0) / Math.max(1, topics.filter(t => t.status !== 'Not Started').length)).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5">
+                      <span className="text-slate-400">Recall Completion Rate:</span>
+                      <span className="font-bold text-emerald-350 font-mono">
+                        {Math.round(
+                          (topics.filter(t => t.revisionCount > 0).length / Math.max(1, topics.length)) * 100
+                        )}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-indigo-950/20 border border-indigo-550/10 p-5 rounded-2xl text-xs space-y-3 leading-normal">
+                  <span className="font-bold text-white flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-indigo-400" />
+                    <span>SM-2 Memory Retention Guide</span>
+                  </span>
+                  <p className="text-slate-400">
+                    The SuperMemo-2 (SM-2) algorithm optimizes review times based on standard cognitive retention decay:
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1 text-slate-400">
+                    <li>Perfect recall increases ease factors, scaling scheduling intervals exponentially.</li>
+                    <li>Slight hesitation triggers partial adjustments to reinforce weaker neural pathways.</li>
+                    <li>Forgetting a concept drops its revision interval back to 1 day and shrinks its Ease Factor.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : sessionFinished ? (
+            <div className="max-w-xl mx-auto space-y-6 text-center py-6 text-slate-200 animate-fade-in">
+              <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                <Check className="w-8 h-8" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-white leading-tight">Recall Session Concluded!</h3>
+                <p className="text-xs text-slate-455 max-w-sm mx-auto leading-normal">
+                  Superb. Your answers have been successfully compiled. Spaced repetition dates have updated automatically in Cloud Firestore.
+                </p>
+              </div>
+
+              <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden text-left text-xs bg-white/2 max-h-60 overflow-y-auto custom-scrollbar">
+                {sessionResponseTracker.map((tr, idx) => (
+                  <div key={idx} className="p-3 flex items-center justify-between gap-4">
+                    <span className="font-semibold text-slate-200">{tr.name}</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono leading-none ${
+                      tr.status === 'Remembered' ? 'bg-emerald-500/25 text-emerald-305' :
+                      tr.status === 'Partially' ? 'bg-amber-500/25 text-amber-305' : 'bg-rose-500/25 text-rose-305'
+                    }`}>
+                      {tr.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => { setSessionActive(false); setSessionFinished(false); }}
+                className="w-full sm:w-auto px-6 py-2.5 bg-indigo-650 hover:bg-indigo-600 border border-indigo-500/30 text-white rounded-xl font-bold text-xs cursor-pointer shadow transition"
+              >
+                Return to Timeline
+              </button>
+            </div>
+          ) : (
+            <div className="max-w-xl mx-auto space-y-6 text-slate-200 animate-fade-in text-left">
+              
+              <div className="flex items-center justify-between text-xs font-mono text-slate-455 pb-2 border-b border-white/5">
+                <span>Target Node: <strong>{sessionIndex + 1}</strong> of <strong>{sessionTopics.length}</strong></span>
+                <span className="bg-indigo-500/15 border border-indigo-500/10 px-2 py-0.5 rounded text-indigo-305 font-bold">Active Review Deck</span>
+              </div>
+
+              {sessionTopics[sessionIndex] && (
+                <div className="p-6 bg-[#00000020] border border-white/5 rounded-2xl space-y-4 shadow-xs relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500" />
+                  
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold text-indigo-400 font-mono block uppercase">
+                        {sessionTopics[sessionIndex].category}
+                      </span>
+                      <span className="text-slate-500 text-[10px]">&bull;</span>
+                      <span className="text-[10px] text-slate-405 font-mono">
+                        EF: {(sessionTopics[sessionIndex].easeFactor || 2.5).toFixed(1)}
+                      </span>
+                    </div>
+
+                    <h4 className="text-lg font-extrabold text-white mt-1 leading-snug">
+                      {sessionTopics[sessionIndex].name}
+                    </h4>
+                    <p className="text-xs text-slate-350 leading-relaxed mt-2 font-sans">
+                      {sessionTopics[sessionIndex].description || <span className="italic text-slate-550">No description available.</span>}
+                    </p>
+                  </div>
+
+                  {sessionShowNotes ? (
+                    <div className="mt-4 pt-4 border-t border-dashed border-white/10 space-y-3 animate-fade-in">
+                      <span className="block font-sans font-extrabold text-indigo-400 uppercase text-[9px] tracking-wider">Concept Notes & Snippets:</span>
+                      <div className="p-3 bg-black/35 rounded-xl border border-white/5 text-xs font-mono text-slate-300 leading-relaxed max-h-56 overflow-y-auto whitespace-pre-wrap select-text custom-scrollbar">
+                        {sessionTopics[sessionIndex].notes || "No conceptual notes written for this card yet."}
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setSessionShowNotes(true)}
+                      className="w-full py-2.5 bg-white/5 border border-white/10 hover:border-indigo-400 text-indigo-305 font-bold rounded-lg text-xs transition cursor-pointer"
+                    >
+                      Show Study Notes & Self-Grading
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {sessionShowNotes && sessionTopics[sessionIndex] && (
+                <div className="space-y-4">
+                  <div className="text-center font-bold text-xs text-slate-300 font-sans">
+                    Grade your conceptual recall accuracy:
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 font-sans">
+                    <button
+                      onClick={() => {
+                        const activeT = sessionTopics[sessionIndex];
+                        onRecallResponse(null, activeT.id, 'Forgot');
+                        setSessionResponseTracker([...sessionResponseTracker, { name: activeT.name, status: 'Forgot' }]);
+                        if (sessionIndex + 1 < sessionTopics.length) {
+                          setSessionIndex(sessionIndex + 1);
+                          setSessionShowNotes(false);
+                        } else {
+                          setSessionFinished(true);
+                        }
+                      }}
+                      className="p-3 bg-red-500/15 hover:bg-rose-500/25 border border-red-500/20 text-rose-300 rounded-xl flex flex-col items-center justify-center transition cursor-pointer shadow-xs group"
+                    >
+                      <AlertTriangle className="w-5 h-5 text-red-400 mb-1 group-hover:scale-110 transition-transform" />
+                      <span className="font-bold text-xs">Forgot</span>
+                      <span className="text-[9px] opacity-75 font-mono text-center mt-0.5">Reset EF / 1d spacing</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const activeT = sessionTopics[sessionIndex];
+                        onRecallResponse(null, activeT.id, 'Partially');
+                        setSessionResponseTracker([...sessionResponseTracker, { name: activeT.name, status: 'Partially' }]);
+                        if (sessionIndex + 1 < sessionTopics.length) {
+                          setSessionIndex(sessionIndex + 1);
+                          setSessionShowNotes(false);
+                        } else {
+                          setSessionFinished(true);
+                        }
+                      }}
+                      className="p-3 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/20 text-amber-305 rounded-xl flex flex-col items-center justify-center transition cursor-pointer shadow-xs group"
+                    >
+                      <RotateCcw className="w-5 h-5 text-amber-400 mb-1 group-hover:scale-110 transition-transform" />
+                      <span className="font-bold text-xs">Partially</span>
+                      <span className="text-[9px] opacity-75 font-mono text-center mt-0.5">Adjust EF / Short buffer</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const activeT = sessionTopics[sessionIndex];
+                        onRecallResponse(null, activeT.id, 'Remembered');
+                        setSessionResponseTracker([...sessionResponseTracker, { name: activeT.name, status: 'Remembered' }]);
+                        if (sessionIndex + 1 < sessionTopics.length) {
+                          setSessionIndex(sessionIndex + 1);
+                          setSessionShowNotes(false);
+                        } else {
+                          setSessionFinished(true);
+                        }
+                      }}
+                      className="p-3 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-580 text-emerald-305 rounded-xl flex flex-col items-center justify-center transition cursor-pointer shadow-xs group"
+                    >
+                      <Check className="w-5 h-5 text-emerald-500 mb-1 group-hover:scale-110 transition-transform" />
+                      <span className="font-bold text-xs">Remembered</span>
+                      <span className="text-[9px] opacity-75 font-mono text-center mt-0.5">Boost EF / Scale spacing</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => { setSessionActive(false); }}
+                className="block text-center text-xs text-slate-450 hover:text-white hover:underline mx-auto cursor-pointer"
+              >
+                Abort Study Session
+              </button>
+
+            </div>
+          )}
         </div>
       )}
 
@@ -1205,4 +1600,5 @@ export default function TopicManagement({
 
     </div>
   );
-}
+});
+export default TopicManagement;

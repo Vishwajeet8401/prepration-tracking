@@ -3,8 +3,11 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
-  GoogleAuthProvider 
+  GoogleAuthProvider,
+  signInWithCredential
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { LogIn, Sparkles, AlertCircle, Loader, Mail, Lock, User } from 'lucide-react';
@@ -76,9 +79,18 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
     setLoading(true);
     setError(null);
     try {
-      const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+      let user;
+      if (Capacitor.isNativePlatform()) {
+        await GoogleAuth.initialize();
+        const googleUser = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        const userCredential = await signInWithCredential(auth, credential);
+        user = userCredential.user;
+      } else {
+        const provider = new GoogleAuthProvider();
+        const userCredential = await signInWithPopup(auth, provider);
+        user = userCredential.user;
+      }
 
       // Save user profile in Firestore
       await setDoc(doc(db, 'users', user.uid), {
@@ -91,7 +103,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
       
       onSuccess?.();
     } catch (err: any) {
-      console.error(err);
+      console.error("Google Auth Error: ", err);
       setError(err.message || 'Google Login was closed or failed.');
     } finally {
       setLoading(false);

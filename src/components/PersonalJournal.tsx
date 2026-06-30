@@ -17,7 +17,7 @@ interface PersonalJournalProps {
   onUploadAttachment: (file: File) => Promise<string>;
 }
 
-export default function PersonalJournal({
+const PersonalJournal = React.memo(function PersonalJournal({
   journals,
   topics,
   interviews,
@@ -801,4 +801,5 @@ export default function PersonalJournal({
 
     </div>
   );
-}
+});
+export default PersonalJournal;

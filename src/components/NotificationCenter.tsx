@@ -31,7 +31,7 @@ interface NotificationCenterProps {
   personalReminders?: PersonalReminder[];
 }
 
-export default function NotificationCenter({
+const NotificationCenter = React.memo(function NotificationCenter({
   notifications,
   onMarkRead,
   onClearAll,
@@ -52,6 +52,41 @@ export default function NotificationCenter({
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'today' | 'upcoming' | 'overdue' | 'completed'>('today');
   const [audioMuted, setAudioMuted] = useState(false);
+  const [terminalLogs, setTerminalLogs] = useState<{ time: string; message: string; color: string }[]>([]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    
+    const now = new Date();
+    const formats = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setTerminalLogs([
+      { time: formats(new Date(now.getTime() - 4000)), message: 'SYSTEM: Initialization vector check [OK]', color: 'text-slate-400' },
+      { time: formats(new Date(now.getTime() - 2000)), message: 'COGNITIVE: Loading spacing memory weights...', color: 'text-indigo-400' },
+      { time: formats(now), message: 'TELEMETRY: Handshake sync with Firebase complete: active', color: 'text-emerald-400' },
+    ]);
+
+    const messages = [
+      { message: 'SCHEDULER: Spacing curves updated for Spaced Repetition queue.', color: 'text-slate-400' },
+      { message: 'MIND: Calculated current retention threshold at 87.5%', color: 'text-indigo-305' },
+      { message: 'MOCK: AI voice recognition ready at local buffer.', color: 'text-slate-400' },
+      { message: 'COMPLIANCE: Personal habit checklist calibrated for daily check-in.', color: 'text-teal-400' },
+      { message: 'FIREWALL: DND rules compiled successfully.', color: 'text-slate-400' },
+      { message: 'BACKUP: Cloud backup checksum generated.', color: 'text-slate-405' },
+      { message: 'TELEMETRY: Snapshot listeners verified at path /users/active.', color: 'text-emerald-400' },
+    ];
+
+    const interval = setInterval(() => {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const nextLog = messages[Math.floor(Math.random() * messages.length)];
+      setTerminalLogs(prev => {
+        const next = [...prev, { time: timeStr, ...nextLog }];
+        if (next.length > 5) next.shift();
+        return next;
+      });
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [isExpanded]);
 
   // ----------------------------------------------------
   // REAL-TIME COUNTDOWN HUD TELEMETRY ENGINE
@@ -619,6 +654,17 @@ export default function NotificationCenter({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Futuristic Interactive Frequency Bar Waveform */}
+                  {!audioMuted && (
+                    <div className="flex items-end gap-0.5 h-3.5 w-6 pb-0.5 mr-1 select-none">
+                      <span className="w-[1.5px] bg-indigo-400 animate-pulse rounded-t-sm" style={{ height: '40%', animationDuration: '0.6s' }} />
+                      <span className="w-[1.5px] bg-indigo-300 animate-pulse rounded-t-sm" style={{ height: '70%', animationDuration: '0.8s' }} />
+                      <span className="w-[1.5px] bg-teal-400 animate-pulse rounded-t-sm" style={{ height: '100%', animationDuration: '0.5s' }} />
+                      <span className="w-[1.5px] bg-indigo-500 animate-pulse rounded-t-sm" style={{ height: '50%', animationDuration: '0.7s' }} />
+                      <span className="w-[1.5px] bg-emerald-400 animate-pulse rounded-t-sm" style={{ height: '80%', animationDuration: '0.9s' }} />
+                    </div>
+                  )}
+
                   <button 
                     onClick={() => setAudioMuted(!audioMuted)}
                     className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition cursor-pointer"
@@ -781,6 +827,26 @@ export default function NotificationCenter({
 
                 </div>
 
+                {/* Futuristic Live Telemetry System Logs Console */}
+                <div className="bg-[#0b0f19]/80 border border-indigo-500/15 p-4 rounded-2xl text-left font-mono text-[10px] text-indigo-300 space-y-2 relative overflow-hidden shadow-[inset_0_0_15px_rgba(99,102,241,0.1)]">
+                  <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(99,102,241,0)_50%,rgba(99,102,241,0.15)_50%)] bg-[length:100%_4px]" />
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-ping" />
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-200">Diagnostics Console Feed</span>
+                    </div>
+                    <span className="text-[8px] font-mono text-slate-500">Channel: Telemetry-99A-SECURE</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-24 overflow-y-auto scrollbar-none font-mono">
+                    {terminalLogs.map((log, index) => (
+                      <div key={index} className="flex gap-2 items-start text-[10px] font-mono select-all">
+                        <span className="text-slate-600 shrink-0 font-semibold">[{log.time}]</span>
+                        <span className={`${log.color} leading-relaxed break-all`}>{log.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* B. Personal Time Settings Configuration Tab */}
                 <div className="bg-slate-950/40 border border-white/5 rounded-2xl p-5 text-left space-y-4">
                   <div className="flex items-center gap-1.5 border-b border-white/5 pb-2.5">
@@ -910,14 +976,23 @@ export default function NotificationCenter({
                         return (
                           <div 
                             key={notif.id}
-                            className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300 relative overflow-hidden ${
+                            className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300 relative overflow-hidden group ${
                               notif.status === 'completed' 
                                 ? 'bg-emerald-500/3 border-emerald-500/10 opacity-70' 
                                 : isHigh 
                                 ? 'bg-rose-500/4 border-rose-500/15 shadow-[0_0_15px_rgba(244,63,94,0.06)]' 
-                                : 'bg-[#111827]/40 border-white/5 hover:bg-white/5'
+                                : 'bg-[#111827]/40 border-white/5 hover:border-indigo-500/35 hover:bg-white/5'
                             }`}
                           >
+                            {/* HUD corner targeting reticles visible on hover */}
+                            {notif.status !== 'completed' && (
+                              <>
+                                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-indigo-400/0 group-hover:border-indigo-400/80 transition-all duration-200" />
+                                <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-indigo-400/0 group-hover:border-indigo-400/80 transition-all duration-200" />
+                                <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-indigo-400/0 group-hover:border-indigo-400/80 transition-all duration-200" />
+                                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-indigo-400/0 group-hover:border-indigo-400/80 transition-all duration-200" />
+                              </>
+                            )}
                             
                             {/* Accent indicator ribbon */}
                             <div className={`absolute left-0 inset-y-0 w-[2px] ${
@@ -1038,4 +1113,5 @@ export default function NotificationCenter({
 
     </div>
   );
-}
+});
+export default NotificationCenter;

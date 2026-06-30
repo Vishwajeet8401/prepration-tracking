@@ -9,7 +9,8 @@ import { Question, Topic, VoiceRecording } from '../types';
 import { createLocalObjectUrl, parseLocalFileRef } from '../localFileStore';
 import { 
   Layers, HelpCircle, Check, Play, Eye, RotateCcw, AlertTriangle, 
-  Trash2, Plus, Edit2, Search, Mic, Square, Volume2, Save, Sparkles, HelpCircle as HelpIcon, Calendar, ArrowRight
+  Trash2, Plus, Edit2, Search, Mic, Square, Volume2, Save, Sparkles,
+  HelpCircle as HelpIcon, Calendar, ArrowRight, Tag
 } from 'lucide-react';
 
 interface QuestionBankProps {
@@ -23,6 +24,7 @@ interface QuestionBankProps {
   onAddVoiceRecording: (recording: Omit<VoiceRecording, 'id'>) => void;
   onDeleteVoiceRecording: (id: string) => void;
   onLoadMore?: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
 const GridContainer = forwardRef<HTMLDivElement, any>((props, ref) => (
@@ -30,7 +32,7 @@ const GridContainer = forwardRef<HTMLDivElement, any>((props, ref) => (
 ));
 GridContainer.displayName = 'GridContainer';
 
-export default function QuestionBank({
+const QuestionBank = React.memo(function QuestionBank({
   questions,
   topics,
   voiceRecordings,
@@ -40,7 +42,8 @@ export default function QuestionBank({
   onRecallResponse,
   onAddVoiceRecording,
   onDeleteVoiceRecording,
-  onLoadMore
+  onLoadMore,
+  onNavigate
 }: QuestionBankProps) {
 
   // Nested navigation: 'bank' | 'practice' | 'voice'
@@ -70,7 +73,12 @@ export default function QuestionBank({
   const [sessionCompleted, setSessionCompleted] = useState(false);
   
   // Track previous responses in current practice run
-  const [practiceTracker, setPracticeTracker] = useState<{question: string, status: string}[]>([]);
+  const [practiceTracker, setPracticeTracker] = useState<{question: string, questionId: string, status: string, difficulty: string}[]>([]);
+
+  // Tag filter for question bank
+  const [tagFilter, setTagFilter] = useState('All');
+  // Voice recordings library topic filter
+  const [voiceTopicFilter, setVoiceTopicFilter] = useState('All');
 
   // Voice Recording parameters using standard Web MediaRecorder API
   const [isRecording, setIsRecording] = useState(false);
@@ -90,9 +98,26 @@ export default function QuestionBank({
                           q.answer.toLowerCase().includes(searchQuery.toLowerCase());
       const matchDifficulty = difficultyFilter === 'All' || q.difficulty === difficultyFilter;
       const matchTopic = topicFilter === 'All' || q.topicId === topicFilter;
-      return matchSearch && matchDifficulty && matchTopic;
+      const matchTag = tagFilter === 'All' || q.tags.includes(tagFilter);
+      return matchSearch && matchDifficulty && matchTopic && matchTag;
     });
-  }, [questions, searchQuery, difficultyFilter, topicFilter]);
+  }, [questions, searchQuery, difficultyFilter, topicFilter, tagFilter]);
+
+  // All unique tags across questions (for filter chips)
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    questions.forEach(q => q.tags.forEach(t => tagSet.add(t)));
+    return Array.from(tagSet).sort();
+  }, [questions]);
+
+  // Question bank stats summary
+  const bankStats = useMemo(() => {
+    const total = questions.length;
+    const hard = questions.filter(q => q.difficulty === 'Hard').length;
+    const unrevised = questions.filter(q => !q.lastRevisedDate).length;
+    const avgAsked = total > 0 ? Math.round(questions.reduce((s, q) => s + q.askedCount, 0) / total) : 0;
+    return { total, hard, unrevised, avgAsked };
+  }, [questions]);
 
   useEffect(() => {
     let isMounted = true;
@@ -212,8 +237,8 @@ export default function QuestionBank({
     // Call state modifier (updates intervals, sets topic level forgot count logs)
     onRecallResponse(activeQ.id, activeQ.topicId, status);
 
-    // Track response locally for final statistics summaries
-    setPracticeTracker([...practiceTracker, { question: activeQ.question, status }]);
+    // Track response locally — include difficulty + id for retry-missed
+    setPracticeTracker([...practiceTracker, { question: activeQ.question, questionId: activeQ.id, status, difficulty: activeQ.difficulty }]);
 
     // Progress slide
     if (currentPracticeIndex < practiceQuestions.length - 1) {
@@ -222,6 +247,19 @@ export default function QuestionBank({
     } else {
       setSessionCompleted(true);
     }
+  };
+
+  // Retry only questions marked as 'Forgot'
+  const retryMissedQuestions = () => {
+    const missedIds = practiceTracker.filter(t => t.status === 'Forgot').map(t => t.questionId);
+    const missed = practiceQuestions.filter(q => missedIds.includes(q.id));
+    if (missed.length === 0) return;
+    setPracticeQuestions(missed.sort(() => Math.random() - 0.5));
+    setCurrentPracticeIndex(0);
+    setShowAnswer(false);
+    setPracticeTracker([]);
+    setSessionCompleted(false);
+    setPracticeActive(true);
   };
 
   // Start voice recording explanations
@@ -304,24 +342,26 @@ export default function QuestionBank({
           <h2 className="text-xl font-bold text-white tracking-tight">Active Recall & Practices</h2>
         </div>
 
-        <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-lg text-xs font-semibold border border-white/5">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white/5 rounded-lg text-xs font-semibold border border-white/5">
           <button 
             onClick={() => { setActiveTab('bank'); setIsEditing(false); }}
-            className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeTab === 'bank' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'bank' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
             Question Bank
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono font-black leading-none ${activeTab === 'bank' ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-400'}`}>{questions.length}</span>
           </button>
           <button 
             onClick={() => { setActiveTab('practice'); }}
             className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeTab === 'practice' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
-            Spaced Recall Session
+            Spaced Recall
           </button>
           <button 
             onClick={() => { setActiveTab('voice'); }}
-            className={`px-3 py-1.5 rounded-md transition cursor-pointer ${activeTab === 'voice' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-md transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'voice' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-300 hover:text-white'}`}
           >
-            Voice Revision Rec
+            Voice Recordings
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono font-black leading-none ${activeTab === 'voice' ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-400'}`}>{voiceRecordings.length}</span>
           </button>
         </div>
       </div>
@@ -431,6 +471,56 @@ export default function QuestionBank({
             </form>
           )}
 
+          {/* Stats Summary Bar */}
+          {!isEditing && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="bg-indigo-500/5 border border-indigo-500/10 p-3 rounded-xl">
+                <span className="block text-[10px] font-mono text-indigo-300 font-bold uppercase">Total Q&amp;A</span>
+                <span className="block text-xl font-black text-white mt-0.5">{bankStats.total}</span>
+              </div>
+              <div className="bg-rose-500/5 border border-rose-500/10 p-3 rounded-xl">
+                <span className="block text-[10px] font-mono text-rose-300 font-bold uppercase">Hard Grade</span>
+                <span className="block text-xl font-black text-white mt-0.5">{bankStats.hard}</span>
+              </div>
+              <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl">
+                <span className="block text-[10px] font-mono text-amber-300 font-bold uppercase">Unrevised</span>
+                <span className="block text-xl font-black text-white mt-0.5">{bankStats.unrevised}</span>
+              </div>
+              <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl">
+                <span className="block text-[10px] font-mono text-emerald-300 font-bold uppercase">Avg Asked</span>
+                <span className="block text-xl font-black text-white mt-0.5">{bankStats.avgAsked}×</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tag Filter Chips */}
+          {!isEditing && allTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-[10px] text-slate-400 font-mono font-bold flex items-center gap-1 shrink-0">
+                <Tag className="w-3 h-3" /> Tags:
+              </span>
+              <button
+                onClick={() => setTagFilter('All')}
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono transition cursor-pointer border ${
+                  tagFilter === 'All' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/20' : 'bg-white/5 text-slate-400 border-white/10 hover:border-indigo-500/20 hover:text-indigo-300'
+                }`}
+              >
+                All
+              </button>
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setTagFilter(tag)}
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono transition cursor-pointer border ${
+                    tagFilter === tag ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/20' : 'bg-white/5 text-slate-400 border-white/10 hover:border-indigo-500/20 hover:text-indigo-300'
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Question Filter row */}
           {!isEditing && (
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -493,7 +583,10 @@ export default function QuestionBank({
               itemContent={(index, q) => {
                 const topicObj = topics.find(t => t.id === q.topicId);
                 return (
-                  <div key={q.id} className="glass-card p-5 flex flex-col justify-between relative overflow-hidden h-full">
+                  <div key={q.id} className={`glass-card p-5 flex flex-col justify-between relative overflow-hidden h-full border-l-2 ${
+                    q.difficulty === 'Hard' ? 'border-l-rose-500/60' :
+                    q.difficulty === 'Medium' ? 'border-l-amber-500/60' : 'border-l-emerald-500/60'
+                  }`}>
                     <div>
                       {/* Top flags */}
                       <div className="flex items-center justify-between gap-1 mb-2.5">
@@ -551,13 +644,46 @@ export default function QuestionBank({
                       </details>
                     </div>
 
+                    {/* Tag chips on card */}
+                    {q.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-3">
+                        {q.tags.map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => setTagFilter(tag)}
+                            className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-305 border border-indigo-500/10 rounded text-[9px] font-mono font-bold cursor-pointer hover:bg-indigo-500/20 transition"
+                          >
+                            #{tag}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Footer Actions */}
-                    <div className="flex items-center justify-between border-t border-white/5 pt-3.5 mt-4">
-                      {topicObj && (
-                        <span className="text-[10px] font-bold text-slate-450 font-mono">
-                          Topic: <span className="text-indigo-305 font-sans font-semibold">{topicObj.name}</span>
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between border-t border-white/5 pt-3.5 mt-3">
+                      {topicObj ? (
+                        <div className="space-y-1 min-w-0 flex-1 mr-2">
+                          <span className="text-[10px] font-bold text-slate-450 font-mono block">
+                            Topic: <button onClick={() => onNavigate?.('Topic Map & Spacing')} className="text-indigo-305 font-sans font-semibold hover:underline cursor-pointer">{topicObj.name}</button>
+                          </span>
+                          {/* Topic confidence mini-bar */}
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden max-w-20">
+                              <div
+                                className={`h-full rounded-full ${
+                                  topicObj.confidenceScore > 75 ? 'bg-emerald-400' :
+                                  topicObj.confidenceScore > 50 ? 'bg-amber-400' : 'bg-rose-400'
+                                }`}
+                                style={{ width: `${topicObj.confidenceScore}%` }}
+                              />
+                            </div>
+                            <span className={`text-[9px] font-mono font-bold ${
+                              topicObj.confidenceScore > 75 ? 'text-emerald-400' :
+                              topicObj.confidenceScore > 50 ? 'text-amber-400' : 'text-rose-400'
+                            }`}>{topicObj.confidenceScore}%</span>
+                          </div>
+                        </div>
+                      ) : <div />}
 
                       <div className="flex items-center gap-1">
                         <button 
@@ -636,21 +762,54 @@ export default function QuestionBank({
             </div>
           ) : sessionCompleted ? (
             /* Complete Phase summary report */
-            <div className="max-w-xl mx-auto space-y-6 text-center py-4 text-slate-200">
-              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/15 text-emerald-350 font-mono border border-emerald-500/10">
-                Round Terminated
-              </span>
+            <div className="max-w-xl mx-auto space-y-5 text-center py-4 text-slate-200">
+              <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                <Check className="w-7 h-7" />
+              </div>
 
-              <h3 className="text-2xl font-black text-white">Recall Review Completed!</h3>
-              <p className="text-xs text-slate-400">
-                You have completed evaluating active technical retrieval cards. Here is how your response scores shaped:
-              </p>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-white">Recall Review Completed!</h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-normal">
+                  {practiceTracker.length} cards evaluated. Your performance breakdown:
+                </p>
+              </div>
 
-              <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden text-left text-xs bg-white/2">
+              {/* Score breakdown bars */}
+              <div className="bg-white/2 border border-white/5 rounded-2xl p-4 space-y-3 text-left">
+                {(['Remembered', 'Partially', 'Forgot'] as const).map(status => {
+                  const count = practiceTracker.filter(t => t.status === status).length;
+                  const pct = practiceTracker.length > 0 ? Math.round((count / practiceTracker.length) * 100) : 0;
+                  const cfg = {
+                    Remembered: { bar: 'bg-emerald-500', text: 'text-emerald-300' },
+                    Partially:  { bar: 'bg-amber-500',  text: 'text-amber-300'  },
+                    Forgot:     { bar: 'bg-rose-500',   text: 'text-rose-300'   }
+                  }[status];
+                  return (
+                    <div key={status} className="space-y-1">
+                      <div className="flex justify-between items-center text-[11px] font-mono">
+                        <span className={`font-bold ${cfg.text}`}>{status}</span>
+                        <span className="text-slate-400">{count} / {practiceTracker.length} ({pct}%)</span>
+                      </div>
+                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div className={`h-full ${cfg.bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Per-question result list */}
+              <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden text-left text-xs bg-white/2 max-h-52 overflow-y-auto">
                 {practiceTracker.map((tr, idx) => (
                   <div key={idx} className="p-3 flex items-center justify-between gap-4">
-                    <span className="font-semibold text-slate-200 line-clamp-1">{tr.question}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono leading-none ${
+                    <div className="flex-1 min-w-0">
+                      <span className="font-semibold text-slate-200 line-clamp-1 block">{tr.question}</span>
+                      <span className={`text-[9px] font-mono ${
+                        tr.difficulty === 'Hard' ? 'text-rose-400' :
+                        tr.difficulty === 'Medium' ? 'text-amber-400' : 'text-emerald-400'
+                      }`}>{tr.difficulty}</span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono leading-none shrink-0 ${
                       tr.status === 'Remembered' ? 'bg-emerald-500/25 text-emerald-305' :
                       tr.status === 'Partially' ? 'bg-amber-500/25 text-amber-305' : 'bg-rose-500/25 text-rose-305'
                     }`}>
@@ -660,40 +819,81 @@ export default function QuestionBank({
                 ))}
               </div>
 
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button 
                   onClick={() => setPracticeActive(false)}
-                  className="w-full py-2 bg-white/5 text-slate-305 border border-white/10 hover:bg-white/10 rounded-lg text-xs font-semibold cursor-pointer"
+                  className="py-2.5 bg-white/5 text-slate-305 border border-white/10 hover:bg-white/10 rounded-lg text-xs font-semibold cursor-pointer transition"
                 >
-                  Configure New Session
+                  New Session
+                </button>
+                <button
+                  onClick={retryMissedQuestions}
+                  disabled={practiceTracker.filter(t => t.status === 'Forgot').length === 0}
+                  className="py-2.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/20 text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-xs font-bold cursor-pointer transition"
+                >
+                  Retry Missed ({practiceTracker.filter(t => t.status === 'Forgot').length})
                 </button>
                 <button 
                   onClick={startPracticeSession}
-                  className="w-full py-2 bg-indigo-650 hover:bg-indigo-550 text-white rounded-lg text-xs font-bold cursor-pointer"
+                  className="py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-lg text-xs font-bold cursor-pointer transition"
                 >
-                  Restart Practice
+                  Restart All
                 </button>
               </div>
+
+              {onNavigate && (
+                <button
+                  onClick={() => onNavigate('Topic Map & Spacing')}
+                  className="w-full text-center text-[11px] font-mono text-indigo-400 hover:text-indigo-300 font-bold py-1.5 border border-indigo-500/15 rounded-lg hover:bg-indigo-500/5 transition cursor-pointer"
+                >
+                  → View Topic Map &amp; Spacing Scheduler
+                </button>
+              )}
             </div>
           ) : (
             /* Interactive Card Phase slide */
             <div className="max-w-xl mx-auto space-y-6 text-slate-200">
               
-              {/* Header metrics */}
-              <div className="flex items-center justify-between text-xs font-mono text-slate-405 pb-2 border-b border-white/10">
-                <span>Card: <strong>{currentPracticeIndex + 1}</strong> of <strong>{practiceQuestions.length}</strong></span>
-                <span className="bg-indigo-500/15 px-2 py-0.5 rounded text-indigo-305 font-bold border border-indigo-500/10">Active Recall</span>
+              {/* Progress bar */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-mono text-slate-400">
+                  <span>Card <strong className="text-white">{currentPracticeIndex + 1}</strong> of <strong className="text-white">{practiceQuestions.length}</strong></span>
+                  <span className="bg-indigo-500/15 px-2 py-0.5 rounded text-indigo-305 font-bold border border-indigo-500/10">Active Recall</span>
+                </div>
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300"
+                    style={{ width: `${((currentPracticeIndex + 1) / practiceQuestions.length) * 100}%` }}
+                  />
+                </div>
               </div>
 
               {/* Recall Card Container */}
-              <div className="p-6 bg-[#00000020] border border-white/5 rounded-2xl space-y-4 shadow-xs min-h-60 flex flex-col justify-between">
+              <div className="p-6 bg-[#00000020] border border-white/5 rounded-2xl space-y-4 shadow-xs min-h-60 flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-60" />
                 <div>
-                  <span className="text-[10px] bg-indigo-500/15 text-indigo-305 px-2 py-0.5 rounded font-bold font-mono">
-                    Topic: {topics.find(t => t.id === practiceQuestions[currentPracticeIndex]?.topicId)?.name || 'General'}
-                  </span>
-                  <h4 className="text-lg font-extrabold text-white mt-3 leading-snug">
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <span className="text-[10px] bg-indigo-500/15 text-indigo-305 px-2 py-0.5 rounded font-bold font-mono">
+                      {topics.find(t => t.id === practiceQuestions[currentPracticeIndex]?.topicId)?.name || 'General'}
+                    </span>
+                    <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full border ${
+                      practiceQuestions[currentPracticeIndex]?.difficulty === 'Hard' ? 'bg-rose-500/15 text-rose-300 border-rose-500/20' :
+                      practiceQuestions[currentPracticeIndex]?.difficulty === 'Medium' ? 'bg-amber-500/15 text-amber-300 border-amber-500/20' :
+                      'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+                    }`}>
+                      {practiceQuestions[currentPracticeIndex]?.difficulty}
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-extrabold text-white mt-1 leading-snug">
                     {practiceQuestions[currentPracticeIndex]?.question}
                   </h4>
+                  {(practiceQuestions[currentPracticeIndex]?.tags || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {practiceQuestions[currentPracticeIndex].tags.map(tag => (
+                        <span key={tag} className="px-1.5 py-0.5 bg-white/5 text-slate-400 border border-white/5 rounded text-[9px] font-mono">#{tag}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {showAnswer ? (
@@ -768,11 +968,19 @@ export default function QuestionBank({
       {/* TAB 3: VOICE REVISION RECORDER MODULE */}
       {activeTab === 'voice' && (
         <div className="glass-card p-5 space-y-6">
-          <div className="space-y-1">
-            <h3 className="font-extrabold text-white text-base">Voice Practice & Recorder Module</h3>
-            <p className="text-xs text-slate-405 font-sans">
-              Practice explaining technical concepts verbally to replicate actual panel whiteboard sessions. Record, name, identify, and listen back to criticize structural terminology.
-            </p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-4">
+            <div className="space-y-1">
+              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                <Mic className="w-5 h-5 text-indigo-400" />
+                <span>Voice Practice &amp; Recorder</span>
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                Practice explaining technical concepts verbally. Record, name, and listen back to refine answers.
+              </p>
+            </div>
+            <span className="text-[11px] font-mono text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 shrink-0">
+              {voiceRecordings.length} recordings saved
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -781,8 +989,8 @@ export default function QuestionBank({
             <div className="border border-white/5 bg-white/2 rounded-xl p-5 space-y-4">
               <div className="pb-2 border-b border-white/5">
                 <h4 className="font-extrabold text-sm text-indigo-305 flex items-center gap-1.5 font-sans">
-                  <Mic className="w-4.5 h-4.5 text-indigo-400" />
-                  <span>Interactive Voice Studio</span>
+                  <Mic className="w-4 h-4 text-indigo-400" />
+                  <span>Voice Studio</span>
                 </h4>
                 <p className="text-[10px] text-slate-450 font-mono">Record technical briefings</p>
               </div>
@@ -814,36 +1022,40 @@ export default function QuestionBank({
                   />
                 </div>
 
-                {/* Micro record buttons */}
-                <div className="flex flex-col items-center justify-center py-6 bg-black/20 border border-dashed border-white/10 rounded-xl gap-2 text-center">
+                {/* Waveform visualizer + record button */}
+                <div className="flex flex-col items-center justify-center py-6 bg-black/20 border border-dashed border-white/10 rounded-xl gap-3 text-center relative overflow-hidden">
                   {isRecording ? (
                     <>
-                      <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 animate-pulse border border-red-550/20">
-                        <Square className="w-6 h-6 fill-current" />
+                      {/* Animated waveform pulse rings */}
+                      <div className="relative flex items-center justify-center">
+                        <div className="absolute w-20 h-20 rounded-full bg-red-500/20 animate-ping" />
+                        <div className="absolute w-16 h-16 rounded-full bg-red-500/15 animate-ping" style={{ animationDelay: '0.25s' }} />
+                        <div className="w-14 h-14 rounded-full bg-red-500/25 flex items-center justify-center text-red-400 border border-red-500/40 z-10 relative">
+                          <Square className="w-6 h-6 fill-current" />
+                        </div>
                       </div>
-                      <span className="font-mono font-bold text-red-400 text-base">
-                        {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, '0')}
+                      <span className="font-mono font-bold text-red-400 text-xl tracking-widest">
+                        {String(Math.floor(recordingSeconds / 60)).padStart(2,'0')}:{(recordingSeconds % 60).toString().padStart(2, '0')}
                       </span>
-                      <span className="text-[10px] text-red-400 animate-pulse font-mono">Microphone capturing active...</span>
-                      
+                      <span className="text-[10px] text-red-400 animate-pulse font-mono">&#9679; Microphone active — capturing...</span>
                       <button 
                         onClick={stopRecording}
-                        className="mt-2 px-4 py-1.5 bg-red-650 text-white text-xs font-bold rounded-lg hover:bg-indigo-850 cursor-pointer shadow-xs transition"
+                        className="px-5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs transition border border-red-500/30"
                       >
-                        Stop & Compile
+                        Stop &amp; Save
                       </button>
                     </>
                   ) : (
                     <>
-                      <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center text-indigo-400 border border-white/5">
+                      <div className="w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
                         <Mic className="w-6 h-6" />
                       </div>
-                      <span className="text-xs text-slate-400 font-bold block">Ready for voice trace</span>
+                      <span className="text-xs text-slate-400 font-sans leading-relaxed">Ready to capture<br/>verbal explanation</span>
                       <button 
                         onClick={startRecording}
-                        className="mt-2 px-4 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-500 cursor-pointer shadow-xs transition border border-indigo-550/30"
+                        className="px-5 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-500 cursor-pointer shadow-xs transition border border-indigo-550/30"
                       >
-                        Record Answer
+                        Start Recording
                       </button>
                     </>
                   )}
@@ -853,44 +1065,68 @@ export default function QuestionBank({
 
             {/* Right Recordings Library */}
             <div className="md:col-span-2 space-y-4">
-              <h4 className="font-extrabold text-white text-sm flex items-center gap-2 pb-2 border-b border-white/10">
-                <Volume2 className="w-4.5 h-4.5 text-indigo-400" />
-                <span>Saved Briefing Track Library ({voiceRecordings.length})</span>
-              </h4>
+              <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/10">
+                <h4 className="font-extrabold text-white text-sm flex items-center gap-2">
+                  <Volume2 className="w-4 h-4 text-indigo-400" />
+                  <span>Saved Briefing Library</span>
+                </h4>
+                {/* Topic filter for recordings library */}
+                <select
+                  value={voiceTopicFilter}
+                  onChange={e => setVoiceTopicFilter(e.target.value)}
+                  className="px-2 py-1 rounded-lg text-[11px] font-sans cursor-pointer glass-input shrink-0"
+                >
+                  <option value="All" className="bg-[#111827]">All Topics</option>
+                  {topics.map(t => (
+                    <option key={t.id} value={t.id} className="bg-[#111827]">{t.name}</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {voiceRecordings.map(rec => {
-                  const correlatedTopic = topics.find(t => t.id === rec.topicId);
-                  return (
-                    <div key={rec.id} className="p-3 bg-white/2 border border-white/5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-sans">
-                      <div className="space-y-1 text-left">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h5 className="font-extrabold text-white text-sm leading-none">{rec.title}</h5>
-                          <span className="text-[9px] font-mono font-bold bg-indigo-500/15 text-indigo-305 px-2 py-0.2 rounded-full border border-indigo-500/10">
-                            {correlatedTopic?.name || 'General'}
-                          </span>
+                {voiceRecordings
+                  .filter(rec => voiceTopicFilter === 'All' || rec.topicId === voiceTopicFilter)
+                  .map(rec => {
+                    const correlatedTopic = topics.find(t => t.id === rec.topicId);
+                    const durationMM = String(Math.floor(rec.duration / 60)).padStart(2, '0');
+                    const durationSS = String(rec.duration % 60).padStart(2, '0');
+                    return (
+                      <div key={rec.id} className="p-3.5 bg-white/2 border border-white/5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-sans hover:border-white/10 transition">
+                        <div className="space-y-1.5 text-left min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h5 className="font-extrabold text-white text-sm leading-none truncate">{rec.title}</h5>
+                            <span className="text-[9px] font-mono font-bold bg-indigo-500/15 text-indigo-305 px-2 py-0.5 rounded-full border border-indigo-500/10 shrink-0">
+                              {correlatedTopic?.name || 'General'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] font-mono text-slate-400">
+                            <span>{new Date(rec.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' })}</span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full inline-block" />
+                              {durationMM}:{durationSS}
+                            </span>
+                          </div>
                         </div>
-                        <span className="block text-slate-400 text-[10px] font-mono leading-none">
-                          Recorded: {new Date(rec.date).toLocaleDateString()} &bull; Duration: {rec.duration}s
-                        </span>
-                      </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        <audio src={localAudioUrls[rec.audioUrl] || rec.audioUrl} controls className="h-8 max-w-44 lg:max-w-xs scale-90 invert opacity-80" />
-                        <button 
-                          onClick={() => onDeleteVoiceRecording(rec.id)}
-                          className="p-1.5 text-slate-450 hover:text-rose-400 hover:bg-white/5 rounded-lg border border-white/10 transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <audio src={localAudioUrls[rec.audioUrl] || rec.audioUrl} controls className="h-8 max-w-36 lg:max-w-48 scale-90 invert opacity-80" />
+                          <button 
+                            onClick={() => onDeleteVoiceRecording(rec.id)}
+                            className="p-1.5 text-slate-450 hover:text-rose-400 hover:bg-white/5 rounded-lg border border-white/10 transition cursor-pointer shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                }
 
-                {voiceRecordings.length === 0 && (
+                {voiceRecordings.filter(rec => voiceTopicFilter === 'All' || rec.topicId === voiceTopicFilter).length === 0 && (
                   <div className="text-center py-10 bg-[#ffffff01] rounded-xl border border-dashed border-white/5 text-slate-500 text-xs font-sans">
-                    No active recordings detected. Configure topic settings and press record to build oral brief histories.
+                    {voiceTopicFilter === 'All'
+                      ? 'No recordings yet. Configure topic and press record to build your oral brief histories.'
+                      : 'No recordings found for the selected topic filter.'}
                   </div>
                 )}
               </div>
@@ -902,4 +1138,5 @@ export default function QuestionBank({
 
     </div>
   );
-}
+});
+export default QuestionBank;

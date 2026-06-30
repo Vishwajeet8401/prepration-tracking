@@ -3,19 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject } from './types';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  initialTopics, initialQuestions, initialJobApplications, 
-  initialInterviews, initialMistakes, initialStudySessions, initialNotifications, initialIntelliQuestions, initialSubjects
-} from './initialData';
+import { useAuth } from './context/AuthContext';
+import { useDatabase } from './context/DatabaseContext';
 
 // Component imports
 import Dashboard from './components/Dashboard';
 import TopicManagement from './components/TopicManagement';
-import { useGlobalStats } from './hooks/useGlobalStats';
-import { useUrgentTopics } from './hooks/useUrgentTopics';
 import QuestionBank from './components/QuestionBank';
 import InterviewTracker from './components/InterviewTracker';
 import Analytics from './components/Analytics';
@@ -32,99 +27,46 @@ import MockInterviewWorkspace from './components/MockInterviewWorkspace';
 import MobileOfflineHub from './components/MobileOfflineHub';
 import BulkImportExportCenter from './components/BulkImportExportCenter';
 import PersonalReminders from './components/PersonalReminders';
+import StarStoryBuilder from './components/StarStoryBuilder';
 
-// Firebase core integrations
-import { auth, db, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { 
-  collection, doc, getDoc, setDoc, updateDoc, deleteDoc, 
-  onSnapshot, query, where, writeBatch, getDocs, limit
-} from 'firebase/firestore';
-import { saveLocalFile } from './localFileStore';
+// Firebase core integrations for logout
+import { auth } from './firebase';
+import { signOut } from 'firebase/auth';
 
 // Lucide Icon assets
 import { 
-  BookOpen, Star, Sparkles, LogIn, Award, ListTodo, User as UserIcon, Calendar, 
-  Settings, Flame, Activity, TrendingUp, HelpCircle, Bell, Clock, Compass, HelpCircle as HelpIcon, Volume2, ShieldAlert, BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu
+  BookOpen, Sparkles, Award, ListTodo, Calendar, 
+  Settings, Flame, Activity, Compass, HelpCircle as HelpIcon, Bell, 
+  BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList
 } from 'lucide-react';
+import { AppNotification } from './types';
 
 export default function App() {
-  
+  const { user, userProfile, authLoading } = useAuth();
+  const {
+    subjects, topics, topicLimit, setTopicLimit, questions, questionLimit, setQuestionLimit,
+    applications, interviews, mistakes, sessions, notifications, voiceRecordings, intelliQuestions,
+    plans, tasks, journals, roadmaps, mockInterviews, starStories, personalReminders, reminderLogs, reminderSettings,
+    userSettings, loading, globalStats, urgentTopics, activeToasts, setActiveToasts,
+    handleSeedSandbox, handleRestoreCloudBackup, handleAddSubject, handleUpdateSubject, handleDeleteSubject,
+    handleAddTopic, handleUpdateTopic, handleDeleteTopic, handleMergeTopics, handleAddJournal, handleUpdateJournal,
+    handleUploadJournalAttachment, handleDeleteJournal, handleAddRoadmap, handleUpdateRoadmap, handleDeleteRoadmap,
+    handleAddQuestion, handleUpdateQuestion, handleDeleteQuestion, handleRecallResponse, handleAddVoice, handleDeleteVoice,
+    handleAddApplication, handleUpdateApplication, handleDeleteApplication, handleAddInterview, handleUpdateInterview,
+    handleDeleteInterview, handleAddMockInterview, handleDeleteMockInterview, handleAddStarStory, handleUpdateStarStory,
+    handleDeleteStarStory, handleAddPersonalReminder,
+    handleUpdatePersonalReminder, handleDeletePersonalReminder, handleActionPersonalReminder, handleUpdateReminderSettings,
+    handleUpdateCerebrasKey, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
+    handleClearAll, handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan,
+    handleUpdateTaskInApp, handleDeleteTaskInApp
+  } = useDatabase();
+
   // Navigation tabs state
   const [activeTab, setActiveTab] = useState<string>('Dashboard & Priorities');
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const isHandlingHistoryRef = React.useRef(false);
+  const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
 
-  // Authenticated State tracking
-  const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
-
-  // Core Persisted States synchronized with Cloud Firestore
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [topicLimit, setTopicLimit] = useState(50);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [questionLimit, setQuestionLimit] = useState(50);
-  const [applications, setApplications] = useState<JobApplication[]>([]);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [mistakes, setMistakes] = useState<Mistake[]>([]);
-  const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [voiceRecordings, setVoiceRecordings] = useState<VoiceRecording[]>([]);
-  const [intelliQuestions, setIntelliQuestions] = useState<InterviewIntelligenceQuestion[]>([]);
-  const [plans, setPlans] = useState<ActivityPlan[]>([]);
-  const [tasks, setTasks] = useState<DailyTask[]>([]);
-  const [journals, setJournals] = useState<Journal[]>([]);
-  const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
-  const [mockInterviews, setMockInterviews] = useState<MockInterview[]>([]);
-  const [personalReminders, setPersonalReminders] = useState<PersonalReminder[]>([]);
-  const [reminderLogs, setReminderLogs] = useState<ReminderLog[]>([]);
-  const [reminderSettings, setReminderSettings] = useState<PersonalReminderSettings | null>(null);
-
-  const globalStats = useGlobalStats(user?.uid);
-  const { urgentTopics } = useUrgentTopics(user?.uid);
-
-  const [activeToasts, setActiveToasts] = useState<AppNotification[]>([]);
-  const processedToastsRef = React.useRef<Set<string>>(new Set());
-  const initialLoadTimeRef = React.useRef<number>(Date.now());
-
-  useEffect(() => {
-    if (notifications.length === 0) return;
-
-    const newNotifications = notifications.filter(n => {
-      const isNew = !processedToastsRef.current.has(n.id);
-      const isRecent = new Date(n.date).getTime() > initialLoadTimeRef.current - 5050;
-      return isNew && isRecent && !n.read;
-    });
-
-    if (newNotifications.length > 0) {
-      newNotifications.forEach(notif => {
-        processedToastsRef.current.add(notif.id);
-
-        setActiveToasts(prev => {
-          if (prev.some(t => t.id === notif.id)) return prev;
-          return [...prev, notif];
-        });
-
-        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-          try {
-            new Notification(notif.title, {
-              body: notif.message,
-              icon: '/favicon.ico'
-            });
-          } catch (e) {
-            console.warn("Desktop notification triggered error:", e);
-          }
-        }
-
-        setTimeout(() => {
-          setActiveToasts(prev => prev.filter(t => t.id !== notif.id));
-        }, 6000);
-      });
-    }
-  }, [notifications]);
+  const isHandlingHistoryRef = useRef(false);
 
   const handleExecuteToastAction = (toast: AppNotification) => {
     setActiveToasts(prev => prev.filter(t => t.id !== toast.id));
@@ -133,6 +75,7 @@ export default function App() {
     }
   };
 
+  // Browser Navigation History synchronizer
   useEffect(() => {
     const currentState = window.history.state;
     if (!currentState?.prepTracker?.activeTab) {
@@ -172,1942 +115,6 @@ export default function App() {
     );
   }, [activeTab]);
 
-  // 1. Session state detection and recovery
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        const fetchUserProfileWithRetry = async (retries = 3, delay = 250) => {
-          try {
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            const snap = await getDoc(userDocRef);
-            if (snap.exists()) {
-              setUserProfile(snap.data());
-            } else {
-              const initialProfile = {
-                id: currentUser.uid,
-                email: currentUser.email || '',
-                name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Candidate',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              };
-              await setDoc(userDocRef, initialProfile);
-              setUserProfile(initialProfile);
-            }
-          } catch (err: any) {
-            if (retries > 0 && (err.code === 'permission-denied' || err.message?.includes('permission'))) {
-              console.warn(`Profile fetch permission-denied. Retrying in ${delay}ms... (${retries} attempts left)`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              return fetchUserProfileWithRetry(retries - 1, delay * 2);
-            } else {
-              throw err;
-            }
-          }
-        };
-
-        fetchUserProfileWithRetry().catch((err) => {
-          console.warn("Firestore user profile document is restricted (deploying firestore.rules is pending). Falling back to client-side auth profile details.");
-          setUserProfile({
-            id: currentUser.uid,
-            email: currentUser.email || '',
-            name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Active Candidate',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
-        });
-      } else {
-        setUserProfile(null);
-      }
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Multi-user Firebase Collections Snapshot bindings
-  useEffect(() => {
-    if (!user) {
-      setSubjects([]);
-      return;
-    }
-    const q = query(collection(db, 'subjects'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Subject[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Subject);
-      });
-      setSubjects(list);
-    }, (error) => {
-      console.error("Subjects snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setTopics([]);
-      return;
-    }
-    const q = query(collection(db, 'topics'), where('userId', '==', user.uid), limit(topicLimit));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Topic[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Topic);
-      });
-      setTopics(list);
-    }, (error) => {
-      console.error("Topics snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user, topicLimit]);
-
-  useEffect(() => {
-    if (!user) {
-      setQuestions([]);
-      return;
-    }
-    const q = query(collection(db, 'questions'), where('userId', '==', user.uid), limit(questionLimit));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Question[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Question);
-      });
-      setQuestions(list);
-    }, (error) => {
-      console.error("Questions snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user, questionLimit]);
-
-  useEffect(() => {
-    if (!user) {
-      setApplications([]);
-      return;
-    }
-    const q = query(collection(db, 'jobApplications'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: JobApplication[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as JobApplication);
-      });
-      setApplications(list);
-    }, (error) => {
-      console.error("Applications snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setInterviews([]);
-      return;
-    }
-    const q = query(collection(db, 'interviews'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Interview[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Interview);
-      });
-      setInterviews(list);
-    }, (error) => {
-      console.error("Interviews snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setMistakes([]);
-      return;
-    }
-    const q = query(collection(db, 'mistakes'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Mistake[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Mistake);
-      });
-      setMistakes(list);
-    }, (error) => {
-      console.error("Mistakes snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setSessions([]);
-      return;
-    }
-    const q = query(collection(db, 'studySessions'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: StudySession[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as StudySession);
-      });
-      setSessions(list);
-    }, (error) => {
-      console.error("Sessions snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      return;
-    }
-    const q = query(collection(db, 'notifications'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: AppNotification[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as AppNotification);
-      });
-      list.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setNotifications(list);
-    }, (error) => {
-      console.error("Notifications snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setVoiceRecordings([]);
-      return;
-    }
-    const q = query(collection(db, 'voiceRecordings'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: VoiceRecording[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as VoiceRecording);
-      });
-      setVoiceRecordings(list);
-    }, (error) => {
-      console.error("Voice recordings snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setIntelliQuestions([]);
-      return;
-    }
-    const q = query(collection(db, 'intelliQuestions'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: InterviewIntelligenceQuestion[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as InterviewIntelligenceQuestion);
-      });
-      setIntelliQuestions(list);
-    }, (error) => {
-      console.error("Intelligence questions snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Activity Plans Sync
-  useEffect(() => {
-    if (!user) {
-      setPlans([]);
-      return;
-    }
-    const q = query(collection(db, 'activityPlans'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: ActivityPlan[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as ActivityPlan);
-      });
-      setPlans(list);
-    }, (error) => {
-      console.error("Activity plans snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Daily Tasks Sync
-  useEffect(() => {
-    if (!user) {
-      setTasks([]);
-      return;
-    }
-    const q = query(collection(db, 'dailyTasks'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: DailyTask[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as DailyTask);
-      });
-      setTasks(list);
-    }, (error) => {
-      console.error("Daily tasks snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Journals Sync
-  useEffect(() => {
-    if (!user) {
-      setJournals([]);
-      return;
-    }
-    const q = query(collection(db, 'journals'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Journal[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Journal);
-      });
-      list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      setJournals(list);
-    }, (error) => {
-      console.error("Journals snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Roadmaps Sync
-  useEffect(() => {
-    if (!user) {
-      setRoadmaps([]);
-      return;
-    }
-    const q = query(collection(db, 'roadmaps'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Roadmap[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Roadmap);
-      });
-      setRoadmaps(list);
-    }, (error) => {
-      console.error("Roadmaps snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Mock Interviews Sync
-  useEffect(() => {
-    if (!user) {
-      setMockInterviews([]);
-      return;
-    }
-    const q = query(collection(db, 'mockInterviews'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: MockInterview[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as MockInterview);
-      });
-      list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      setMockInterviews(list);
-    }, (error) => {
-      console.error("MockInterviews snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Personal Reminders Sync
-  useEffect(() => {
-    if (!user) {
-      setPersonalReminders([]);
-      return;
-    }
-    const q = query(collection(db, 'personalReminders'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: PersonalReminder[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as PersonalReminder);
-      });
-      setPersonalReminders(list);
-    }, (error) => {
-      console.error("PersonalReminders snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Reminder Logs Sync
-  useEffect(() => {
-    if (!user) {
-      setReminderLogs([]);
-      return;
-    }
-    const q = query(collection(db, 'reminderLogs'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: ReminderLog[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as ReminderLog);
-      });
-      setReminderLogs(list);
-    }, (error) => {
-      console.error("ReminderLogs snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Reminder Settings Sync
-  useEffect(() => {
-    if (!user) {
-      setReminderSettings(null);
-      return;
-    }
-    const docRef = doc(db, 'reminderSettings', user.uid);
-    const unsubscribe = onSnapshot(docRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setReminderSettings(snapshot.data() as PersonalReminderSettings);
-      } else {
-        // Seed default settings
-        const defaultSettings: PersonalReminderSettings = {
-          userId: user.uid,
-          notificationSound: true,
-          reminderDuration: 5,
-          defaultSnoozeTime: 15,
-          weekendMode: true,
-          dndEnabled: false,
-          dndStart: '23:00',
-          dndEnd: '07:00'
-        };
-        setDoc(docRef, defaultSettings).then(() => {
-          setReminderSettings(defaultSettings);
-        }).catch(err => console.error("Error seeding default reminder settings:", err));
-      }
-    }, (error) => {
-      console.error("ReminderSettings snapshot error:", error);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Auto-generation of daily tasks for active plans (Feature 2)
-  useEffect(() => {
-    if (!user || plans.length === 0) return;
-
-    const generateTodayTasks = async () => {
-      const todayStr = new Date().toISOString().split('T')[0];
-      
-      // Active plans today
-      const activePlans = plans.filter(p => todayStr >= p.startDate && todayStr <= p.endDate);
-      
-      // Standard system tasks (Feature 2)
-      const systemTasks = [
-        { id: 'system-recall', title: 'Recall Session', targetHours: 0.5, category: 'Technical' as ActivityCategory },
-        { id: 'system-revision', title: 'Revision Queue', targetHours: 0.5, category: 'Technical' as ActivityCategory },
-      ];
-
-      const batch = writeBatch(db);
-      let needsCommit = false;
-
-      // Check and add plans
-      activePlans.forEach(plan => {
-        const taskExists = tasks.some(t => t.planId === plan.id && t.date === todayStr);
-        if (!taskExists) {
-          const taskId = `task-${plan.id}-${todayStr}`;
-          const taskDocRef = doc(db, 'dailyTasks', taskId);
-          batch.set(taskDocRef, {
-            id: taskId,
-            planId: plan.id,
-            userId: user.uid,
-            date: todayStr,
-            status: 'Pending',
-            title: plan.title,
-            targetHours: plan.targetHours,
-            category: plan.category
-          });
-          needsCommit = true;
-        }
-      });
-
-      // Check and add system tasks
-      systemTasks.forEach(sys => {
-        const taskExists = tasks.some(t => t.planId === sys.id && t.date === todayStr);
-        if (!taskExists) {
-          const taskId = `task-${sys.id}-${todayStr}`;
-          const taskDocRef = doc(db, 'dailyTasks', taskId);
-          batch.set(taskDocRef, {
-            id: taskId,
-            planId: sys.id,
-            userId: user.uid,
-            date: todayStr,
-            status: 'Pending',
-            title: sys.title,
-            targetHours: sys.targetHours,
-            category: sys.category
-          });
-          needsCommit = true;
-        }
-      });
-
-      if (needsCommit) {
-        try {
-          await batch.commit();
-          await pushNotification({
-            title: 'Daily Tasks Generated',
-            message: 'Your custom preparation habit cards and spacing revisions are now active for today.',
-            type: 'daily'
-          });
-        } catch (err) {
-          console.error("Auto-generation of checklist nodes failed:", err);
-        }
-      }
-    };
-
-    generateTodayTasks();
-  }, [user, plans, tasks]);
-
-  // Real-time reminders background daemon checking loop
-  useEffect(() => {
-    if (!user || personalReminders.length === 0) return;
-
-    const checkDueReminders = async () => {
-      const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
-      const isWeekendDay = now.getDay() === 0 || now.getDay() === 6; // 0=Sun, 6=Sat
-
-      // If weekend and weekendMode is disabled, return
-      if (isWeekendDay && reminderSettings && !reminderSettings.weekendMode) return;
-
-      // Handle Do Not Disturb Boundaries
-      if (reminderSettings && reminderSettings.dndEnabled) {
-        const dndStartMins = parseTimeToMinutes(reminderSettings.dndStart);
-        const dndEndMins = parseTimeToMinutes(reminderSettings.dndEnd);
-        const currentMins = now.getHours() * 60 + now.getMinutes();
-
-        const inDND = dndStartMins <= dndEndMins
-          ? (currentMins >= dndStartMins && currentMins <= dndEndMins)
-          : (currentMins >= dndStartMins || currentMins <= dndEndMins);
-
-        if (inDND) return;
-      }
-
-      personalReminders.forEach(async (rem) => {
-        if (!rem.active) return;
-
-        // Check date range limits
-        if (todayStr < rem.startDate || todayStr > rem.endDate) return;
-
-        // Parse reminder base time to HH:MM
-        const remTime24 = convertTo24h(rem.reminderTime);
-        const [startH, startM] = remTime24.split(':').map(Number);
-        const startMinutes = startH * 60 + startM;
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-        if (rem.repeatType === 'Interval Based' && rem.intervalHours && rem.intervalHours > 0) {
-          // For interval-based reminders (e.g. water every 2 hours):
-          // Compute all fire times for today: start, start+interval, start+2*interval, ...
-          // Check which slot corresponds to "right now"
-          const intervalMinutes = rem.intervalHours * 60;
-
-          // Which slot index does the current time correspond to?
-          const elapsed = currentMinutes - startMinutes;
-          if (elapsed < 0) return; // not yet reached start time
-
-          const slotIndex = Math.floor(elapsed / intervalMinutes);
-          const slotStartMin = startMinutes + slotIndex * intervalMinutes;
-
-          // Only fire if we are exactly at the slot's minute
-          if (currentMinutes !== slotStartMin) return;
-          if (slotStartMin >= 24 * 60) return; // past midnight, ignore
-
-          // Check if this specific slot was already notified today.
-          // We use a unique slot key: reminderTime + slot index
-          const slotKey = `${todayStr}-slot${slotIndex}`;
-          const alreadyFired = reminderLogs.some(l =>
-            l.reminderId === rem.id &&
-            l.date === todayStr &&
-            (l.notes === slotKey || l.status === 'Pending' && l.notes === slotKey)
-          );
-
-          if (!alreadyFired) {
-            await pushNotification({
-              title: `Reminder: ${rem.title}`,
-              message: rem.notificationMessage || `Time for "${rem.title}"! (Every ${rem.intervalHours}h)`,
-              type: 'daily'
-            });
-
-            // Seed a pending log for this slot so it isn't fired again
-            const logId = `log-${rem.id}-${todayStr}-slot${slotIndex}-${Date.now()}`;
-            await setDoc(doc(db, 'reminderLogs', logId), {
-              id: logId,
-              reminderId: rem.id,
-              userId: user.uid,
-              date: todayStr,
-              status: 'Pending',
-              notes: slotKey
-            });
-          }
-
-        } else {
-          // Non-interval reminders: fire once at the exact reminderTime
-          if (now.getHours() === startH && now.getMinutes() === startM) {
-            const alreadyLogged = reminderLogs.some(l =>
-              l.reminderId === rem.id &&
-              l.date === todayStr &&
-              (l.status === 'Completed' || l.status === 'Skipped' || l.status === 'Missed')
-            );
-
-            if (!alreadyLogged) {
-              await pushNotification({
-                title: `Reminder Alert: ${rem.title}`,
-                message: rem.notificationMessage || `It is time for your task: "${rem.title}".`,
-                type: 'daily'
-              });
-
-              const hasPending = reminderLogs.some(l => l.reminderId === rem.id && l.date === todayStr);
-              if (!hasPending) {
-                const logId = `log-${rem.id}-${todayStr}-${Date.now()}`;
-                await setDoc(doc(db, 'reminderLogs', logId), {
-                  id: logId,
-                  reminderId: rem.id,
-                  userId: user.uid,
-                  date: todayStr,
-                  status: 'Pending'
-                });
-              }
-            }
-          }
-        }
-      });
-    };
-
-    const parseTimeToMinutes = (timeStr: string) => {
-      const [h, m] = timeStr.split(':').map(Number);
-      return h * 60 + m;
-    };
-
-    const convertTo24h = (timeStr: string) => {
-      if (timeStr.includes('AM') || timeStr.includes('PM')) {
-        const [time, modifier] = timeStr.split(' ');
-        let [hours, minutes] = time.split(':');
-        if (hours === '12') hours = '00';
-        if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
-        return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
-      }
-      return timeStr.padStart(5, '0');
-    };
-
-    const interval = setInterval(checkDueReminders, 60000); // Check every minute
-    checkDueReminders(); // Initial check on load
-
-    return () => clearInterval(interval);
-  }, [user, personalReminders, reminderLogs, reminderSettings]);
-
-  // Seeding engine to prep sandbox for new users
-  const handleSeedSandbox = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const batch = writeBatch(db);
-      initialSubjects.forEach((s) => {
-        batch.set(doc(db, 'subjects', s.id), { ...s, userId: user.uid });
-      });
-      initialTopics.forEach((t) => {
-        batch.set(doc(db, 'topics', t.id), { ...t, userId: user.uid });
-      });
-      initialQuestions.forEach((q) => {
-        batch.set(doc(db, 'questions', q.id), { ...q, userId: user.uid });
-      });
-      initialJobApplications.forEach((ja) => {
-        batch.set(doc(db, 'jobApplications', ja.id), { ...ja, userId: user.uid });
-      });
-      initialInterviews.forEach((i) => {
-        batch.set(doc(db, 'interviews', i.id), { ...i, userId: user.uid });
-      });
-      initialMistakes.forEach((m) => {
-        batch.set(doc(db, 'mistakes', m.id), { ...m, userId: user.uid });
-      });
-      initialStudySessions.forEach((s) => {
-        batch.set(doc(db, 'studySessions', s.id), { ...s, userId: user.uid });
-      });
-      initialNotifications.forEach((n) => {
-        batch.set(doc(db, 'notifications', n.id), { ...n, userId: user.uid });
-      });
-      initialIntelliQuestions.forEach((iq) => {
-        batch.set(doc(db, 'intelliQuestions', iq.id), { ...iq, userId: user.uid });
-      });
-
-      await batch.commit();
-      
-      await pushNotification({
-        title: 'Sandbox Seeding Complete',
-        message: 'Successfully populated cloud workspace with corporate engineering collections.',
-        type: 'daily'
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Sandbox seeding failed: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Cloud restoration hook for CloudBackupControls callback
-  const handleRestoreCloudBackup = async (backupData: any) => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const collectionsToFlush = ['topics', 'questions', 'jobApplications', 'interviews', 'mistakes', 'studySessions', 'voiceRecordings', 'notifications', 'intelliQuestions'];
-      for (const colName of collectionsToFlush) {
-        const q = query(collection(db, colName), where('userId', '==', user.uid));
-        const snap = await getDocs(q);
-        const delBatch = writeBatch(db);
-        snap.forEach((doc) => {
-          delBatch.delete(doc.ref);
-        });
-        await delBatch.commit();
-      }
-
-      const addBatch = writeBatch(db);
-      backupData.topics?.forEach((item: any) => addBatch.set(doc(db, 'topics', item.id), { ...item, userId: user.uid }));
-      backupData.questions?.forEach((item: any) => addBatch.set(doc(db, 'questions', item.id), { ...item, userId: user.uid }));
-      backupData.applications?.forEach((item: any) => addBatch.set(doc(db, 'jobApplications', item.id), { ...item, userId: user.uid }));
-      backupData.interviews?.forEach((item: any) => addBatch.set(doc(db, 'interviews', item.id), { ...item, userId: user.uid }));
-      backupData.mistakes?.forEach((item: any) => addBatch.set(doc(db, 'mistakes', item.id), { ...item, userId: user.uid }));
-      backupData.sessions?.forEach((item: any) => addBatch.set(doc(db, 'studySessions', item.id), { ...item, userId: user.uid }));
-      backupData.voiceRecordings?.forEach((item: any) => addBatch.set(doc(db, 'voiceRecordings', item.id), { ...item, userId: user.uid }));
-      backupData.notifications?.forEach((item: any) => addBatch.set(doc(db, 'notifications', item.id), { ...item, userId: user.uid }));
-      backupData.intelliQuestions?.forEach((item: any) => addBatch.set(doc(db, 'intelliQuestions', item.id), { ...item, userId: user.uid }));
-      
-      await addBatch.commit();
-    } catch (err) {
-      console.error("Backup restoration error:", err);
-      alert('Restoring snapshot failed, index corrupted.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ==========================================
-  // SUBJECT MODIFIERS (Direct to Firestore)
-  // ==========================================
-  const handleAddSubject = async (newSubject: Omit<Subject, 'id'>) => {
-    if (!user) return;
-    const subjectId = 'subj-' + Date.now();
-    const created: Subject = {
-      ...newSubject,
-      id: subjectId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'subjects', subjectId), created);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `subjects/${subjectId}`);
-    }
-  };
-
-  const handleUpdateSubject = async (updated: Subject) => {
-    if (!user) return;
-    try {
-      await updateDoc(doc(db, 'subjects', updated.id), { ...updated });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `subjects/${updated.id}`);
-    }
-  };
-
-  const handleDeleteSubject = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'subjects', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `subjects/${id}`);
-    }
-  };
-
-  // ==========================================
-  // TOPIC MODIFIERS (Direct to Firestore)
-  // ==========================================
-  const handleAddTopic = async (newTopic: Omit<Topic, 'id' | 'revisionCount' | 'forgotCount'>) => {
-    if (!user) return;
-    const topicId = 'topic-' + Date.now();
-    const created: Topic = {
-      ...newTopic,
-      id: topicId,
-      userId: user.uid,
-      revisionCount: 0,
-      forgotCount: 0,
-    };
-    try {
-      await setDoc(doc(db, 'topics', topicId), created);
-      await pushNotification({
-        title: 'New Topic Created',
-        message: `"${created.name}" registered successfully. Added to Spaced Repetition track.`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `topics/${topicId}`);
-    }
-  };
-
-  const handleUpdateTopic = async (updated: Topic) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'topics', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `topics/${updated.id}`);
-    }
-  };
-
-  const handleDeleteTopic = async (id: string) => {
-    if (!user) return;
-    if (confirm("Confirm deleting this studied topic? Linked dependencies could trigger warning shifts.")) {
-      try {
-        await deleteDoc(doc(db, 'topics', id));
-        
-        // Cascade delete linked questions to prevent orphaned indices
-        const orphans = questions.filter(q => q.topicId === id);
-        const batch = writeBatch(db);
-        orphans.forEach(q => {
-          batch.delete(doc(db, 'questions', q.id));
-        });
-        await batch.commit();
-
-        await pushNotification({
-          title: 'Topic Deleted',
-          message: 'Topic card destroyed, orphan question bank nodes resolved.',
-          type: 'daily'
-        });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `topics/${id}`);
-      }
-    }
-  };
-
-  const handleMergeTopics = async (primaryTopicId: string, duplicateTopicIds: string[]) => {
-    if (!user) return;
-    try {
-      const batch = writeBatch(db);
-      const primaryTopic = topics.find(t => t.id === primaryTopicId);
-      if (!primaryTopic) return;
-
-      const duplicateTopics = topics.filter(t => duplicateTopicIds.includes(t.id));
-      
-      // Merge descriptions and notes
-      let newDesc = primaryTopic.description || '';
-      let newNotes = primaryTopic.notes || '';
-      duplicateTopics.forEach(dup => {
-        if (dup.description && dup.description.trim() !== '') {
-          newDesc += `\n\n[Merged from ${dup.name}]:\n${dup.description}`;
-        }
-        if (dup.notes && dup.notes.trim() !== '') {
-          newNotes += `\n\n[Merged Notes from ${dup.name}]:\n${dup.notes}`;
-        }
-      });
-      
-      batch.update(doc(db, 'topics', primaryTopicId), {
-        description: newDesc,
-        notes: newNotes
-      });
-
-      // Update Questions
-      questions.filter(q => duplicateTopicIds.includes(q.topicId)).forEach(q => {
-        batch.update(doc(db, 'questions', q.id), { topicId: primaryTopicId });
-      });
-
-      // Update Sessions
-      sessions.filter(s => duplicateTopicIds.includes(s.topicId)).forEach(s => {
-        batch.update(doc(db, 'studySessions', s.id), { topicId: primaryTopicId });
-      });
-
-      // Update Voice Recordings
-      voiceRecordings.filter(v => duplicateTopicIds.includes(v.topicId)).forEach(v => {
-        batch.update(doc(db, 'voiceRecordings', v.id), { topicId: primaryTopicId });
-      });
-
-      // Update Journals
-      journals.filter(j => j.relatedTopicId && duplicateTopicIds.includes(j.relatedTopicId)).forEach(j => {
-        batch.update(doc(db, 'journals', j.id), { relatedTopicId: primaryTopicId });
-      });
-
-      // Update Topic Dependencies
-      topics.filter(t => t.dependencyIds && t.dependencyIds.some(d => duplicateTopicIds.includes(d))).forEach(t => {
-        const newDeps = new Set(t.dependencyIds.filter(d => !duplicateTopicIds.includes(d)));
-        if (t.id !== primaryTopicId) {
-          newDeps.add(primaryTopicId);
-        }
-        batch.update(doc(db, 'topics', t.id), { dependencyIds: Array.from(newDeps) });
-      });
-
-      // Delete Duplicates
-      duplicateTopicIds.forEach(id => {
-        batch.delete(doc(db, 'topics', id));
-      });
-
-      await batch.commit();
-
-      await pushNotification({
-        title: 'Topics Merged',
-        message: `Merged ${duplicateTopicIds.length} duplicate(s) into "${primaryTopic.name}".`,
-        type: 'daily'
-      });
-      
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `merge-topics`);
-    }
-  };
-
-  // ==========================================
-  // JOURNAL MODIFIERS
-  // ==========================================
-  const handleAddJournal = async (newJournal: Omit<Journal, 'id' | 'userId'>) => {
-    if (!user) return;
-    const journalId = 'journal-' + Date.now();
-    const created: Journal = {
-      ...newJournal,
-      id: journalId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'journals', journalId), created);
-      await pushNotification({
-        title: 'Reflection Entry Logged',
-        message: `Your insight "${created.title}" was saved successfully.`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `journals/${journalId}`);
-    }
-  };
-
-  const handleUpdateJournal = async (updated: Journal) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'journals', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `journals/${updated.id}`);
-    }
-  };
-
-  const handleUploadJournalAttachment = async (file: File): Promise<string> => {
-    if (!user) {
-      throw new Error('You must be signed in to attach files.');
-    }
-
-    return saveLocalFile(file, file.name);
-  };
-
-  const handleDeleteJournal = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'journals', id));
-      await pushNotification({
-        title: 'Reflection Removed',
-        message: 'Journal entry removed from space.',
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `journals/${id}`);
-    }
-  };
-
-  // ==========================================
-  // ROADMAP MODIFIERS
-  // ==========================================
-  const handleAddRoadmap = async (newRoadmap: Omit<Roadmap, 'id' | 'userId'>) => {
-    if (!user) return;
-    const roadmapId = 'roadmap-' + Date.now();
-    const created: Roadmap = {
-      ...newRoadmap,
-      id: roadmapId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'roadmaps', roadmapId), created);
-      await pushNotification({
-        title: 'Learning Pathway Active',
-        message: `Track "${created.title}" is now active in your profile.`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `roadmaps/${roadmapId}`);
-    }
-  };
-
-  const handleUpdateRoadmap = async (updated: Roadmap) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'roadmaps', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `roadmaps/${updated.id}`);
-    }
-  };
-
-  const handleDeleteRoadmap = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'roadmaps', id));
-      await pushNotification({
-        title: 'Pathway Removed',
-        message: 'Roadmap track disassembled.',
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `roadmaps/${id}`);
-    }
-  };
-
-  // ==========================================
-  // QUESTION MODIFIERS
-  // ==========================================
-  const handleAddQuestion = async (newQ: Omit<Question, 'id' | 'askedCount'>) => {
-    if (!user) return;
-    const qId = 'q-' + Date.now();
-    const created: Question = {
-      ...newQ,
-      id: qId,
-      userId: user.uid,
-      askedCount: 0
-    };
-    try {
-      await setDoc(doc(db, 'questions', qId), created);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `questions/${qId}`);
-    }
-  };
-
-  const handleUpdateQuestion = async (updated: Question) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'questions', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `questions/${updated.id}`);
-    }
-  };
-
-  const handleDeleteQuestion = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'questions', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `questions/${id}`);
-    }
-  };
-
-
-  // ==========================================
-  // ACTIVE RECALL EVALUATOR Logic (CRITICAL SPACED REPETITION ENGINE!)
-  // ==========================================
-  const handleRecallResponse = async (questionId: string, topicId: string, response: 'Remembered' | 'Partially' | 'Forgot') => {
-    if (!user) return;
-    
-    const targetQ = questions.find(q => q.id === questionId);
-    const targetT = topics.find(t => t.id === topicId);
-    if (!targetQ || !targetT) return;
-
-    const updatedQ: Question = {
-      ...targetQ,
-      askedCount: targetQ.askedCount + 1,
-      lastAskedDate: new Date().toISOString(),
-      lastRevisedDate: new Date().toISOString()
-    };
-
-    const rc = targetT.revisionCount + 1;
-    let cScore = targetT.confidenceScore;
-    let rScore = targetT.recallScore;
-    let forg = targetT.forgotCount;
-    let nextIntervalDays = 1;
-
-    if (response === 'Remembered') {
-      cScore = Math.min(100, cScore + 8);
-      rScore = Math.min(100, rScore + 10);
-      forg = Math.max(0, forg - 1);
-      const stages = [1, 3, 7, 15, 30, 60, 90];
-      nextIntervalDays = stages[Math.min(rc, stages.length - 1)];
-
-    } else if (response === 'Partially') {
-      cScore = Math.min(100, cScore + 2);
-      rScore = Math.min(100, rScore + 4);
-      nextIntervalDays = 1;
-
-    } else if (response === 'Forgot') {
-      forg = forg + 1;
-      cScore = Math.max(5, cScore - 15);
-      rScore = Math.max(0, rScore - 20);
-      nextIntervalDays = 0; 
-
-      await pushNotification({
-        title: `Retention Deficit: ${targetT.name}`,
-        message: `You marked "${targetT.name}" concept as Forgotten. Transferred to High Priority Revision Queue.`,
-        type: 'weakness'
-      });
-    }
-
-    const nextDate = new Date();
-    nextDate.setDate(nextDate.getDate() + nextIntervalDays);
-
-    const updatedT: Topic = {
-      ...targetT,
-      revisionCount: rc,
-      confidenceScore: cScore,
-      recallScore: rScore,
-      forgotCount: forg,
-      lastRevisionDate: new Date().toISOString(),
-      nextRevisionDate: nextDate.toISOString(),
-      status: response === 'Forgot' ? 'Revising' : targetT.status
-    };
-
-    try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'questions', questionId), { ...updatedQ, userId: user.uid });
-      batch.set(doc(db, 'topics', topicId), { ...updatedT, userId: user.uid });
-      await batch.commit();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-
-  // ==========================================
-  // VOICE RECORDINGS MANAGEMENT (Cloud Storage Integration)
-  // ==========================================
-  const handleAddVoice = async (rec: Omit<VoiceRecording, 'id'>) => {
-    if (!user) return;
-    const recId = 'voice-' + Date.now();
-    let finalAudioUrl = rec.audioUrl;
-
-    try {
-      if (rec.audioUrl.startsWith('data:') || rec.audioUrl.startsWith('blob:')) {
-        const response = await fetch(rec.audioUrl);
-        const blob = await response.blob();
-        finalAudioUrl = await saveLocalFile(blob, `${recId}.webm`);
-      }
-    } catch (err) {
-      console.error("Local audio save failed.", err);
-      alert('Audio save failed. Your browser may have blocked local storage or private mode storage.');
-      return;
-    }
-
-    const created: VoiceRecording = {
-      ...rec,
-      id: recId,
-      userId: user.uid,
-      audioUrl: finalAudioUrl
-    };
-
-    try {
-      await setDoc(doc(db, 'voiceRecordings', recId), created);
-      await pushNotification({
-        title: 'Verbal Study Track Saved',
-        message: `Audio track "${created.title}" was saved locally on this device.`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `voiceRecordings/${recId}`);
-    }
-  };
-
-  const handleDeleteVoice = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'voiceRecordings', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `voiceRecordings/${id}`);
-    }
-  };
-
-
-  // ==========================================
-  // JOB APPLICATION AND SCHEDULER MODIFIERS
-  // ==========================================
-  const handleAddApplication = async (app: Omit<JobApplication, 'id'>) => {
-    if (!user) return;
-    const appId = 'app-' + Date.now();
-    const created: JobApplication = { ...app, id: appId, userId: user.uid };
-    try {
-      await setDoc(doc(db, 'jobApplications', appId), created);
-      await pushNotification({
-        title: 'Application Logged',
-        message: `Registered application at ${app.company} [${app.position}]`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `jobApplications/${appId}`);
-    }
-  };
-
-  const handleUpdateApplication = async (updated: JobApplication) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'jobApplications', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `jobApplications/${updated.id}`);
-    }
-  };
-
-  const handleDeleteApplication = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'jobApplications', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `jobApplications/${id}`);
-    }
-  };
-
-  const handleAddInterview = async (int: Omit<Interview, 'id'>) => {
-    if (!user) return;
-    const intId = 'int-' + Date.now();
-    const created: Interview = { ...int, id: intId, userId: user.uid };
-    try {
-      await setDoc(doc(db, 'interviews', intId), created);
-      await pushNotification({
-        title: `Interview Scheduled`,
-        message: `Interview structured with ${int.companyName} on ${new Date(int.date).toLocaleDateString()}`,
-        type: 'interview'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `interviews/${intId}`);
-    }
-  };
-
-  const handleUpdateInterview = async (updated: Interview) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'interviews', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
-
-      if (updated.status === 'Completed' && updated.questionsMissed.length > 0) {
-        const lowercasedMissed = updated.questionsMissed.map(q => q.toLowerCase());
-        const batch = writeBatch(db);
-        
-        topics.forEach(t => {
-          const matchesMissed = lowercasedMissed.some(miss => 
-            t.name.toLowerCase().includes(miss) || 
-            t.category.toLowerCase().includes(miss) ||
-            miss.includes(t.name.toLowerCase())
-          );
-
-          if (matchesMissed) {
-            batch.set(doc(db, 'topics', t.id), {
-              ...t,
-              userId: user.uid,
-              forgotCount: t.forgotCount + 1,
-              confidenceScore: Math.max(5, t.confidenceScore - 10)
-            });
-          }
-        });
-        await batch.commit();
-      }
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `interviews/${updated.id}`);
-    }
-  };
-
-  const handleDeleteInterview = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'interviews', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `interviews/${id}`);
-    }
-  };
-
-  const handleAddMockInterview = async (mock: Omit<MockInterview, 'id' | 'userId'>) => {
-    if (!user) return;
-    const mockId = 'mock-' + Date.now();
-    const created: MockInterview = {
-      ...mock,
-      id: mockId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'mockInterviews', mockId), created);
-      await pushNotification({
-        title: 'Mock Interview Evaluated',
-        message: `Round ${mock.roundType} finished. Score: ${mock.score}%`,
-        type: 'interview'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `mockInterviews/${mockId}`);
-    }
-  };
-
-  const handleDeleteMockInterview = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'mockInterviews', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `mockInterviews/${id}`);
-    }
-  };
-
-  const cleanObject = (obj: any) => {
-    const cleaned: any = {};
-    Object.keys(obj).forEach(key => {
-      if (obj[key] !== undefined) {
-        cleaned[key] = obj[key];
-      }
-    });
-    return cleaned;
-  };
-
-  const handleAddPersonalReminder = async (rem: Omit<PersonalReminder, 'id' | 'userId'>) => {
-    if (!user) return;
-    const remId = 'reminder-' + Date.now();
-    const created = cleanObject({
-      ...rem,
-      id: remId,
-      userId: user.uid
-    });
-    try {
-      await setDoc(doc(db, 'personalReminders', remId), created);
-      await pushNotification({
-        title: 'New Personal Goal Registered',
-        message: `Goal "${rem.title}" created under Category: ${rem.category}.`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `personalReminders/${remId}`);
-    }
-  };
-
-  const handleUpdatePersonalReminder = async (updated: PersonalReminder) => {
-    if (!user) return;
-    const cleaned = cleanObject({
-      ...updated,
-      userId: user.uid
-    });
-    try {
-      await setDoc(doc(db, 'personalReminders', updated.id), cleaned);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `personalReminders/${updated.id}`);
-    }
-  };
-
-  const handleDeletePersonalReminder = async (id: string) => {
-    if (!user) return;
-    if (confirm("Decommissioning this reminder will also clear all linked consistency log records. Proceed?")) {
-      try {
-        await deleteDoc(doc(db, 'personalReminders', id));
-        
-        // Cascade delete logs
-        const orphans = reminderLogs.filter(l => l.reminderId === id);
-        const batch = writeBatch(db);
-        orphans.forEach(l => {
-          batch.delete(doc(db, 'reminderLogs', l.id));
-        });
-        await batch.commit();
-
-        await pushNotification({
-          title: 'Goal Decommissioned',
-          message: 'Personal Reminder cleared successfully.',
-          type: 'daily'
-        });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `personalReminders/${id}`);
-      }
-    }
-  };
-
-  const handleActionPersonalReminder = async (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => {
-    if (!user) return;
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const targetRem = personalReminders.find(r => r.id === reminderId);
-    if (!targetRem) return;
-
-    // For water intake, we allow multiple logs per day to track multiple glasses
-    const isMultiLogAllowed = targetRem.targetGlasses !== undefined;
-
-    // Upsert strategy: reuse today's existing log if it exists to avoid duplicate accumulation
-    const existingLog = !isMultiLogAllowed ? reminderLogs.find(l => l.reminderId === reminderId && l.date === todayStr) : null;
-    const logId = existingLog ? existingLog.id : `log-${reminderId}-${todayStr}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const logRef = doc(db, 'reminderLogs', logId);
-
-    let snoozedUntil: string | undefined = undefined;
-    if (status === 'Snoozed' && snoozeMinutes) {
-      const snoozeTime = new Date();
-      snoozeTime.setMinutes(snoozeTime.getMinutes() + snoozeMinutes);
-      snoozedUntil = snoozeTime.toISOString();
-    }
-
-    const newLog: any = {
-      id: logId,
-      reminderId,
-      userId: user.uid,
-      date: todayStr,
-      status,
-    };
-    if (status === 'Completed') {
-      newLog.completedAt = new Date().toISOString();
-    }
-    if (snoozedUntil) {
-      newLog.snoozedUntil = snoozedUntil;
-    }
-    if (snoozeMinutes !== undefined) {
-      newLog.snoozeDurationMinutes = snoozeMinutes;
-    }
-
-    try {
-      const batch = writeBatch(db);
-      batch.set(logRef, newLog);
-
-      // Handle Habit Streaks
-      if (targetRem.isHabit && status === 'Completed') {
-        const completedDates = targetRem.habitCompletedDates ? [...targetRem.habitCompletedDates] : [];
-        if (!completedDates.includes(todayStr)) {
-          completedDates.push(todayStr);
-        }
-
-        // Sort dates desc
-        const sortedDates = [...completedDates].sort((a, b) => b.localeCompare(a));
-        
-        // Compute streak
-        let streak = 0;
-        const tempDate = new Date();
-        // Check today and consecutive previous dates
-        for (let i = 0; i < 365; i++) {
-          const dStr = tempDate.toISOString().split('T')[0];
-          if (completedDates.includes(dStr)) {
-            streak++;
-            tempDate.setDate(tempDate.getDate() - 1);
-          } else {
-            // If checking today and it's not completed, allow streak if yesterday was completed
-            if (i === 0) {
-              const yesterday = new Date();
-              yesterday.setDate(yesterday.getDate() - 1);
-              const yStr = yesterday.toISOString().split('T')[0];
-              if (completedDates.includes(yStr)) {
-                tempDate.setDate(tempDate.getDate() - 1);
-                continue;
-              }
-            }
-            break;
-          }
-        }
-
-        const bestStreak = Math.max(targetRem.habitBestStreak || 0, streak);
-
-        batch.set(doc(db, 'personalReminders', reminderId), {
-          ...targetRem,
-          habitStreak: streak,
-          habitBestStreak: bestStreak,
-          habitCompletedDates: completedDates,
-          userId: user.uid
-        });
-
-        // Trigger streak badge trigger notification
-        if (streak > 0 && streak % 5 === 0) {
-          await pushNotification({
-            title: `Habit Milestone: ${streak} Days!`,
-            message: `Awesome job! You achieved a ${streak} days streak on "${targetRem.title}".`,
-            type: 'streak'
-          });
-        }
-      }
-
-      await batch.commit();
-
-      if (status === 'Completed') {
-        await pushNotification({
-          title: `Goal Checked In: ${targetRem.title}`,
-          message: `Logged complete for habit checklist element today. Keep it up!`,
-          type: 'daily'
-        });
-      }
-    } catch (err) {
-      console.error("Error logging action reminder:", err);
-    }
-  };
-
-  const handleUpdateReminderSettings = async (updatedSettings: PersonalReminderSettings) => {
-    if (!user) return;
-    const settingsWithUserId = { ...updatedSettings, userId: user.uid };
-    try {
-      await setDoc(doc(db, 'reminderSettings', user.uid), settingsWithUserId);
-      setReminderSettings(settingsWithUserId); // store the userId-corrected version locally
-    } catch (err) {
-      console.error("Error updating reminder settings:", err);
-    }
-  };
-
-  const handleBulkImport = async (
-    dataType: string,
-    records: any[],
-    duplicatePolicy: 'skip' | 'replace' | 'keep'
-  ): Promise<{ imported: number; updated: number; skipped: number }> => {
-    if (!user) throw new Error('User session is required');
-    
-    let imported = 0;
-    let updated = 0;
-    let skipped = 0;
-
-    const batch = writeBatch(db);
-
-    records.forEach((item, idx) => {
-      let existing: any = null;
-      let colName = '';
-
-      switch (dataType) {
-        case 'Topics': {
-          colName = 'topics';
-          existing = topics.find(t => t.name.toLowerCase().trim() === item.name.toLowerCase().trim());
-          break;
-        }
-        case 'Questions': {
-          colName = 'questions';
-          existing = questions.find(q => q.question.toLowerCase().trim() === item.question.toLowerCase().trim());
-          break;
-        }
-        case 'Interview Questions': {
-          colName = 'intelliQuestions';
-          existing = intelliQuestions.find(iq => iq.question.toLowerCase().trim() === item.question.toLowerCase().trim());
-          break;
-        }
-        case 'Mistake Journals': {
-          colName = 'mistakes';
-          existing = mistakes.find(m => m.companyName.toLowerCase().trim() === item.companyName.toLowerCase().trim() && m.reason.toLowerCase().trim() === item.reason.toLowerCase().trim());
-          break;
-        }
-        case 'Activity Plans': {
-          colName = 'activityPlans';
-          existing = plans.find(p => p.title.toLowerCase().trim() === item.title.toLowerCase().trim());
-          break;
-        }
-        case 'Roadmaps': {
-          colName = 'roadmaps';
-          existing = roadmaps.find(r => r.title.toLowerCase().trim() === item.title.toLowerCase().trim());
-          break;
-        }
-        case 'Journal Entries': {
-          colName = 'journals';
-          existing = journals.find(j => j.title.toLowerCase().trim() === item.title.toLowerCase().trim() && j.content.toLowerCase().trim() === item.content.toLowerCase().trim());
-          break;
-        }
-        default:
-          return;
-      }
-
-      if (existing) {
-        if (duplicatePolicy === 'skip') {
-          skipped++;
-          return;
-        }
-        if (duplicatePolicy === 'replace') {
-          updated++;
-        } else {
-          imported++;
-          existing = null; // treat as new
-        }
-      } else {
-        imported++;
-      }
-
-      let docData: any = {};
-      let docId = '';
-
-      switch (dataType) {
-        case 'Topics': {
-          docId = existing ? existing.id : 'topic-' + Date.now() + '-' + idx;
-          docData = {
-            id: docId,
-            userId: user.uid,
-            name: item.name,
-            category: item.category,
-            description: item.description || '',
-            status: item.status || 'Not Started',
-            confidenceScore: Number(item.confidenceScore) || 0,
-            recallScore: Number(item.recallScore) || 0,
-            revisionCount: Number(item.revisionCount) || 0,
-            forgotCount: Number(item.forgotCount) || 0,
-            notes: item.notes || '',
-            dependencyIds: Array.isArray(item.dependencyIds) ? item.dependencyIds : []
-          };
-          break;
-        }
-        case 'Questions': {
-          docId = existing ? existing.id : 'question-' + Date.now() + '-' + idx;
-          
-          let topicId = '';
-          if (item.topicName) {
-            const matchedTopic = topics.find(t => t.name.toLowerCase().trim() === item.topicName.toLowerCase().trim());
-            if (matchedTopic) {
-              topicId = matchedTopic.id;
-            } else {
-              const newTopicId = 'topic-' + Date.now() + '-' + idx;
-              batch.set(doc(db, 'topics', newTopicId), {
-                id: newTopicId,
-                userId: user.uid,
-                name: item.topicName,
-                category: 'Uncategorized',
-                description: 'Auto-generated topic from bulk questions import.',
-                status: 'Not Started',
-                confidenceScore: 0,
-                recallScore: 0,
-                revisionCount: 0,
-                forgotCount: 0,
-                notes: '',
-                dependencyIds: []
-              });
-              topics.push({
-                id: newTopicId,
-                name: item.topicName,
-                category: 'Uncategorized',
-                description: 'Auto-generated topic from bulk questions import.',
-                status: 'Not Started',
-                confidenceScore: 0,
-                recallScore: 0,
-                revisionCount: 0,
-                forgotCount: 0,
-                notes: '',
-                dependencyIds: []
-              });
-              topicId = newTopicId;
-            }
-          }
-
-          docData = {
-            id: docId,
-            userId: user.uid,
-            question: item.question,
-            answer: item.answer,
-            difficulty: item.difficulty || 'Medium',
-            topicId: topicId || 'general',
-            tags: typeof item.tags === 'string' ? item.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t !== '') : (Array.isArray(item.tags) ? item.tags : []),
-            source: item.source || 'Interview',
-            askedCount: Number(item.askedCount) || 0
-          };
-          break;
-        }
-        case 'Interview Questions': {
-          docId = existing ? existing.id : 'intelli-' + Date.now() + '-' + idx;
-          docData = {
-            id: docId,
-            userId: user.uid,
-            company: item.company || 'Unknown',
-            question: item.question,
-            answer: item.answer,
-            difficulty: item.difficulty || 'Medium',
-            topic: item.topic || 'General',
-            dateAsked: item.dateAsked || new Date().toISOString().substring(0, 10),
-            result: item.result || 'Answered Correctly'
-          };
-          break;
-        }
-        case 'Mistake Journals': {
-          docId = existing ? existing.id : 'mistake-' + Date.now() + '-' + idx;
-          docData = {
-            id: docId,
-            userId: user.uid,
-            companyName: item.companyName,
-            reason: item.reason,
-            missedQuestions: typeof item.missedQuestions === 'string' ? item.missedQuestions.split(',').map((q: string) => q.trim()).filter((q: string) => q !== '') : (Array.isArray(item.missedQuestions) ? item.missedQuestions : []),
-            date: item.date || new Date().toISOString().substring(0, 10)
-          };
-          break;
-        }
-        case 'Activity Plans': {
-          docId = existing ? existing.id : 'plan-' + Date.now() + '-' + idx;
-          docData = {
-            id: docId,
-            userId: user.uid,
-            title: item.title,
-            targetHours: Number(item.targetHours) || 1,
-            category: item.category || 'Technical',
-            startDate: item.startDate || new Date().toISOString().substring(0, 10),
-            endDate: item.endDate || new Date().toISOString().substring(0, 10),
-            repeatType: item.repeatType || 'Daily'
-          };
-          break;
-        }
-        case 'Roadmaps': {
-          docId = existing ? existing.id : 'roadmap-' + Date.now() + '-' + idx;
-          docData = {
-            id: docId,
-            userId: user.uid,
-            title: item.title,
-            description: item.description || '',
-            topics: Array.isArray(item.topics) ? item.topics.map((t: any) => ({
-              name: t.name,
-              dependencies: Array.isArray(t.dependencies) ? t.dependencies : [],
-              completed: !!t.completed
-            })) : [],
-            isPrebuilt: false,
-            isActive: !!item.isActive,
-            createdAt: item.createdAt || new Date().toISOString()
-          };
-          break;
-        }
-        case 'Journal Entries': {
-          docId = existing ? existing.id : 'journal-' + Date.now() + '-' + idx;
-          docData = {
-            id: docId,
-            userId: user.uid,
-            title: item.title,
-            content: item.content,
-            type: item.type || 'Learning Journal',
-            tags: typeof item.tags === 'string' ? item.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t !== '') : (Array.isArray(item.tags) ? item.tags : []),
-            createdAt: item.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          break;
-        }
-        default:
-          return;
-      }
-
-      batch.set(doc(db, colName, docId), docData);
-    });
-
-    await batch.commit();
-
-    await pushNotification({
-      title: 'Bulk Import Finalized',
-      message: `Parsed bulk operations: Imported ${imported}, updated ${updated}, skipped ${skipped} duplicate keys.`,
-      type: 'daily'
-    });
-
-    return { imported, updated, skipped };
-  };
-
-
-  // ==========================================
-  // INTERVIEW MISTAKES JOURNAL LOGIC
-  // ==========================================
-  const handleAddMistake = async (mistake: Omit<Mistake, 'id'>) => {
-    if (!user) return;
-    const mId = 'mistake-' + Date.now();
-    const created: Mistake = {
-      ...mistake,
-      id: mId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'mistakes', mId), created);
-
-      const batch = writeBatch(db);
-      topics.forEach(t => {
-        const isRelated = mistake.missedQuestions.some(missedQ => {
-          const qClean = missedQ.toLowerCase();
-          const tClean = t.name.toLowerCase();
-          const catClean = t.category.toLowerCase();
-          return qClean.includes(tClean) || tClean.includes(qClean) || qClean.includes(catClean);
-        });
-
-        if (isRelated) {
-          batch.set(doc(db, 'topics', t.id), {
-            ...t,
-            forgotCount: t.forgotCount + 1,
-            confidenceScore: Math.max(10, t.confidenceScore - 20),
-            nextRevisionDate: new Date().toISOString()
-          });
-        }
-      });
-      await batch.commit();
-
-      await pushNotification({
-        title: 'Mistake Journal Entry logged',
-        message: `Gaps recorded from ${mistake.companyName} round. Topic schedules updated.`,
-        type: 'weakness'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `mistakes/${mId}`);
-    }
-  };
-
-  const handleDeleteMistake = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'mistakes', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `mistakes/${id}`);
-    }
-  };
-
-
-  // ==========================================
-  // STUDY SESSIONS TRACKER
-  // ==========================================
-  const handleAddSession = async (newSession: Omit<StudySession, 'id'>) => {
-    if (!user) return;
-    const ssId = 'session-' + Date.now();
-    const created: StudySession = {
-      ...newSession,
-      id: ssId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'studySessions', ssId), created);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `studySessions/${ssId}`);
-    }
-  };
-
-
-  // ==========================================
-  // CORE NOTIFICATION BUILD SYSTEM
-  // ==========================================
-  const pushNotification = async (params: Omit<AppNotification, 'id' | 'date' | 'read'>) => {
-    if (!user) return;
-    const notifId = 'notif-' + Date.now();
-    const created: AppNotification = {
-      ...params,
-      id: notifId,
-      userId: user.uid,
-      date: new Date().toISOString(),
-      read: false
-    };
-    try {
-      await setDoc(doc(db, 'notifications', notifId), created);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleMarkRead = async (id: string) => {
-    if (!user) return;
-    // Find the notification in local state and use setDoc with the full object
-    // (updateDoc partial patch fails the isValidNotification rule which requires all fields)
-    const notif = notifications.find(n => n.id === id);
-    if (!notif) return;
-    try {
-      await setDoc(doc(db, 'notifications', id), { ...notif, read: true });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `notifications/${id}`);
-    }
-  };
-
-  const handleClearAll = async () => {
-    if (!user) return;
-    try {
-      const batch = writeBatch(db);
-      notifications.forEach(n => {
-        batch.delete(doc(db, 'notifications', n.id));
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // ==========================================
-  // INTERVIEW INTELLIGENCE DATABASE SYSTEM
-  // ==========================================
-  const handleAddIntelliQuestion = async (newIQ: Omit<InterviewIntelligenceQuestion, 'id'>) => {
-    if (!user) return;
-    const iqId = 'intq-' + Date.now();
-    const created: InterviewIntelligenceQuestion = {
-      ...newIQ,
-      id: iqId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'intelliQuestions', iqId), created);
-      await pushNotification({
-        title: 'Interview Knowledge Logged',
-        message: `Enriched permanent database with a new question from ${newIQ.company}.`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `intelliQuestions/${iqId}`);
-    }
-  };
-
-  const handleDeleteIntelliQuestion = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'intelliQuestions', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `intelliQuestions/${id}`);
-    }
-  };
-
-  // ==========================================
-  // HABITS AND ACTIVITY PLANNING DATABASE MUTATIONS
-  // ==========================================
-  const handleAddPlan = async (newPlan: Omit<ActivityPlan, 'id' | 'userId'>) => {
-    if (!user) return;
-    const planId = 'plan-' + Date.now();
-    const created: ActivityPlan = {
-      ...newPlan,
-      id: planId,
-      userId: user.uid
-    };
-    try {
-      await setDoc(doc(db, 'activityPlans', planId), created);
-      await pushNotification({
-        title: 'New Activity Plan Created',
-        message: `Registered "${created.title}" with target ${created.targetHours}h daily in your planner database.`,
-        type: 'daily'
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `activityPlans/${planId}`);
-    }
-  };
-
-  const handleDeletePlan = async (id: string) => {
-    if (!user) return;
-    if (confirm("Decommissioning this habit plan will also delete all associated generated daily task trackers. Proceed?")) {
-      try {
-        await deleteDoc(doc(db, 'activityPlans', id));
-        
-        const orphans = tasks.filter(t => t.planId === id);
-        const batch = writeBatch(db);
-        orphans.forEach(t => {
-          batch.delete(doc(db, 'dailyTasks', t.id));
-        });
-        await batch.commit();
-
-        await pushNotification({
-          title: 'Activity Plan Terminated',
-          message: 'Decommissioned tracking plan and cascading daily tracker records successfully.',
-          type: 'daily'
-        });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `activityPlans/${id}`);
-      }
-    }
-  };
-
-  const handleUpdateTaskInApp = async (updated: DailyTask, actualHours?: number, notes?: string) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'dailyTasks', updated.id), {
-        ...updated,
-        userId: user.uid
-      });
-
-      if (updated.status === 'Completed' && actualHours !== undefined) {
-        const logId = 'log-' + Date.now();
-        const logged: ActivityLog = {
-          id: logId,
-          taskId: updated.id,
-          userId: user.uid,
-          actualHours,
-          notes: notes || '',
-          loggedAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'activityLogs', logId), logged);
-        
-        await pushNotification({
-          title: `Milestone Accomplishment logged`,
-          message: `Finished "${updated.title}" and logged ${actualHours} hours successfully.`,
-          type: 'daily'
-        });
-      }
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `dailyTasks/${updated.id}`);
-    }
-  };
-
-  const handleDeleteTaskInApp = async (id: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'dailyTasks', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `dailyTasks/${id}`);
-    }
-  };
-
-  // 3. Loading check
   if (authLoading) {
     return (
       <div className="min-h-screen text-slate-100 flex flex-col items-center justify-center font-sans antialiased relative">
@@ -2122,12 +129,10 @@ export default function App() {
     <div className="min-h-screen text-slate-100 flex flex-col font-sans select-none antialiased relative">
       <div className="mesh-gradient" />
       
-      {/* 2. Top Navigation header layout block */}
       {user && (
       <header className="app-header text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           
-          {/* Logo with clean typography */}
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-xs border border-indigo-400/30">
               <BookOpen className="w-5 h-5 text-indigo-50" />
@@ -2135,7 +140,6 @@ export default function App() {
             <div>
               <div className="flex items-center gap-1.5 leading-none">
                 <span className="font-black text-base tracking-tight text-white font-sans">Preparation Tracker</span>
-               
               </div>
               <span className="text-[10px] text-slate-400 font-mono block mt-0.5 leading-none">
                 Focused Interview Readiness
@@ -2143,50 +147,43 @@ export default function App() {
             </div>
           </div>
 
-          {/* User profile identifier or Sign Out (Personalised Context!) */}
-          {user ? (
-            <div className="flex items-center gap-3.5 text-xs text-indigo-100 shrink-0 font-sans">
-              <div className="hidden sm:flex flex-col items-end leading-none gap-1">
-                <span className="font-bold text-slate-200">{user.email}</span>
-                <span className="text-[10px] text-indigo-300 font-mono flex items-center gap-0.5">
-                  <BadgeCheck className="w-3 h-3 text-emerald-400" />
-                  {userProfile?.name || 'Active Candidate'}
-                </span>
-              </div>
-              <button
-                onClick={() => signOut(auth)}
-                id="header-logout-btn"
-                className="hidden sm:flex px-3 py-1.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/50 rounded-lg text-xs font-semibold text-rose-350 hover:text-rose-300 cursor-pointer items-center gap-1.5 hover:shadow-md transition"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Sign Out
-              </button>
-
-              {/* Mobile Hamburger Menu */}
-              <button
-                onClick={() => setIsNavOpen(!isNavOpen)}
-                className="sm:hidden p-2 hover:bg-white/10 rounded-lg transition"
-                aria-label="Toggle navigation"
-              >
-                <Menu className="w-5 h-5 text-slate-300" />
-              </button>
+          <div className="flex items-center gap-3.5 text-xs text-indigo-100 shrink-0 font-sans">
+            <div className="hidden sm:flex flex-col items-end leading-none gap-1">
+              <span className="font-bold text-slate-200">{user.email}</span>
+              <span className="text-[10px] text-indigo-300 font-mono flex items-center gap-0.5">
+                <BadgeCheck className="w-3 h-3 text-emerald-400" />
+                {userProfile?.name || 'Active Candidate'}
+              </span>
             </div>
-          ) : null}
+            <button
+              onClick={() => signOut(auth)}
+              id="header-logout-btn"
+              className="hidden sm:flex px-3 py-1.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/50 rounded-lg text-xs font-semibold text-rose-350 hover:text-rose-300 cursor-pointer items-center gap-1.5 hover:shadow-md transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
+
+            <button
+              onClick={() => setIsNavOpen(!isNavOpen)}
+              className="sm:hidden p-2 hover:bg-white/10 rounded-lg transition"
+              aria-label="Toggle navigation"
+            >
+              <Menu className="w-5 h-5 text-slate-300" />
+            </button>
+          </div>
 
         </div>
       </header>
       )}
 
-      {/* 3. Main Workspace Container */}
       {!user ? (
         <AuthScreen />
       ) : (
         <>
-          {/* Mobile Navigation Overlay & Slide Panel */}
           <AnimatePresence>
             {isNavOpen && (
               <>
-                {/* Backdrop */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -2195,7 +192,6 @@ export default function App() {
                   className="fixed inset-0 bg-black/50 z-40 lg:hidden"
                 />
                 
-                {/* Right Slide Panel */}
                 <motion.div
                   initial={{ x: 300 }}
                   animate={{ x: 0 }}
@@ -2216,6 +212,7 @@ export default function App() {
                       { label: 'Interviews & Applications', icon: Calendar },
                       { label: 'Personal Reminders', icon: Bell },
                       { label: 'Activity Planner', icon: ListTodo },
+                      { label: 'STAR Story Builder', icon: ClipboardList },
                       { label: 'Analytics & Sessions', icon: Activity },
                       { label: 'Preparation Roadmaps', icon: Layers },
                       { label: 'My Achievements', icon: Award },
@@ -2245,7 +242,6 @@ export default function App() {
                       );
                     })}
 
-                    {/* Mobile Sign Out */}
                     <button
                       onClick={() => {
                         signOut(auth);
@@ -2264,10 +260,8 @@ export default function App() {
 
         <main className="max-w-7xl w-full mx-auto px-4 py-6 flex-1 flex flex-col lg:flex-row gap-6">
           
-          {/* Left column sidebar for filters & tabs selectors - Hidden on mobile */}
           <nav className="hidden lg:flex w-full lg:w-60 flex-col gap-4">
             
-            {/* Navigation link group */}
             <div className="glass-card p-4 space-y-1.5">
               <span className="block text-[10px] font-mono text-slate-400 uppercase tracking-widest px-2 mb-2 font-black select-none">
                 Explore Modules
@@ -2281,6 +275,7 @@ export default function App() {
                 { label: 'Interviews & Applications', icon: Calendar },
                 { label: 'Personal Reminders', icon: Bell },
                 { label: 'Activity Planner', icon: ListTodo },
+                { label: 'STAR Story Builder', icon: ClipboardList },
                 { label: 'Analytics & Sessions', icon: Activity },
                 { label: 'Preparation Roadmaps', icon: Layers },
                 { label: 'My Achievements', icon: Award },
@@ -2308,7 +303,6 @@ export default function App() {
               })}
             </div>
 
-            {/* Persistent notification Center positioned directly under the sidebar */}
             <div className="hidden lg:block">
               <NotificationCenter 
                 notifications={notifications}
@@ -2331,10 +325,8 @@ export default function App() {
 
           </nav>
 
-          {/* Center/Right primary viewport panel */}
           <section className="flex-1 min-w-0 flex flex-col gap-6">
             
-            {/* First-time welcome seed banner prompt */}
             {topics.length === 0 && (
               <div className="bg-slate-900/60 border border-indigo-500/25 rounded-2xl p-6 text-center shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
@@ -2355,7 +347,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Render Active Switch Tab View */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -2375,6 +366,7 @@ export default function App() {
                   sessions={sessions}
                   notifications={notifications}
                   onStartSession={(id) => {
+                    setActiveSessionTopicId(id);
                     setActiveTab('Analytics & Sessions');
                   }}
                   onNavigate={(dest) => {
@@ -2428,9 +420,9 @@ export default function App() {
                 intelliQuestions={intelliQuestions}
                 onAddIntelliQuestion={handleAddIntelliQuestion}
                 onDeleteIntelliQuestion={handleDeleteIntelliQuestion}
+                onUpdateTopic={handleUpdateTopic}
               />
             )}
-
 
           {activeTab === 'Topic Map & Spacing' && (
             <TopicManagement 
@@ -2439,11 +431,14 @@ export default function App() {
               onUpdateSubject={handleUpdateSubject}
               onDeleteSubject={handleDeleteSubject}
               topics={topics}
+              questions={questions}
               onAddTopic={handleAddTopic}
               onUpdateTopic={handleUpdateTopic}
               onDeleteTopic={handleDeleteTopic}
               onMergeTopics={handleMergeTopics}
+              onRecallResponse={handleRecallResponse}
               onLoadMore={() => { if (topics.length >= topicLimit) setTopicLimit(prev => prev + 50); }}
+              onNavigate={(dest) => setActiveTab(dest)}
               userId={user?.uid}
             />
           )}
@@ -2460,6 +455,7 @@ export default function App() {
               onAddVoiceRecording={handleAddVoice}
               onDeleteVoiceRecording={handleDeleteVoice}
               onLoadMore={() => { if (questions.length >= questionLimit) setQuestionLimit(prev => prev + 50); }}
+              onNavigate={(dest) => setActiveTab(dest)}
             />
           )}
 
@@ -2489,6 +485,8 @@ export default function App() {
               plans={plans}
               tasks={tasks}
               globalStats={globalStats}
+              initialActiveTopicId={activeSessionTopicId}
+              clearInitialActiveTopicId={() => setActiveSessionTopicId(null)}
             />
           )}
 
@@ -2548,11 +546,22 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'STAR Story Builder' && (
+            <StarStoryBuilder 
+              starStories={starStories}
+              onAddStarStory={handleAddStarStory}
+              onUpdateStarStory={handleUpdateStarStory}
+              onDeleteStarStory={handleDeleteStarStory}
+              cerebrasApiKey={userSettings?.cerebrasApiKey}
+            />
+          )}
+
           {activeTab === 'Mock Interview Simulator' && (
             <MockInterviewWorkspace 
               subjects={subjects}
               topics={topics}
               interviews={mockInterviews}
+              cerebrasApiKey={userSettings?.cerebrasApiKey}
               onAddInterview={handleAddMockInterview}
               onDeleteInterview={handleDeleteMockInterview}
             />
@@ -2575,20 +584,23 @@ export default function App() {
               roadmaps={roadmaps}
               journals={journals}
               interviews={interviews}
+              subjects={subjects}
+              userSettings={userSettings}
+              onUpdateCerebrasKey={handleUpdateCerebrasKey}
               onBulkImport={handleBulkImport}
             />
           )}
 
+
               </motion.div>
             </AnimatePresence>
 
-        </section>
+          </section>
 
-      </main>
+        </main>
         </>
       )}
 
-      {/* Footer copyright */}
       <footer className="border-t border-white/5 mt-auto py-5 select-none text-center bg-black/10">
         <div className="max-w-7xl mx-auto px-4 text-xs text-slate-400 font-sans">
           &copy; 2026 Preparation Tracker. Master interviews with focused, AI-powered preparation.
