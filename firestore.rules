@@ -431,6 +431,11 @@ service cloud.firestore {
       allow write: if isVerifiedUser() && isOwner(userId) && isValidReminderSettings(incoming());
     }
 
+    match /userSettings/{userId} {
+      allow get: if isVerifiedUser() && isOwner(userId);
+      allow write: if isVerifiedUser() && isOwner(userId);
+    }
+
     match /backups/{backupId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
       allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
