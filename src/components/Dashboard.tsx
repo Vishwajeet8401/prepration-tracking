@@ -31,6 +31,7 @@ interface DashboardProps {
   onActionReminder?: (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => Promise<void>;
   globalStats?: GlobalStats;
   urgentTopics?: Topic[];
+  pushNotification?: (params: Omit<AppNotification, 'id' | 'date' | 'read'>) => Promise<void>;
 }
 
 // 1. Premium Animated Counter
@@ -168,7 +169,8 @@ const Dashboard = React.memo(function Dashboard({
   reminderLogs = [],
   onActionReminder,
   globalStats,
-  urgentTopics
+  urgentTopics,
+  pushNotification
 }: DashboardProps) {
 
   // Accessibility tracking prefers-reduced-motion check
@@ -206,6 +208,36 @@ const Dashboard = React.memo(function Dashboard({
   // Only restart the interval when paused state or the timer identity changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTaskTimer?.isPaused, activeTaskTimer?.taskId]);
+
+  // Track overflow state to prevent double alerts
+  const overflowedTaskIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeTaskTimer) {
+      overflowedTaskIdRef.current = null;
+      return;
+    }
+
+    const targetSeconds = (activeTaskTimer.task.targetHours || 0) * 3600;
+
+    if (targetSeconds > 0 && activeTaskTimer.displaySeconds > targetSeconds) {
+      if (overflowedTaskIdRef.current !== activeTaskTimer.taskId) {
+        overflowedTaskIdRef.current = activeTaskTimer.taskId;
+        if (pushNotification) {
+          pushNotification({
+            title: `Task Time Limit Overflowed`,
+            message: `You have exceeded the target of ${activeTaskTimer.task.targetHours}h for task "${activeTaskTimer.taskTitle}".`,
+            type: 'daily',
+            priority: 'high'
+          }).catch(e => console.error("Failed to push overflow notification:", e));
+        }
+      }
+    } else {
+      if (overflowedTaskIdRef.current === activeTaskTimer.taskId) {
+        overflowedTaskIdRef.current = null;
+      }
+    }
+  }, [activeTaskTimer?.displaySeconds, activeTaskTimer?.taskId, activeTaskTimer?.task?.targetHours, pushNotification]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');

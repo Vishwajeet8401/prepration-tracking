@@ -382,6 +382,7 @@ export default function App() {
                   onActionReminder={handleActionPersonalReminder}
                   globalStats={globalStats}
                   urgentTopics={urgentTopics}
+                  pushNotification={pushNotification}
                 />
                 
                 <CloudBackupControls 
