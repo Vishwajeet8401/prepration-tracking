@@ -4,13 +4,15 @@ import {
   createUserWithEmailAndPassword, 
   signInWithPopup, 
   GoogleAuthProvider,
-  signInWithCredential
+  signInWithCredential,
+  sendPasswordResetEmail,
+  linkWithCredential
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { LogIn, Sparkles, AlertCircle, Loader, Mail, Lock, User } from 'lucide-react';
+import { LogIn, Sparkles, AlertCircle, Loader, Mail, Lock, User, ArrowLeft, CheckCircle2, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AuthScreenProps {
@@ -18,12 +20,15 @@ interface AuthScreenProps {
 }
 
 export default function AuthScreen({ onSuccess }: AuthScreenProps) {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'link'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingGoogleCred, setPendingGoogleCred] = useState<any>(null);
+
   const demoEmail = import.meta.env.VITE_DEMO_EMAIL;
   const demoPass = import.meta.env.VITE_DEMO_PASSWORD;
   const isDemoAvailable = Boolean(demoEmail && demoPass);
@@ -41,9 +46,10 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
 
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
-      if (isSignUp) {
+      if (mode === 'signup') {
         // Sign Up
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
@@ -63,12 +69,69 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
       onSuccess?.();
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('Invalid email or password.');
       } else if (err.code === 'auth/email-already-in-use') {
-        setError('This email is already registered.');
+        setError('This email is already registered. If you registered via Google, click "Google" to sign in, or click "Forgot Password" to set a password.');
       } else {
         setError(err.message || 'An error occurred during authentication.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address to receive the password reset link.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMessage('Password reset link sent to your email. Check your inbox!');
+      setMode('signin');
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email.');
+      } else {
+        setError(err.message || 'Failed to send password reset email.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLinkCredential = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Sign in with the existing password credential
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // 2. Link the pending Google credential
+      if (pendingGoogleCred) {
+        await linkWithCredential(userCredential.user, pendingGoogleCred);
+      }
+      onSuccess?.();
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Invalid password. Please try again.');
+      } else {
+        setError(err.message || 'Failed to link Google account.');
       }
     } finally {
       setLoading(false);
@@ -78,6 +141,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
   const handleGoogleAuth = async () => {
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       let user;
       if (Capacitor.isNativePlatform()) {
@@ -104,7 +168,17 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
       onSuccess?.();
     } catch (err: any) {
       console.error("Google Auth Error: ", err);
-      setError(err.message || 'Google Login was closed or failed.');
+      if (err.code === 'auth/account-exists-with-different-credential') {
+        const credential = GoogleAuthProvider.credentialFromError(err);
+        setPendingGoogleCred(credential);
+        if (err.customData?.email) {
+          setEmail(err.customData.email);
+        }
+        setMode('link');
+        setError('An account already exists with this email address. Please verify your password to link your Google sign-in.');
+      } else {
+        setError(err.message || 'Google Login was closed or failed.');
+      }
     } finally {
       setLoading(false);
     }
@@ -177,6 +251,7 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
         <AnimatePresence mode="wait">
           {error && (
             <motion.div 
+              key="error-msg"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -186,131 +261,269 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
               <span>{error}</span>
             </motion.div>
           )}
+          {successMessage && (
+            <motion.div 
+              key="success-msg"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-start gap-2 text-emerald-300 text-xs"
+            >
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
+            </motion.div>
+          )}
         </AnimatePresence>
 
-        <form onSubmit={handleEmailAuth} className="space-y-4 relative">
-          {isSignUp && (
+        {mode === 'forgot' ? (
+          <form onSubmit={handleForgotPassword} className="space-y-4 relative">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Full Name</label>
+              <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Email Address</label>
               <div className="relative">
-                <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
                 <input 
-                  type="text"
-                  placeholder="Your full name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  type="email"
+                  placeholder="work@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
+                  required
                 />
               </div>
             </div>
-          )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-              <input 
-                type="email"
-                placeholder="work@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-              <input 
-                type="password"
-                placeholder="Min. 6 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            id="auth-submit-btn"
-            disabled={loading}
-            className="w-full py-3 px-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <Loader className="w-4 h-4 animate-spin text-white" />
-            ) : (
-              <>
-                <LogIn className="w-4 h-4" />
-                {isSignUp ? 'Create Account' : 'Sign In Secure'}
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="relative flex py-5 items-center">
-          <div className="flex-grow border-t border-slate-800/50"></div>
-          <span className="flex-shrink mx-4 text-slate-500 text-[11px] tracking-widest uppercase font-mono font-semibold">Or Connect</span>
-          <div className="flex-grow border-t border-slate-800/50"></div>
-        </div>
-
-        <div className={`grid gap-3 mb-6 ${isDemoAvailable ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          <button
-            type="button"
-            id="google-auth-btn"
-            onClick={handleGoogleAuth}
-            disabled={loading}
-            className="py-2.5 px-4 cursor-pointer bg-slate-900/40 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:bg-slate-800/60 hover:border-slate-600/50 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-medium"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.63 15.03 1 12 1 7.24 1 3.21 3.73 1.25 7.72l3.86 3C6.03 7.72 8.78 5.04 12 5.04z" />
-              <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.45h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.99 3.74-4.91 3.74-8.53z" />
-              <path fill="#FBBC05" d="M5.11 14.78c-.24-.72-.38-1.5-.38-2.28 0-.78.14-1.56.38-2.28l-3.86-3C.46 8.78 0 10.33 0 12c0 1.67.46 3.22 1.25 4.72l3.86-2.94z" />
-              <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.1.74-2.5 1.18-4.28 1.18-3.22 0-5.97-2.68-6.89-5.68l-3.86 3C3.21 20.27 7.24 23 12 23z" />
-            </svg>
-            Google
-          </button>
-
-          {isDemoAvailable && (
             <button
-              type="button"
-              id="demo-sandbox-btn"
-              onClick={handleQuickDemoLoc}
+              type="submit"
               disabled={loading}
-              className="py-2.5 px-4 cursor-pointer bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 hover:bg-emerald-950/50 hover:border-emerald-500/40 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-medium"
+              className="w-full py-3 px-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Sparkles className="w-4 h-4" />
-              Try Demo
+              {loading ? (
+                <Loader className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <>
+                  <KeyRound className="w-4 h-4" />
+                  Send Password Reset Link
+                </>
+              )}
             </button>
-          )}
-        </div>
+          </form>
+        ) : mode === 'link' ? (
+          <form onSubmit={handleLinkCredential} className="space-y-4 relative">
+            <div className="text-xs text-slate-300 bg-slate-800/40 border border-slate-700/40 p-3 rounded-lg leading-relaxed mb-4">
+              An account with email <strong className="text-indigo-300">{email}</strong> already exists. 
+              Please enter the password for this account to link Google sign-in.
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                <input 
+                  type="password"
+                  placeholder="Enter your account password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <Loader className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4" />
+                  Verify & Link Account
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleEmailAuth} className="space-y-4 relative">
+            {mode === 'signup' && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                  <input 
+                    type="text"
+                    placeholder="Your full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                <input 
+                  type="email"
+                  placeholder="work@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Password</label>
+                {mode === 'signin' && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setSuccessMessage(null);
+                      setMode('forgot');
+                    }}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 transition hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                <input 
+                  type="password"
+                  placeholder="Min. 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              id="auth-submit-btn"
+              disabled={loading}
+              className="w-full py-3 px-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <Loader className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4" />
+                  {mode === 'signup' ? 'Create Account' : 'Sign In Secure'}
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {(mode === 'signin' || mode === 'signup') && (
+          <>
+            <div className="relative flex py-5 items-center">
+              <div className="flex-grow border-t border-slate-800/50"></div>
+              <span className="flex-shrink mx-4 text-slate-500 text-[11px] tracking-widest uppercase font-mono font-semibold">Or Connect</span>
+              <div className="flex-grow border-t border-slate-800/50"></div>
+            </div>
+
+            <div className={`grid gap-3 mb-6 ${isDemoAvailable ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <button
+                type="button"
+                id="google-auth-btn"
+                onClick={handleGoogleAuth}
+                disabled={loading}
+                className="py-2.5 px-4 cursor-pointer bg-slate-900/40 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:bg-slate-800/60 hover:border-slate-600/50 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-medium"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.63 15.03 1 12 1 7.24 1 3.21 3.73 1.25 7.72l3.86 3C6.03 7.72 8.78 5.04 12 5.04z" />
+                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.45h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.99 3.74-4.91 3.74-8.53z" />
+                  <path fill="#FBBC05" d="M5.11 14.78c-.24-.72-.38-1.5-.38-2.28 0-.78.14-1.56.38-2.28l-3.86-3C.46 8.78 0 10.33 0 12c0 1.67.46 3.22 1.25 4.72l3.86-2.94z" />
+                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.1.74-2.5 1.18-4.28 1.18-3.22 0-5.97-2.68-6.89-5.68l-3.86 3C3.21 20.27 7.24 23 12 23z" />
+                </svg>
+                Google
+              </button>
+
+              {isDemoAvailable && (
+                <button
+                  type="button"
+                  id="demo-sandbox-btn"
+                  onClick={handleQuickDemoLoc}
+                  disabled={loading}
+                  className="py-2.5 px-4 cursor-pointer bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 hover:bg-emerald-950/50 hover:border-emerald-500/40 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-medium"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Try Demo
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="text-center text-xs text-slate-400 space-y-1.5">
           <p>
-            {isSignUp ? (
+            {mode === 'signup' && (
               <span>
                 Already have an account?{' '}
                 <button 
-                  onClick={() => setIsSignUp(false)} 
+                  onClick={() => {
+                    setError(null);
+                    setSuccessMessage(null);
+                    setMode('signin');
+                  }} 
                   className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline"
                 >
                   Sign In
                 </button>
               </span>
-            ) : (
+            )}
+            {mode === 'signin' && (
               <span>
                 New here?{' '}
                 <button 
-                  onClick={() => setIsSignUp(true)} 
+                  onClick={() => {
+                    setError(null);
+                    setSuccessMessage(null);
+                    setMode('signup');
+                  }} 
                   className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline"
                 >
                   Create Account
-              </button>
+                </button>
               </span>
+            )}
+            {mode === 'forgot' && (
+              <button 
+                onClick={() => {
+                  setError(null);
+                  setSuccessMessage(null);
+                  setMode('signin');
+                }} 
+                className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline flex items-center justify-center gap-1.5 mx-auto"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back to Sign In
+              </button>
+            )}
+            {mode === 'link' && (
+              <button 
+                onClick={() => {
+                  setError(null);
+                  setSuccessMessage(null);
+                  setMode('signin');
+                  setPendingGoogleCred(null);
+                }} 
+                className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline flex items-center justify-center gap-1.5 mx-auto"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Cancel & Sign In
+              </button>
             )}
           </p>
           <p className="text-[11px] text-slate-500 pt-1">
