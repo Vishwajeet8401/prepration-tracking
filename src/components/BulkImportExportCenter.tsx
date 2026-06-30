@@ -790,7 +790,7 @@ export default function BulkImportExportCenter({
                 activeSubTab === tab ? 'bg-indigo-650 text-white font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
-              {tab === 'import' ? 'Import Data' : tab === 'templates' ? 'AI Prompts' : tab === 'export' ? 'Export Backup' : 'API Key Config'}
+              {tab === 'import' ? 'Import Data' : tab === 'templates' ? 'AI Prompts' : tab === 'export' ? 'Export Backup' : 'Config'}
             </button>
           ))}
         </div>
