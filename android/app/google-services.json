@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "992882220557",
+    "project_id": "tracking-prep",
+    "storage_bucket": "tracking-prep.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:992882220557:android:a2404dec75def1af3fbf44",
+        "android_client_info": {
+          "package_name": "com.prep.tracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "992882220557-26dlue2f4cgbjgeg3tb7egddmj01opc4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.prep.tracker",
+            "certificate_hash": "6468ed00f063917f4f88583f8a3d3375ce0301c3"
+          }
+        },
+        {
+          "client_id": "992882220557-c5fc854isb3e8oao492ls6fig8aih4fg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGQyuSNBaqsCj0CWarTmx4I3Myn97sbLs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "992882220557-c5fc854isb3e8oao492ls6fig8aih4fg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

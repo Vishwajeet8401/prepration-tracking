@@ -7,6 +7,7 @@ import {
   HelpCircle, ChevronDown, ChevronUp, Save, X, BookOpen, 
   RefreshCw, CheckCircle, Trophy, BarChart2
 } from 'lucide-react';
+import AudioPlayButton from './AudioPlayButton';
 
 interface StarStoryBuilderProps {
   starStories: StarStory[];
@@ -465,77 +466,93 @@ export default function StarStoryBuilder({
                     {isActive && (
                       <div className="px-4 pb-4 pt-1 border-t border-white/5 space-y-4 text-left animate-fade-in">
                         
-                        {/* STAR Blocks */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="bg-white/5 p-3 rounded-xl border border-white/5 space-y-1">
-                            <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider block">Situation (S)</span>
-                            <p className="leading-relaxed text-slate-300">{story.situation}</p>
-                          </div>
-                          
-                          <div className="bg-white/5 p-3 rounded-xl border border-white/5 space-y-1">
-                            <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider block">Task (T)</span>
-                            <p className="leading-relaxed text-slate-300">{story.task || 'Deliver milestones under set goals.'}</p>
-                          </div>
-                        </div>
+                         {/* STAR Blocks */}
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="bg-white/5 p-3 rounded-xl border border-white/5 space-y-1 relative group/situation">
+                             <div className="flex items-center justify-between">
+                               <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider block">Situation (S)</span>
+                               <AudioPlayButton text={story.situation} tooltip="Read situation" className="p-1 opacity-0 group-hover/situation:opacity-100 transition-opacity bg-transparent border-none shadow-none text-slate-400 hover:text-white" />
+                             </div>
+                             <p className="leading-relaxed text-slate-300">{story.situation}</p>
+                           </div>
+                           
+                           <div className="bg-white/5 p-3 rounded-xl border border-white/5 space-y-1 relative group/task">
+                             <div className="flex items-center justify-between">
+                               <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider block">Task (T)</span>
+                               <AudioPlayButton text={story.task || 'Deliver milestones under set goals.'} tooltip="Read task" className="p-1 opacity-0 group-hover/task:opacity-100 transition-opacity bg-transparent border-none shadow-none text-slate-400 hover:text-white" />
+                             </div>
+                             <p className="leading-relaxed text-slate-300">{story.task || 'Deliver milestones under set goals.'}</p>
+                           </div>
+                         </div>
 
-                        <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-1">
-                          <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider block">Action (A)</span>
-                          <p className="leading-relaxed text-slate-300">{story.action}</p>
-                        </div>
+                         <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-1 relative group/action">
+                           <div className="flex items-center justify-between">
+                             <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider block">Action (A)</span>
+                             <AudioPlayButton text={story.action} tooltip="Read action details" className="p-1 opacity-0 group-hover/action:opacity-100 transition-opacity bg-transparent border-none shadow-none text-slate-400 hover:text-white" />
+                           </div>
+                           <p className="leading-relaxed text-slate-300">{story.action}</p>
+                         </div>
 
-                        <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider">Result (R)</span>
-                            {!quantifiable && (
-                              <span className="text-[8px] text-amber-400 font-mono flex items-center gap-1 animate-pulse">
-                                <AlertCircle className="w-3 h-3" />
-                                <span>Unquantified result</span>
-                              </span>
-                            )}
-                          </div>
-                          <p className="leading-relaxed text-slate-300">{story.result}</p>
-                        </div>
+                         <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-2 relative group/result">
+                           <div className="flex items-center justify-between">
+                             <span className="text-[9px] font-mono text-indigo-400 font-bold uppercase tracking-wider">Result (R)</span>
+                             <div className="flex items-center gap-2">
+                               {!quantifiable && (
+                                 <span className="text-[8px] text-amber-400 font-mono flex items-center gap-1 animate-pulse">
+                                   <AlertCircle className="w-3 h-3" />
+                                   <span>Unquantified result</span>
+                                 </span>
+                               )}
+                               <AudioPlayButton text={story.result} tooltip="Read result" className="p-1 opacity-0 group-hover/result:opacity-100 transition-opacity bg-transparent border-none shadow-none text-slate-400 hover:text-white" />
+                             </div>
+                           </div>
+                           <p className="leading-relaxed text-slate-300">{story.result}</p>
+                         </div>
 
-                        {/* AI Grading Audit Drawer */}
-                        <div className="border-t border-white/5 pt-3.5 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="w-4 h-4 text-indigo-400" />
-                              <span className="font-bold text-white text-[11px]">AI Behavioral Star Audit</span>
-                            </div>
+                         {/* AI Grading Audit Drawer */}
+                         <div className="border-t border-white/5 pt-3.5 space-y-3">
+                           <div className="flex items-center justify-between">
+                             <div className="flex items-center gap-2">
+                               <Sparkles className="w-4 h-4 text-indigo-400" />
+                               <span className="font-bold text-white text-[11px]">AI Behavioral Star Audit</span>
+                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => runAiAudit(story)}
-                              disabled={isAuditingId !== null}
-                              className="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/20 text-indigo-300 font-bold rounded-lg transition flex items-center gap-1 cursor-pointer text-[10px] disabled:opacity-55"
-                            >
-                              {isAuditingId === story.id ? (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Evaluating Story...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5" />
-                                  <span>{story.aiScore !== undefined ? 'Re-Audit Story' : 'Run Audit Scorer'}</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
+                             <button
+                               type="button"
+                               onClick={() => runAiAudit(story)}
+                               disabled={isAuditingId !== null}
+                               className="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/20 text-indigo-300 font-bold rounded-lg transition flex items-center gap-1 cursor-pointer text-[10px] disabled:opacity-55"
+                             >
+                               {isAuditingId === story.id ? (
+                                 <>
+                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                   <span>Evaluating Story...</span>
+                                 </>
+                               ) : (
+                                 <>
+                                   <RefreshCw className="w-3.5 h-3.5" />
+                                   <span>{story.aiScore !== undefined ? 'Re-Audit Story' : 'Run Audit Scorer'}</span>
+                                 </>
+                               )}
+                             </button>
+                           </div>
 
-                          {story.aiFeedback && (
-                            <div className="bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/10 space-y-2">
-                              <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-1.5">
-                                <BarChart2 className="w-3.5 h-3.5 text-indigo-400" />
-                                <span className="font-bold text-white text-[10px]">Coach's Evaluation Report &bull; Rating {story.aiScore}/100</span>
-                              </div>
-                              <p className="text-slate-300 leading-relaxed text-[11px] italic font-sans">
-                                "{story.aiFeedback}"
-                              </p>
-                            </div>
-                          )}
-                        </div>
+                           {story.aiFeedback && (
+                             <div className="bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/10 space-y-2 relative group/ai-feedback">
+                               <div className="flex items-center justify-between border-b border-indigo-500/10 pb-1.5">
+                                 <div className="flex items-center gap-2">
+                                   <BarChart2 className="w-3.5 h-3.5 text-indigo-400" />
+                                   <span className="font-bold text-white text-[10px]">Coach's Evaluation Report &bull; Rating {story.aiScore}/100</span>
+                                 </div>
+                                 <AudioPlayButton text={story.aiFeedback} tooltip="Read feedback evaluation" className="p-1 opacity-0 group-hover/ai-feedback:opacity-100 transition-opacity bg-transparent border-none shadow-none text-slate-400 hover:text-white" />
+                               </div>
+                               <p className="text-slate-300 leading-relaxed text-[11px] italic font-sans">
+                                 "{story.aiFeedback}"
+                               </p>
+                             </div>
+                           )}
+                         </div>
+
 
                       </div>
                     )}

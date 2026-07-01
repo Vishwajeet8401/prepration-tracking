@@ -380,3 +380,28 @@
   background: var(--scrollbar-thumb-hover);
 }
 
+@keyframes audio-wave {
+  0% {
+    transform: scaleY(0.35);
+  }
+  100% {
+    transform: scaleY(1.15);
+  }
+}
+
+.animate-audio-wave-1 {
+  animation: audio-wave 0.5s ease-in-out infinite alternate;
+  transform-origin: bottom;
+}
+.animate-audio-wave-2 {
+  animation: audio-wave 0.4s ease-in-out infinite alternate;
+  animation-delay: 0.15s;
+  transform-origin: bottom;
+}
+.animate-audio-wave-3 {
+  animation: audio-wave 0.6s ease-in-out infinite alternate;
+  animation-delay: 0.3s;
+  transform-origin: bottom;
+}
+
+

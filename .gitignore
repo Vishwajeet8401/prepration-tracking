@@ -7,4 +7,7 @@ coverage/
 *.log
 .env*
 !.env.example
+.idea/
+.idea_modules/
 firebase-debug.log
+

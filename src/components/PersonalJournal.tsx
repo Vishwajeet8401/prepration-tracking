@@ -6,6 +6,7 @@ import {
   Paperclip, ArrowRight, Check, AlertCircle, FileText, CheckCircle, 
   ExternalLink, ArrowLeft, ChevronLeft, ChevronRight, HelpCircle 
 } from 'lucide-react';
+import AudioPlayButton from './AudioPlayButton';
 
 interface PersonalJournalProps {
   journals: Journal[];
@@ -647,9 +648,12 @@ const PersonalJournal = React.memo(function PersonalJournal({
                       </div>
 
                       {/* Title & Body summaries */}
-                      <div className="space-y-1.5 flex-1 select-text">
+                      <div className="space-y-1.5 flex-1 select-text relative group/journal-card">
                         <div className="text-[10px] font-mono text-slate-400 block">{journal.createdAt.split('T')[0]}</div>
-                        <h5 className="text-xs font-black text-white leading-normal line-clamp-1">{journal.title}</h5>
+                        <div className="flex items-center justify-between gap-2">
+                          <h5 className="text-xs font-black text-white leading-normal line-clamp-1">{journal.title}</h5>
+                          <AudioPlayButton text={journal.content} tooltip="Read journal entry" className="p-0.5 opacity-0 group-hover/journal-card:opacity-100 transition-opacity bg-transparent border-none shadow-none text-slate-400 hover:text-white shrink-0" />
+                        </div>
                         <p className="text-[10px] text-slate-400 font-mono leading-relaxed line-clamp-4 whitespace-pre-wrap select-text selection:bg-indigo-500/30 selection:text-white">
                           {journal.content}
                         </p>

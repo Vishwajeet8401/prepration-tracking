@@ -7,6 +7,7 @@ import React, { useState, useMemo, useRef, useEffect, forwardRef } from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { Question, Topic, VoiceRecording } from '../types';
 import { createLocalObjectUrl, parseLocalFileRef } from '../localFileStore';
+import AudioPlayButton from './AudioPlayButton';
 import { 
   Layers, HelpCircle, Check, Play, Eye, RotateCcw, AlertTriangle, 
   Trash2, Plus, Edit2, Search, Mic, Square, Volume2, Save, Sparkles,
@@ -638,9 +639,14 @@ const QuestionBank = React.memo(function QuestionBank({
                           <span>Toggle Correct Answer Preview</span>
                           <span className="text-slate-400 group-open:rotate-180 transition-transform">&darr;</span>
                         </summary>
-                        <p className="mt-2 text-slate-300 font-mono whitespace-pre-line border-t border-white/5 pt-2 leading-relaxed">
-                          {q.answer}
-                        </p>
+                        <div className="mt-2 border-t border-white/5 pt-2 relative group/answer">
+                          <div className="absolute right-0 top-2 opacity-0 group-hover/answer:opacity-100 transition-opacity">
+                            <AudioPlayButton text={q.answer} tooltip="Read answer aloud" className="p-1 bg-white/5" />
+                          </div>
+                          <p className="text-slate-300 font-mono whitespace-pre-line leading-relaxed pr-8">
+                            {q.answer}
+                          </p>
+                        </div>
                       </details>
                     </div>
 
@@ -664,7 +670,7 @@ const QuestionBank = React.memo(function QuestionBank({
                       {topicObj ? (
                         <div className="space-y-1 min-w-0 flex-1 mr-2">
                           <span className="text-[10px] font-bold text-slate-450 font-mono block">
-                            Topic: <button onClick={() => onNavigate?.('Topic Map & Spacing')} className="text-indigo-305 font-sans font-semibold hover:underline cursor-pointer">{topicObj.name}</button>
+                            Topic: <button onClick={() => onNavigate?.('Study Topics & Revisions')} className="text-indigo-305 font-sans font-semibold hover:underline cursor-pointer">{topicObj.name}</button>
                           </span>
                           {/* Topic confidence mini-bar */}
                           <div className="flex items-center gap-1.5">
@@ -843,7 +849,7 @@ const QuestionBank = React.memo(function QuestionBank({
 
               {onNavigate && (
                 <button
-                  onClick={() => onNavigate('Topic Map & Spacing')}
+                  onClick={() => onNavigate('Study Topics & Revisions')}
                   className="w-full text-center text-[11px] font-mono text-indigo-400 hover:text-indigo-300 font-bold py-1.5 border border-indigo-500/15 rounded-lg hover:bg-indigo-500/5 transition cursor-pointer"
                 >
                   → View Topic Map &amp; Spacing Scheduler
@@ -897,8 +903,15 @@ const QuestionBank = React.memo(function QuestionBank({
                 </div>
 
                 {showAnswer ? (
-                  <div className="mt-4 pt-4 border-t border-dashed border-white/10 text-xs text-slate-300 font-mono whitespace-pre-line leading-relaxed">
-                    <span className="block font-sans font-extrabold text-indigo-400 uppercase mb-2 text-[10px] tracking-wider">Verified System Answer:</span>
+                  <div className="mt-4 pt-4 border-t border-dashed border-white/10 text-xs text-slate-300 font-mono whitespace-pre-line leading-relaxed relative group/practice-answer">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="block font-sans font-extrabold text-indigo-400 uppercase text-[10px] tracking-wider">Verified System Answer:</span>
+                      <AudioPlayButton 
+                        text={practiceQuestions[currentPracticeIndex]?.answer || ''} 
+                        tooltip="Read answer aloud" 
+                        className="p-1 opacity-0 group-hover/practice-answer:opacity-100 transition-opacity" 
+                      />
+                    </div>
                     {practiceQuestions[currentPracticeIndex]?.answer}
                   </div>
                 ) : (

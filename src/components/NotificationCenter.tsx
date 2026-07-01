@@ -345,7 +345,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
       priority: 'medium',
       status: 'active',
       actionText: "Open Daily Task Manager",
-      actionUrl: "Activity Planner"
+      actionUrl: "Task & Study Planner"
     });
 
     // B. Activity Reminder
@@ -358,7 +358,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
         priority: 'medium',
         status: 'active',
         actionText: "Log Practice Hour",
-        actionUrl: "Analytics & Sessions"
+        actionUrl: "Progress & Analytics"
       });
     }
 
@@ -371,7 +371,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
       priority: 'high',
       status: 'active',
       actionText: "Start Active Recall",
-      actionUrl: "Question Bank & Practice"
+      actionUrl: "Flashcards & Practice"
     });
 
     // D. Weak Topic Alert
@@ -384,7 +384,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
       priority: 'medium',
       status: 'active',
       actionText: "Study Core Map",
-      actionUrl: "Topic Map & Spacing"
+      actionUrl: "Study Topics & Revisions"
     });
 
     // E. Interview Countdowns
@@ -401,7 +401,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
           priority: 'high',
           status: 'active',
           actionText: "Start Prep Deck",
-          actionUrl: "Interviews & Applications"
+          actionUrl: "Goals & Applications"
         });
       } else if (daysDiff > 1 && daysDiff <= 5) {
         await pushNotification({
@@ -411,7 +411,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
           priority: 'high',
           status: 'active',
           actionText: "Review Materials",
-          actionUrl: "Interviews & Applications"
+          actionUrl: "Goals & Applications"
         });
       }
     } else {
@@ -423,7 +423,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
         priority: 'high',
         status: 'active',
         actionText: "Rehearse Templates",
-        actionUrl: "Interviews & Applications"
+        actionUrl: "Goals & Applications"
       });
     }
 
@@ -441,7 +441,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
         priority: 'medium',
         status: 'active',
         actionText: "Launch AI Expert Mock",
-        actionUrl: "Mock Interview Simulator"
+        actionUrl: "Practice Simulator"
       });
     }
 
@@ -453,7 +453,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
       priority: 'high',
       status: 'active',
       actionText: "Solve Diagnostic Deck",
-      actionUrl: "Dashboard & Priorities"
+      actionUrl: "Home Dashboard"
     });
 
     // H. Journal summary alert
@@ -464,7 +464,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
       priority: 'low',
       status: 'active',
       actionText: "Write Quick Reflection",
-      actionUrl: "Personal Journal"
+      actionUrl: "Daily Journal & Notes"
     });
 
     // Increment Analytics Sent Count
@@ -683,7 +683,7 @@ const NotificationCenter = React.memo(function NotificationCenter({
                           type: "daily",
                           priority: "high",
                           actionText: "Verify Telemetry",
-                          actionUrl: "Dashboard & Priorities"
+                          actionUrl: "Home Dashboard"
                         });
                       } else {
                         alert("Visual console grid and audio wave chimes are active! Pushing local alert.");

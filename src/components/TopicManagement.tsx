@@ -13,6 +13,7 @@ import {
   Check, Save, Eye, ArrowRight, ShieldAlert, Sparkles, BookOpen, Layers,
   Calendar, RotateCcw, Flame, Award
 } from 'lucide-react';
+import AudioPlayButton from './AudioPlayButton';
 
 interface TopicManagementProps {
   subjects: Subject[];
@@ -791,7 +792,7 @@ const TopicManagement = React.memo(function TopicManagement({
                         const qCount = questions.filter(q => q.topicId === topic.id).length;
                         return qCount > 0 ? (
                           <button
-                            onClick={() => onNavigate?.('Question Bank & Practice')}
+                            onClick={() => onNavigate?.('Flashcards & Practice')}
                             className="w-full flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-lg bg-indigo-500/10 border border-indigo-500/15 hover:bg-indigo-500/20 hover:border-indigo-500/30 text-[10px] font-mono font-bold text-indigo-305 transition cursor-pointer"
                           >
                             <span>📖 {qCount} question{qCount !== 1 ? 's' : ''} linked</span>
@@ -1146,7 +1147,10 @@ const TopicManagement = React.memo(function TopicManagement({
 
                   {sessionShowNotes ? (
                     <div className="mt-4 pt-4 border-t border-dashed border-white/10 space-y-3 animate-fade-in">
-                      <span className="block font-sans font-extrabold text-indigo-400 uppercase text-[9px] tracking-wider">Concept Notes & Snippets:</span>
+                      <div className="flex items-center justify-between">
+                        <span className="block font-sans font-extrabold text-indigo-400 uppercase text-[9px] tracking-wider">Concept Notes & Snippets:</span>
+                        <AudioPlayButton text={sessionTopics[sessionIndex].notes || "No conceptual notes written for this card yet."} tooltip="Read notes aloud" className="p-1 bg-white/5 border border-white/10" />
+                      </div>
                       <div className="p-3 bg-black/35 rounded-xl border border-white/5 text-xs font-mono text-slate-300 leading-relaxed max-h-56 overflow-y-auto whitespace-pre-wrap select-text custom-scrollbar">
                         {sessionTopics[sessionIndex].notes || "No conceptual notes written for this card yet."}
                       </div>
@@ -1266,11 +1270,14 @@ const TopicManagement = React.memo(function TopicManagement({
 
                 <ul className="space-y-2.5 text-xs text-slate-300 leading-relaxed font-sans">
                   {guide.points.map((point, index) => (
-                    <li key={index} className="flex items-start gap-2">
+                    <li key={index} className="flex items-start gap-2 relative group/rev-point pr-8">
                       <span className="w-4.5 h-4.5 rounded-full bg-indigo-500/15 border border-indigo-500/10 text-indigo-300 font-mono text-[10px] flex items-center justify-center shrink-0 mt-0.5">
                         {index + 1}
                       </span>
                       <span className="text-slate-300 pr-1">{point}</span>
+                      <div className="absolute right-0 top-0.5 opacity-0 group-hover/rev-point:opacity-100 transition-opacity">
+                        <AudioPlayButton text={point} tooltip="Read point" className="p-0.5 bg-transparent border-none shadow-none text-slate-400 hover:text-white" />
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -1317,8 +1324,11 @@ const TopicManagement = React.memo(function TopicManagement({
                 </div>
 
                 {/* Simulated Markdown Note Body */}
-                <div className="p-4 rounded-xl bg-white/2 border border-white/10 overflow-y-auto max-h-96">
-                  <div className="prose prose-invert prose-sm text-xs text-slate-300 leading-relaxed space-y-3 font-mono whitespace-pre-line">
+                <div className="p-4 rounded-xl bg-white/2 border border-white/10 overflow-y-auto max-h-96 relative group/teach-notes">
+                  <div className="absolute right-2 top-2 opacity-0 group-hover/teach-notes:opacity-100 transition-opacity">
+                    <AudioPlayButton text={activeTeachTopic.notes || ''} tooltip="Read notes aloud" className="p-1 bg-white/5 border border-white/10" />
+                  </div>
+                  <div className="prose prose-invert prose-sm text-xs text-slate-300 leading-relaxed space-y-3 font-mono whitespace-pre-line pr-8">
                     {activeTeachTopic.notes || "No custom note documentation added to this topic card. Click edit details to append concepts, bullets, and syntax snippets!"}
                   </div>
                 </div>

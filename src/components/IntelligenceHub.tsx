@@ -3,6 +3,7 @@ import {
   Topic, Question, Interview, Mistake, StudySession, 
   VoiceRecording, InterviewIntelligenceQuestion 
 } from '../types';
+import AudioPlayButton from './AudioPlayButton';
 import { 
   Sparkles, ShieldAlert, Award, Calendar, Layers, Activity, Search, 
   HelpCircle, CheckCircle2, ChevronRight, CornerRightDown, BookOpen, Clock, 
@@ -60,6 +61,114 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
 
   // Quick revision deck focus
   const [selectedRevisionDeck, setSelectedRevisionDeck] = useState<string>('Java Core');
+
+  // Stateful and dynamic Quick Revision Decks
+  const [customRevisionDecks, setCustomRevisionDecks] = useState<{
+    [key: string]: {
+      concepts: string[];
+      questions: string[];
+      pitfalls: string[];
+    }
+  }>(() => {
+    try {
+      const saved = localStorage.getItem('prepmaster_custom_revision_decks');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("Failed to parse custom revision decks:", e);
+      return {};
+    }
+  });
+
+  const handleImportDecks = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        
+        // Basic validation
+        if (typeof json !== 'object' || json === null) {
+          alert('Invalid format. JSON must be an object containing revision decks.');
+          return;
+        }
+
+        for (const [key, value] of Object.entries(json)) {
+          if (typeof value !== 'object' || value === null) {
+            alert(`Deck "${key}" is not formatted properly. It must be an object.`);
+            return;
+          }
+          const val = value as any;
+          if (!Array.isArray(val.concepts) || !Array.isArray(val.questions) || !Array.isArray(val.pitfalls)) {
+            alert(`Deck "${key}" must contain concepts, questions, and pitfalls as arrays.`);
+            return;
+          }
+        }
+
+        const updated = { ...customRevisionDecks, ...json };
+        setCustomRevisionDecks(updated);
+        localStorage.setItem('prepmaster_custom_revision_decks', JSON.stringify(updated));
+        alert('Custom revision decks imported successfully!');
+        
+        // Auto-select the first imported deck if available
+        const importedKeys = Object.keys(json);
+        if (importedKeys.length > 0) {
+          setSelectedRevisionDeck(importedKeys[0]);
+        }
+      } catch (err) {
+        alert('Failed to parse JSON file. Please check for syntax errors.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleExportDecks = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(customRevisionDecks, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href",     dataStr);
+    downloadAnchor.setAttribute("download", "prepmaster_custom_revision_decks.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleDownloadTemplate = () => {
+    const template = {
+      "React Hooks": {
+        "concepts": [
+          "State preservation across renders using useState.",
+          "Side effects management using useEffect hooks."
+        ],
+        "questions": [
+          "Explain the difference between useMemo and useCallback.",
+          "What are the rules of Hooks?"
+        ],
+        "pitfalls": [
+          "Declaring hooks inside conditional checks or nested loops.",
+          "Missing dependency arrays causing stale closure references."
+        ]
+      }
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(template, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href",     dataStr);
+    downloadAnchor.setAttribute("download", "prepmaster_revision_deck_template.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleDeleteCustomDeck = (deckName: string) => {
+    if (confirm(`Are you sure you want to delete the custom deck "${deckName}"?`)) {
+      const updated = { ...customRevisionDecks };
+      delete updated[deckName];
+      setCustomRevisionDecks(updated);
+      localStorage.setItem('prepmaster_custom_revision_decks', JSON.stringify(updated));
+      setSelectedRevisionDeck('Java Core'); // Fallback
+    }
+  };
 
   // Teach Me Again memory decay view focus
   const [selectedDecayTopicId, setSelectedDecayTopicId] = useState<string | null>(null);
@@ -132,7 +241,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
             meta: `Scheduled: ${new Date(int.date).toLocaleDateString()}`,
             actionText: 'Review Mistakes',
             targetId: int.id,
-            targetTab: 'Interviews & Applications'
+            targetTab: 'Goals & Applications'
           });
         }
       });
@@ -151,7 +260,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
             meta: 'Retention Gap critical',
             actionText: 'Recall Now',
             targetId: t.id,
-            targetTab: 'Question Bank & Practice'
+            targetTab: 'Flashcards & Practice'
           });
         }
       }
@@ -171,7 +280,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
               meta: `Prereq Confidence: ${parent.confidenceScore}%`,
               actionText: 'Drill Prereq',
               targetId: parent.id,
-              targetTab: 'Question Bank & Practice'
+              targetTab: 'Flashcards & Practice'
             });
           }
         });
@@ -191,7 +300,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
           meta: `Forgot Score: ${t.forgotCount}`,
           actionText: 'Practice Bank',
           targetId: t.id,
-          targetTab: 'Question Bank & Practice'
+          targetTab: 'Flashcards & Practice'
         });
       });
 
@@ -208,7 +317,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
             meta: `${Math.round(daysSinceLast)} Days Unrevised`,
             actionText: 'Teach Me Again',
             targetId: t.id,
-            targetTab: 'Intelligence Hub'
+            targetTab: 'AI Learning Assistant'
           });
         }
       }
@@ -220,11 +329,15 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
   // ==========================================
   // 3. REGULAR TECHNOLOGY READINESS GRAPH & RATINGS (Point 5)
   // ==========================================
+  const dynamicCategories = useMemo(() => {
+    const uniqueCats = Array.from(new Set(topics.map(t => t.category).filter(Boolean)));
+    return uniqueCats.length > 0 
+      ? uniqueCats.slice(0, 10) 
+      : ['Java Core', 'Spring Boot', 'System Design', 'Concurrency', 'Databases'];
+  }, [topics]);
+
   const techReadinessData = useMemo(() => {
-    // Map standard categories
-    const categories = ['Java Core', 'Spring Boot', 'System Design', 'Concurrency', 'Databases'];
-    
-    return categories.map(cat => {
+    return dynamicCategories.map(cat => {
       const relatedTopics = topics.filter(t => 
         t.category.toLowerCase().includes(cat.toLowerCase()) || 
         cat.toLowerCase().includes(t.category.toLowerCase()) ||
@@ -448,6 +561,60 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
     );
   }, [activeDecayTopic, mistakes]);
 
+  // Dynamic Ebbinghaus curve computation
+  const dynamicCurveData = useMemo(() => {
+    if (topics.length === 0) {
+      return {
+        path: "M0,5 Q30,15 60,25 T100,28",
+        areaPath: "M0,5 Q30,15 60,25 T100,28 L100,30 L0,30 Z",
+        avgScore: 40
+      };
+    }
+    const sumConfidence = topics.reduce((s, t) => s + t.confidenceScore, 0);
+    const avgScore = Math.round(sumConfidence / topics.length);
+    
+    // Higher average score -> higher retention curve (closer to top y=5)
+    // Lower average score -> lower/steeper curve (closer to bottom y=28)
+    const endY = Math.max(5, Math.min(28, 28 - Math.round((avgScore / 100) * 23)));
+    const controlY1 = Math.max(5, Math.min(28, 15 - Math.round((avgScore / 100) * 10)));
+    const controlY2 = Math.max(5, Math.min(28, 25 - Math.round((avgScore / 100) * 20)));
+
+    const path = `M0,5 Q30,${controlY1} 60,${controlY2} T100,${endY}`;
+    const areaPath = `${path} L100,30 L0,30 Z`;
+
+    return { path, areaPath, avgScore };
+  }, [topics]);
+
+  const [isCompilingReport, setIsCompilingReport] = useState(false);
+
+  const handleDownloadMetrics = () => {
+    const reportData = {
+      timestamp: new Date().toISOString(),
+      weeklyReportStats,
+      topicsCount: topics.length,
+      questionsCount: questions.length,
+      interviewsCount: interviews.length,
+      mistakesCount: mistakes.length,
+      studySessionsCount: sessions.length
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(reportData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href",     dataStr);
+    downloadAnchor.setAttribute("download", `prepmaster_intelligence_report_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleCompileReport = () => {
+    setIsCompilingReport(true);
+    setTimeout(() => {
+      setIsCompilingReport(false);
+      setIsReportGenerated(true);
+      alert('Report compiled and refreshed with current variables.');
+    }, 800);
+  };
+
   // ==========================================
   // 9. FORM HANDLER FOR INTEL Q&A DATABASE
   // ==========================================
@@ -525,6 +692,62 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
       ]
     }
   };
+
+  const allRevisionDecks = useMemo(() => {
+    const baseDecks: {
+      [key: string]: {
+        concepts: string[];
+        questions: string[];
+        pitfalls: string[];
+      }
+    } = {
+      ...quickRevisionDecks,
+      ...customRevisionDecks
+    };
+
+    // Auto-generate decks dynamically based on the user's active topics & categories
+    const categories = Array.from(new Set(topics.map(t => t.category).filter(Boolean)));
+    categories.forEach(cat => {
+      const relatedTopics = topics.filter(t => t.category === cat);
+      
+      const concepts = relatedTopics
+        .map(t => t.notes || t.description)
+        .filter(Boolean)
+        .slice(0, 3);
+        
+      const topicIds = relatedTopics.map(t => t.id);
+      const relatedQuestions = questions
+        .filter(q => topicIds.includes(q.topicId))
+        .map(q => q.question)
+        .slice(0, 3);
+
+      const relatedMistakes = mistakes
+        .filter(m => 
+          m.missedQuestions && m.missedQuestions.some(mq => 
+            relatedTopics.some(t => mq.toLowerCase().includes(t.name.toLowerCase()))
+          )
+        )
+        .map(m => m.reason)
+        .slice(0, 3);
+
+      // Only generate if there is relevant content in this category
+      if (concepts.length > 0 || relatedQuestions.length > 0 || relatedMistakes.length > 0) {
+        baseDecks[`Workspace: ${cat}`] = {
+          concepts: concepts.length > 0 ? concepts : ['Add notes/descriptions to topics in this category to populate concepts.'],
+          questions: relatedQuestions.length > 0 ? relatedQuestions : ['Create practice questions to populate this section.'],
+          pitfalls: relatedMistakes.length > 0 ? relatedMistakes : ['Log mistakes in this category to see anti-pattern warnings.']
+        };
+      }
+    });
+
+    return baseDecks;
+  }, [topics, questions, mistakes, customRevisionDecks]);
+
+  const currentDeck = useMemo(() => {
+    return allRevisionDecks[selectedRevisionDeck] 
+      || allRevisionDecks['Java Core'] 
+      || Object.values(allRevisionDecks)[0];
+  }, [allRevisionDecks, selectedRevisionDeck]);
 
   // ==========================================
   // 11. WEEKLY ENGINE REPORT COMPILER (Point 11)
@@ -610,7 +833,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-mono text-slate-300 border-t border-white/5 pt-2 mt-2">
                     <span>Confidence: {t.confidenceScore}%</span>
-                    <button onClick={() => { onNavigate('Topic Map & Spacing'); setSearchQuery(''); }} className="text-indigo-400 hover:text-indigo-305 hover:underline font-bold cursor-pointer">Go to Scheduler &rarr;</button>
+                    <button onClick={() => { onNavigate('Study Topics & Revisions'); setSearchQuery(''); }} className="text-indigo-400 hover:text-indigo-305 hover:underline font-bold cursor-pointer">Go to Scheduler &rarr;</button>
                   </div>
                 </div>
               ))}
@@ -631,8 +854,13 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                 <div key={q.id} className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs">
                   <span className="text-[9px] text-sky-400 uppercase font-mono font-bold block mb-1">Flashcard Question</span>
                   <p className="font-bold text-slate-200 mb-1.5">{q.question}</p>
-                  <p className="text-slate-400 italic bg-black/20 p-2 rounded leading-relaxed border border-white/5">{q.answer}</p>
-                  <button onClick={() => { onNavigate('Question Bank & Practice'); setSearchQuery(''); }} className="text-[10px] text-indigo-400 hover:underline mt-2 inline-block font-bold cursor-pointer">Drill Question &rarr;</button>
+                  <div className="relative group/search-q-ans">
+                    <p className="text-slate-400 italic bg-black/20 p-2 rounded leading-relaxed border border-white/5 pr-10">{q.answer}</p>
+                    <div className="absolute right-2 top-2 opacity-0 group-hover/search-q-ans:opacity-100 transition-opacity">
+                      <AudioPlayButton text={q.answer} tooltip="Read answer aloud" className="p-1 bg-white/5 border border-white/10" />
+                    </div>
+                  </div>
+                  <button onClick={() => { onNavigate('Flashcards & Practice'); setSearchQuery(''); }} className="text-[10px] text-indigo-400 hover:underline mt-2 inline-block font-bold cursor-pointer">Drill Question &rarr;</button>
                 </div>
               ))}
 
@@ -644,7 +872,12 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                     <span className={`text-[9px] px-1.5 rounded font-bold font-mono ${iq.result === 'Answered Correctly' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>{iq.result}</span>
                   </div>
                   <p className="font-semibold text-slate-200 mb-1">{iq.question}</p>
-                  <p className="text-slate-400">{iq.answer}</p>
+                  <div className="relative group/search-iq-ans">
+                    <p className="text-slate-400 bg-black/20 p-2.5 rounded border border-white/5 pr-10">{iq.answer}</p>
+                    <div className="absolute right-2 top-2 opacity-0 group-hover/search-iq-ans:opacity-100 transition-opacity">
+                      <AudioPlayButton text={iq.answer} tooltip="Read answer aloud" className="p-1 bg-white/5 border border-white/10" />
+                    </div>
+                  </div>
                 </div>
               ))}
 
@@ -668,7 +901,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                     <span className="text-[10px] text-slate-400 font-mono">{new Date(i.date).toLocaleDateString()}</span>
                   </div>
                   <p className="text-slate-400">{i.feedback || 'Interview cycle details recorded.'}</p>
-                  <button onClick={() => { onNavigate('Interviews & Applications'); setSearchQuery(''); }} className="text-[10px] text-indigo-455 hover:underline mt-2 inline-block font-bold cursor-pointer">Track Interview &rarr;</button>
+                  <button onClick={() => { onNavigate('Goals & Applications'); setSearchQuery(''); }} className="text-[10px] text-indigo-455 hover:underline mt-2 inline-block font-bold cursor-pointer">Track Interview &rarr;</button>
                 </div>
               ))}
 
@@ -812,17 +1045,17 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                 </p>
 
                 {/* Forgetting curve animation */}
-                <div className="bg-[#111827]/40 border border-purple-500/10 rounded-xl p-3 h-28 relative flex flex-col justify-between">
+                <div className="bg-[#111827]/40 border border-purple-500/10 rounded-xl p-3 h-28 relative flex flex-col justify-between font-sans">
                   <span className="text-[9px] font-mono text-purple-400 font-bold block">Forgetting Curve Decay (Ebbinghaus)</span>
                   <svg className="w-full h-14" viewBox="0 0 100 30" preserveAspectRatio="none">
                     <path 
-                      d="M0,5 Q30,15 60,25 T100,28" 
+                      d={dynamicCurveData.path} 
                       fill="none" 
                       stroke="#a855f7" 
                       strokeWidth="1.5"
                     />
                     <path 
-                      d="M0,5 Q30,15 60,25 T100,28 L100,30 L0,30 Z" 
+                      d={dynamicCurveData.areaPath} 
                       fill="url(#decayGrad)" 
                       opacity="0.1" 
                     />
@@ -836,7 +1069,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                   <div className="flex justify-between text-[8px] font-mono text-slate-500">
                     <span>1 Day (100%)</span>
                     <span>3 Days (60%)</span>
-                    <span>7 Days (40%)</span>
+                    <span>7 Days ({dynamicCurveData.avgScore}% Avg)</span>
                   </div>
                 </div>
 
@@ -1213,7 +1446,10 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                     </div>
 
                     <div className="space-y-1">
-                      <h4 className="font-bold text-slate-200 text-sm leading-snug">{iq.question}</h4>
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="font-bold text-slate-200 text-sm leading-snug">{iq.question}</h4>
+                        <AudioPlayButton text={iq.answer} tooltip="Read answer" className="p-1 bg-white/5 border border-white/10 shrink-0" />
+                      </div>
                       <p className="text-xs text-slate-400 leading-relaxed bg-black/40 p-3 rounded border border-white/5 whitespace-pre-wrap italic group-hover:border-indigo-500/15 transition">
                         "{iq.answer}"
                       </p>
@@ -1303,7 +1539,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                         <span className="font-extrabold text-indigo-300 font-mono">{item.priorityWeight} pts</span>
                       </div>
                       <button 
-                        onClick={() => onNavigate('Question Bank & Practice')}
+                        onClick={() => onNavigate('Flashcards & Practice')}
                         className="p-1 px-2.5 bg-indigo-650 hover:bg-indigo-600 rounded text-[11px] font-bold text-white cursor-pointer transition shadow"
                       >
                         Drill Now
@@ -1329,17 +1565,67 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
               <p className="text-xs text-slate-400">Perform rapid context revision blocks directly before walking into interview screens.</p>
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 bg-white/5 border border-white/5 rounded-lg text-xs font-semibold">
-              {Object.keys(quickRevisionDecks).map(deck => (
-                <button 
-                  key={deck} 
-                  onClick={() => setSelectedRevisionDeck(deck)}
-                  className={`px-3 py-1 rounded-md transition cursor-pointer text-[11px] ${selectedRevisionDeck === deck ? 'bg-indigo-600 text-white font-bold' : 'text-slate-455 hover:text-white'}`}
-                >
-                  {deck}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white/5 border border-white/5 rounded-lg text-xs font-semibold max-w-full overflow-x-auto font-sans">
+              {Object.keys(allRevisionDecks).map(deck => {
+                const isCustom = deck in customRevisionDecks;
+                return (
+                  <div key={deck} className="relative group shrink-0">
+                    <button 
+                      onClick={() => setSelectedRevisionDeck(deck)}
+                      className={`px-3 py-1 rounded-md transition cursor-pointer text-[11px] flex items-center gap-1 ${
+                        selectedRevisionDeck === deck 
+                          ? 'bg-indigo-650 text-white font-bold' 
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>{deck}</span>
+                    </button>
+                    {isCustom && (
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCustomDeck(deck); }}
+                        className="absolute -top-1.5 -right-1 bg-red-900/80 hover:bg-red-700 text-white text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                        title="Delete custom deck"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+          </div>
+
+          {/* Deck Management Controls */}
+          <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4 border border-white/5">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="relative flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-[11px] rounded-lg text-slate-300 font-semibold cursor-pointer transition">
+                <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Import JSON Decks</span>
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  onChange={handleImportDecks} 
+                  className="hidden" 
+                />
+              </label>
+              <button 
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-[11px] rounded-lg text-slate-300 font-semibold cursor-pointer transition"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Template JSON</span>
+              </button>
+            </div>
+            {Object.keys(customRevisionDecks).length > 0 && (
+              <button 
+                onClick={handleExportDecks}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-[11px] rounded-lg text-indigo-300 font-semibold cursor-pointer transition animate-fade-in"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Export Custom Decks ({Object.keys(customRevisionDecks).length})</span>
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1351,9 +1637,12 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
               </span>
               
               <div className="space-y-3 text-xs leading-normal">
-                {(quickRevisionDecks as any)[selectedRevisionDeck].concepts.map((concept: string, idx: number) => (
-                  <div key={idx} className="p-3 bg-black/20 rounded-lg border border-white/5">
-                    <span className="block font-mono text-[9px] font-bold text-indigo-400 mb-1">CONCEPT INDEX #{idx+1}</span>
+                {currentDeck.concepts.map((concept: string, idx: number) => (
+                  <div key={idx} className="p-3 bg-black/20 rounded-lg border border-white/5 relative group/concept">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="block font-mono text-[9px] font-bold text-indigo-400">CONCEPT INDEX #{idx+1}</span>
+                      <AudioPlayButton text={concept} tooltip="Read concept" className="p-1 opacity-0 group-hover/concept:opacity-100 transition-opacity bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" />
+                    </div>
                     <p className="text-slate-300 leading-relaxed italic">"{concept}"</p>
                   </div>
                 ))}
@@ -1365,12 +1654,14 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
               <span className="block text-xs font-mono font-bold text-slate-205 border-b border-white/5 pb-2 uppercase tracking-widest text-[#6ee7b7]">
                 ⚡ Expected Interview Qs
               </span>
-
               <div className="space-y-3 text-xs leading-normal">
-                {(quickRevisionDecks as any)[selectedRevisionDeck].questions.map((q: string, idx: number) => (
-                  <div key={idx} className="p-3 bg-slate-900/40 rounded-lg border border-white/5">
-                    <span className="block font-mono text-[9px] font-bold text-emerald-400 mb-1">PROBABLE DRILL #{idx+1}</span>
-                    <p className="text-slate-200 font-bold leading-normal">{q}</p>
+                {currentDeck.questions.map((q: string, idx: number) => (
+                  <div key={idx} className="p-3 bg-slate-900/40 rounded-lg border border-white/5 relative group/question">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="block font-mono text-[9px] font-bold text-emerald-400">PROBABLE DRILL #{idx+1}</span>
+                      <AudioPlayButton text={q} tooltip="Read question" className="p-1 opacity-0 group-hover/question:opacity-100 transition-opacity bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" />
+                    </div>
+                    <p className="text-slate-205 font-bold leading-normal">{q}</p>
                   </div>
                 ))}
               </div>
@@ -1381,11 +1672,13 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
               <span className="block text-xs font-mono font-bold text-slate-205 border-b border-white/5 pb-2 uppercase tracking-widest text-[#fda4af]">
                 ⚠️ Anti-Pattern Pitfalls
               </span>
-
               <div className="space-y-3 text-xs leading-normal">
-                {(quickRevisionDecks as any)[selectedRevisionDeck].pitfalls.map((p: string, idx: number) => (
-                  <div key={idx} className="p-3 bg-red-950/20 rounded-lg border border-red-500/10">
-                    <span className="block font-mono text-[9px] font-bold text-rose-400 mb-1">AVOID BOTCHING #{idx+1}</span>
+                {currentDeck.pitfalls.map((p: string, idx: number) => (
+                  <div key={idx} className="p-3 bg-red-950/20 rounded-lg border border-red-500/10 relative group/pitfall">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="block font-mono text-[9px] font-bold text-rose-400">AVOID BOTCHING #{idx+1}</span>
+                      <AudioPlayButton text={p} tooltip="Read pitfall warning" className="p-1 opacity-0 group-hover/pitfall:opacity-100 transition-opacity bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" />
+                    </div>
                     <p className="text-slate-350 leading-normal italic">❌ "{p}"</p>
                   </div>
                 ))}
@@ -1408,11 +1701,12 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
             </div>
             
             <button 
-              onClick={() => { setIsReportGenerated(true); alert('Report compiled and refreshed with current variables.'); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-655 hover:bg-indigo-600 rounded-xl border border-indigo-500/20 text-xs text-white cursor-pointer font-bold transition shadow"
+              onClick={handleCompileReport}
+              disabled={isCompilingReport}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-650 hover:bg-indigo-600 rounded-xl border border-indigo-500/20 text-xs text-white cursor-pointer font-bold transition shadow disabled:opacity-50"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Compile Weekly Report</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isCompilingReport ? 'animate-spin' : ''}`} />
+              <span>{isCompilingReport ? 'Compiling...' : 'Compile Weekly Report'}</span>
             </button>
           </div>
 
@@ -1438,7 +1732,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-sans">
                 <div className="p-3.5 bg-black/25 border border-white/5 rounded-xl text-center">
                   <span className="block text-[8.5px] uppercase font-mono tracking-wider text-slate-500 mb-1 font-bold">Study Volume</span>
                   <span className="text-2xl font-black text-white font-mono block">{weeklyReportStats.studyHours} hrs</span>
@@ -1487,21 +1781,21 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
               </div>
 
               {/* Evaluator signature & report actions */}
-              <div className="border-t border-white/5 pt-4 flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-slate-500 gap-4 select-none">
-                <span>Verified by prep-master spaced-retention validation daemon v12.1.</span>
+              <div className="border-t border-white/5 pt-4 flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-slate-500 gap-4 select-none font-sans">
+                <span className="font-mono text-slate-500">Verified by prep-master spaced-retention validation daemon v12.1.</span>
                 
                 <button 
-                  onClick={() => alert('Data serialization compiled successfully. CSV report generated inside session cache.')}
-                  className="flex items-center gap-1.5 text-bold hover:text-white border border-white/5 hover:border-white/20 p-2 rounded bg-white/5 transition duration-200 cursor-pointer"
+                  onClick={handleDownloadMetrics}
+                  className="flex items-center gap-1.5 text-bold hover:text-white border border-white/5 hover:border-white/20 p-2 rounded bg-white/5 transition duration-200 cursor-pointer text-xs"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Download metrics details</span>
                 </button>
               </div>
 
             </div>
           ) : (
-            <div className="text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-xl font-mono text-slate-500">
+            <div className="text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-xl font-mono text-slate-500 font-sans">
               Weekly compile report stack pending. Refresh queue properties to generate.
             </div>
           )}

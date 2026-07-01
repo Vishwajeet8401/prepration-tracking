@@ -1106,7 +1106,7 @@ const Dashboard = React.memo(function Dashboard({
               <div className="text-center py-4 text-slate-400 text-xs font-sans">
                 No planner habits designated for today.
                 <button
-                  onClick={() => onNavigate('Activity Planner')}
+                  onClick={() => onNavigate('Task & Study Planner')}
                   className="text-indigo-400 font-bold underline hover:text-indigo-305 ml-1 block mt-1.5 mx-auto cursor-pointer"
                 >
                   Set study planner rules &rarr;
@@ -1206,7 +1206,7 @@ const Dashboard = React.memo(function Dashboard({
               <div className="text-center py-6 text-slate-400 text-xs font-sans">
                 No reminders scheduled for today.
                 <button
-                  onClick={() => onNavigate('Personal Reminders')}
+                  onClick={() => onNavigate('Reminders & Habits')}
                   className="text-indigo-400 font-bold underline hover:text-indigo-305 ml-1 block mt-1.5 mx-auto cursor-pointer"
                 >
                   Schedule Personal Reminders &rarr;
@@ -1262,7 +1262,7 @@ const Dashboard = React.memo(function Dashboard({
               <div className="pt-2 border-t border-emerald-500/5 mt-2 flex items-center justify-between text-[9px] font-mono text-slate-450">
                 <span>Compliance: {medicineProgress.total > 0 ? Math.round((medicineProgress.completed / medicineProgress.total) * 100) : 100}%</span>
                 <button
-                  onClick={() => onNavigate('Personal Reminders')}
+                  onClick={() => onNavigate('Reminders & Habits')}
                   className="text-emerald-400 font-bold underline hover:text-emerald-350 cursor-pointer"
                 >
                   Manage Cabinet &rarr;
@@ -1306,7 +1306,7 @@ const Dashboard = React.memo(function Dashboard({
               Last evaluation: Just updated
             </span>
             <MagneticButton
-              onClick={() => onNavigate('Question Bank & Practice')}
+              onClick={() => onNavigate('Flashcards & Practice')}
               className="px-3.5 py-1.5 bg-indigo-650 hover:bg-slate-200 hover:text-indigo-950 text-white rounded-xl text-xs font-bold font-sans transition-all flex items-center gap-1.5 shadow-lg border border-indigo-500/30 group-hover:scale-[1.02]"
               reducedMotion={reducedMotion}
             >
@@ -1368,22 +1368,22 @@ const Dashboard = React.memo(function Dashboard({
         <div className="bg-rose-500/5 border border-rose-500/10 p-3 rounded-xl text-center">
           <span className="block text-[9px] font-mono text-rose-300 font-bold uppercase">Topics Due Today</span>
           <span className="block text-2xl font-black text-white mt-0.5">{revisionStats.due + revisionStats.overdue}</span>
-          <button onClick={() => onNavigate('Topic Map & Spacing')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">View Scheduler →</button>
+          <button onClick={() => onNavigate('Study Topics & Revisions')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">View Scheduler →</button>
         </div>
         <div className="bg-indigo-500/5 border border-indigo-500/10 p-3 rounded-xl text-center">
           <span className="block text-[9px] font-mono text-indigo-300 font-bold uppercase">Overdue Topics</span>
           <span className="block text-2xl font-black text-white mt-0.5">{revisionStats.overdue}</span>
-          <button onClick={() => onNavigate('Topic Map & Spacing')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Reschedule →</button>
+          <button onClick={() => onNavigate('Study Topics & Revisions')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Reschedule →</button>
         </div>
         <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl text-center">
           <span className="block text-[9px] font-mono text-emerald-300 font-bold uppercase">Total Questions</span>
           <span className="block text-2xl font-black text-white mt-0.5">{questions.length}</span>
-          <button onClick={() => onNavigate('Question Bank & Practice')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Practice →</button>
+          <button onClick={() => onNavigate('Flashcards & Practice')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Practice →</button>
         </div>
         <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl text-center">
           <span className="block text-[9px] font-mono text-amber-300 font-bold uppercase">Hard Questions</span>
           <span className="block text-2xl font-black text-white mt-0.5">{questions.filter(q => q.difficulty === 'Hard').length}</span>
-          <button onClick={() => onNavigate('Question Bank & Practice')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Drill Hard →</button>
+          <button onClick={() => onNavigate('Flashcards & Practice')} className="text-[9px] text-indigo-400 hover:underline cursor-pointer font-mono mt-0.5">Drill Hard →</button>
         </div>
       </motion.div>
       {/* 3. Revision Queue & Split Modules */}
@@ -1435,7 +1435,7 @@ const Dashboard = React.memo(function Dashboard({
                       <span className="font-bold text-rose-450">{t.forgotCount}x</span>
                     </div>
                     <button
-                      onClick={() => onNavigate('Question Bank & Practice')}
+                      onClick={() => onNavigate('Flashcards & Practice')}
                       className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/15 hover:border-indigo-400 hover:text-indigo-300 font-sans font-bold text-xs text-slate-350 transition cursor-pointer"
                     >
                       Diagnose
@@ -1459,7 +1459,7 @@ const Dashboard = React.memo(function Dashboard({
                 <AlertCircle className="w-5 h-5 text-rose-450" />
                 <h3 className="font-bold text-white font-display text-sm">Critical Gaps Diagnostics</h3>
               </div>
-              <span className="text-xs text-indigo-400 hover:underline cursor-pointer font-sans text-[11px]" onClick={() => onNavigate('Topic Map & Spacing')}>
+              <span className="text-xs text-indigo-400 hover:underline cursor-pointer font-sans text-[11px]" onClick={() => onNavigate('Study Topics & Revisions')}>
                 Dependency Map &rarr;
               </span>
             </div>
@@ -1506,7 +1506,7 @@ const Dashboard = React.memo(function Dashboard({
                 <Calendar className="w-5 h-5 text-indigo-400" />
                 <h3 className="font-bold text-white text-sm font-display">Target Schedules</h3>
               </div>
-              <span className="text-xs text-indigo-400 cursor-pointer hover:underline font-mono text-[10px]" onClick={() => onNavigate('Interviews & Applications')}>
+              <span className="text-xs text-indigo-400 cursor-pointer hover:underline font-mono text-[10px]" onClick={() => onNavigate('Goals & Applications')}>
                 Tracker
               </span>
             </div>
@@ -1610,7 +1610,7 @@ const Dashboard = React.memo(function Dashboard({
                       if (item.topic.status === 'Not Started' || item.topic.status === 'Learning') {
                         onStartSession(item.topic.id);
                       } else {
-                        onNavigate('Question Bank & Practice');
+                        onNavigate('Flashcards & Practice');
                       }
                     }}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-650 hover:bg-indigo-550 text-white font-bold text-xs font-sans transition-all shadow-md shrink-0 border border-indigo-500/25"
@@ -1679,7 +1679,7 @@ const Dashboard = React.memo(function Dashboard({
               })()}
             </div>
             <button
-              onClick={() => onNavigate('Preparation Roadmaps')}
+              onClick={() => onNavigate('Learning Roadmaps')}
               className="text-[9px] font-mono text-indigo-400 text-left hover:text-indigo-300 font-extrabold mt-3 pt-2.5 border-t border-white/5 block"
             >
               Analyze Timeline Tracks →
@@ -1751,7 +1751,7 @@ const Dashboard = React.memo(function Dashboard({
               })()}
             </div>
             <button
-              onClick={() => onNavigate('Personal Journal')}
+              onClick={() => onNavigate('Daily Journal & Notes')}
               className="text-[9px] font-mono text-teal-400 text-left hover:text-teal-300 font-extrabold mt-3 pt-2.5 border-t border-white/5 block"
             >
               Update Journal Entries →

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { speakNativeText, stopNativeSpeech, startNativeSpeechToText, stopNativeSpeechToText } from '../utils/mobileScheduler';
+import AudioPlayButton from './AudioPlayButton';
 
 interface MockInterviewWorkspaceProps {
   subjects: Subject[];
@@ -1243,16 +1244,29 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
                               </div>
                             )}
 
-                            <p className="text-[10px] bg-black/30 p-2.5 rounded-lg italic text-slate-400 border border-white/5 mt-2">Your raw answer: "{hist.answer}"</p>
+                            <div className="relative group/raw-answer">
+                              <p className="text-[10px] bg-black/30 p-2.5 rounded-lg italic text-slate-400 border border-white/5 mt-2 pr-10">Your raw answer: "{hist.answer}"</p>
+                              <div className="absolute right-2 top-[12px] opacity-0 group-hover/raw-answer:opacity-100 transition-opacity">
+                                <AudioPlayButton text={hist.answer} tooltip="Read your raw answer" className="p-1 bg-white/5 border border-white/10" />
+                              </div>
+                            </div>
                             
                             {hist.idealConcept && (
-                              <div className="space-y-1.5 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-left mt-2">
-                                <span className="block text-[8.5px] font-mono uppercase text-emerald-400 font-bold">💡 Better Reference Answer (To Upgrade Your Response):</span>
+                              <div className="space-y-1.5 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-left mt-2 relative group/ideal-answer">
+                                <div className="flex items-center justify-between">
+                                  <span className="block text-[8.5px] font-mono uppercase text-emerald-400 font-bold">💡 Better Reference Answer (To Upgrade Your Response):</span>
+                                  <AudioPlayButton text={hist.idealConcept} tooltip="Read reference answer" className="p-1 opacity-0 group-hover/ideal-answer:opacity-100 transition-opacity bg-white/5 border border-white/10" />
+                                </div>
                                 <p className="text-[11px] text-slate-205 leading-relaxed font-sans">{hist.idealConcept}</p>
                               </div>
                             )}
 
-                            <p className="text-emerald-400 text-[11px] leading-relaxed mt-1 font-medium bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10 mt-2">{hist.evaluation}</p>
+                            <div className="relative group/eval mt-2">
+                              <p className="text-emerald-400 text-[11px] leading-relaxed font-medium bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10 pr-10">{hist.evaluation}</p>
+                              <div className="absolute right-2 top-[10px] opacity-0 group-hover/eval:opacity-100 transition-opacity">
+                                <AudioPlayButton text={hist.evaluation} tooltip="Read evaluation" className="p-1 bg-white/5 border border-white/10" />
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>

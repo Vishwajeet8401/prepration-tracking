@@ -13,6 +13,7 @@ import {
   AlertCircle, ArrowRight, Zap, Brain
 } from 'lucide-react';
 import { VocabularyWord, WordDefinition, VocabularyStatus } from '../types';
+import AudioPlayButton from './AudioPlayButton';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -136,9 +137,16 @@ function WordResultCard({
             <BookOpen className="w-5 h-5 text-indigo-300" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-white tracking-tight capitalize leading-none">
-              {definition.word}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-black text-white tracking-tight capitalize leading-none">
+                {definition.word}
+              </h2>
+              <AudioPlayButton 
+                text={definition.word} 
+                tooltip="Pronounce word" 
+                className="p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-indigo-300 hover:text-indigo-200" 
+              />
+            </div>
             {definition.pronunciation && (
               <p className="text-sm text-indigo-300 font-medium mt-1 font-devanagari">
                 /{definition.pronunciation}/
@@ -172,13 +180,27 @@ function WordResultCard({
 
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* English Meaning */}
-        <div className="vocab-meaning-block">
-          <span className="vocab-label">English Meaning</span>
+        <div className="vocab-meaning-block group relative">
+          <div className="flex items-center justify-between gap-2">
+            <span className="vocab-label">English Meaning</span>
+            <AudioPlayButton 
+              text={definition.englishMeaning} 
+              tooltip="Read English meaning" 
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" 
+            />
+          </div>
           <p className="text-sm text-slate-200 leading-relaxed mt-1">{definition.englishMeaning}</p>
         </div>
         {/* Marathi Meaning */}
-        <div className="vocab-meaning-block">
-          <span className="vocab-label">Marathi Meaning</span>
+        <div className="vocab-meaning-block group relative">
+          <div className="flex items-center justify-between gap-2">
+            <span className="vocab-label">Marathi Meaning</span>
+            <AudioPlayButton 
+              text={definition.marathiMeaning} 
+              tooltip="Read Marathi meaning" 
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" 
+            />
+          </div>
           <p className="text-lg text-emerald-200 font-semibold mt-1 font-devanagari leading-relaxed">
             {definition.marathiMeaning}
           </p>
@@ -187,8 +209,15 @@ function WordResultCard({
 
       {/* Example sentence */}
       {definition.exampleSentence && (
-        <div className="mt-4 vocab-example-block">
-          <span className="vocab-label mb-1 block">Example</span>
+        <div className="mt-4 vocab-example-block group relative">
+          <div className="flex items-center justify-between gap-2">
+            <span className="vocab-label mb-1 block">Example</span>
+            <AudioPlayButton 
+              text={definition.exampleSentence} 
+              tooltip="Read example sentence" 
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" 
+            />
+          </div>
           <p className="text-sm text-slate-300 italic leading-relaxed">
             "{highlightWord(definition.exampleSentence, definition.word)}"
           </p>
@@ -395,23 +424,53 @@ function WordDetailModal({
             <BookOpen className="w-5 h-5 text-indigo-300" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white capitalize">{word.word}</h2>
-            <p className="text-sm text-indigo-300 font-devanagari mt-1">{word.pronunciation}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black text-white capitalize">{word.word}</h2>
+              <AudioPlayButton 
+                text={word.word} 
+                tooltip="Pronounce word" 
+                className="p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-indigo-300 hover:text-indigo-200" 
+              />
+            </div>
+            {word.pronunciation && (
+              <p className="text-sm text-indigo-300 font-devanagari mt-1">{word.pronunciation}</p>
+            )}
           </div>
         </div>
 
         <div className="space-y-3">
-          <div className="vocab-meaning-block">
-            <span className="vocab-label">English Meaning</span>
+          <div className="vocab-meaning-block group relative">
+            <div className="flex items-center justify-between gap-2">
+              <span className="vocab-label">English Meaning</span>
+              <AudioPlayButton 
+                text={word.englishMeaning} 
+                tooltip="Read English meaning" 
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" 
+              />
+            </div>
             <p className="text-sm text-slate-200 mt-1 leading-relaxed">{word.englishMeaning}</p>
           </div>
-          <div className="vocab-meaning-block">
-            <span className="vocab-label">Marathi Meaning</span>
+          <div className="vocab-meaning-block group relative">
+            <div className="flex items-center justify-between gap-2">
+              <span className="vocab-label">Marathi Meaning</span>
+              <AudioPlayButton 
+                text={word.marathiMeaning} 
+                tooltip="Read Marathi meaning" 
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" 
+              />
+            </div>
             <p className="text-lg text-emerald-200 font-devanagari font-semibold mt-1">{word.marathiMeaning}</p>
           </div>
           {word.exampleSentence && (
-            <div className="vocab-example-block">
-              <span className="vocab-label block mb-1">Example</span>
+            <div className="vocab-example-block group relative">
+              <div className="flex items-center justify-between gap-2">
+                <span className="vocab-label block mb-1">Example</span>
+                <AudioPlayButton 
+                  text={word.exampleSentence} 
+                  tooltip="Read example sentence" 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-transparent hover:bg-white/5 border-none shadow-none text-slate-400 hover:text-white" 
+                />
+              </div>
               <p className="text-sm text-slate-300 italic">"{highlightWord(word.exampleSentence, word.word)}"</p>
             </div>
           )}

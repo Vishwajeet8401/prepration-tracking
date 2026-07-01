@@ -1,0 +1,31 @@
+{
+  "appId": "com.prep.tracker",
+  "appName": "Preparation Tracker",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "992882220557-c5fc854isb3e8oao492ls6fig8aih4fg.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#488AFF",
+      "sound": "chime.wav",
+      "channels": [
+        {
+          "id": "prep_tracker_reminders",
+          "name": "Reminders",
+          "description": "Study reminders and personal notifications",
+          "importance": 5,
+          "visibility": 1,
+          "sound": "chime.wav",
+          "vibration": true,
+          "lights": true,
+          "lightColor": "#488AFF"
+        }
+      ]
+    }
+  }
+}
