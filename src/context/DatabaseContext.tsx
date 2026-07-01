@@ -177,6 +177,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const reminderSettingsRef = useRef(reminderSettings);
   const mockPresetQuestionsRef = useRef(mockPresetQuestions);
   const vocabularyWordsRef = useRef(vocabularyWords);
+  const userSettingsRef = useRef(userSettings);
 
   useEffect(() => { subjectsRef.current = subjects; }, [subjects]);
   useEffect(() => { topicsRef.current = topics; }, [topics]);
@@ -198,6 +199,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => { reminderSettingsRef.current = reminderSettings; }, [reminderSettings]);
   useEffect(() => { mockPresetQuestionsRef.current = mockPresetQuestions; }, [mockPresetQuestions]);
   useEffect(() => { vocabularyWordsRef.current = vocabularyWords; }, [vocabularyWords]);
+  useEffect(() => { userSettingsRef.current = userSettings; }, [userSettings]);
 
   // Toast Notifications Syncer
   useEffect(() => {
@@ -2317,40 +2319,87 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.warn('Word definition cache lookup failed:', err);
     }
 
-    // Tier 3: fetch from AI (Gemini)
-    try {
-      const { GoogleGenAI } = await import('@google/genai');
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDummy';
-      const genAI = new GoogleGenAI({ apiKey });
-      const prompt = `You are a dictionary. For the English word "${normalized}", respond ONLY with a valid JSON object (no markdown, no explanation) with exactly these fields:
+    // Tier 3: fetch from AI — try Cerebras first, then Gemini REST as fallback
+    const CEREBRAS_DEFAULT_KEY = 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2';
+    const cerebrasKey = userSettingsRef.current?.cerebrasApiKey || CEREBRAS_DEFAULT_KEY;
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+
+    const jsonPrompt = `You are a bilingual English-Marathi dictionary. For the English word "${normalized}", respond ONLY with a valid JSON object (no markdown, no explanation, no extra text) with exactly these fields:
 {
   "word": "${normalized}",
-  "pronunciation": "<Devanagari phonetic pronunciation>",
-  "englishMeaning": "<clear English meaning, 1-2 sentences>",
+  "pronunciation": "<Devanagari script phonetic pronunciation, e.g. ऑल्दो>",
+  "englishMeaning": "<clear English meaning in 1-2 sentences>",
   "marathiMeaning": "<Marathi meaning in Devanagari script, 1-3 synonyms separated by />",
-  "exampleSentence": "<one natural example sentence using the word>"
+  "exampleSentence": "<one natural English example sentence using the word>"
 }`;
-      const response = await genAI.models.generateContent({
-        model: 'gemini-2.0-flash',
-        contents: prompt
+
+    // ── 3a: Cerebras Llama (fast, free, already used in app) ──────────────────
+    try {
+      const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cerebrasKey}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b',
+          messages: [
+            { role: 'system', content: 'You are a bilingual English-Marathi dictionary. Always respond with valid JSON only.' },
+            { role: 'user', content: jsonPrompt }
+          ],
+          temperature: 0.2,
+          max_completion_tokens: 300
+        })
       });
-      const raw = response.text?.trim() || '{}';
-      const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-      const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
-      const definition: WordDefinition = { ...parsed, word: normalized, fetchedAt: new Date().toISOString() };
 
-      // Cache result in Firestore for future lookups
-      try {
-        await setDoc(doc(db, 'wordDefinitions', normalized), definition);
-      } catch (cacheErr) {
-        console.warn('Failed to cache word definition:', cacheErr);
+      if (response.ok) {
+        const resData = await response.json();
+        const raw = resData.choices?.[0]?.message?.content?.trim() || '{}';
+        const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
+        const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
+        if (parsed.englishMeaning) {
+          const definition: WordDefinition = { ...parsed, word: normalized, fetchedAt: new Date().toISOString() };
+          // Cache in Firestore
+          try { await setDoc(doc(db, 'wordDefinitions', normalized), definition); } catch (_) {}
+          return definition;
+        }
       }
-
-      return definition;
-    } catch (aiErr) {
-      console.error('AI word fetch failed:', aiErr);
-      return null;
+    } catch (cerebrasErr) {
+      console.warn('Cerebras vocabulary fetch failed, trying Gemini:', cerebrasErr);
     }
+
+    // ── 3b: Gemini REST API fallback (if VITE_GEMINI_API_KEY is set) ──────────
+    if (geminiKey) {
+      try {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: jsonPrompt }] }],
+              generationConfig: { temperature: 0.2, maxOutputTokens: 300 }
+            })
+          }
+        );
+
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
+          const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
+          const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
+          if (parsed.englishMeaning) {
+            const definition: WordDefinition = { ...parsed, word: normalized, fetchedAt: new Date().toISOString() };
+            try { await setDoc(doc(db, 'wordDefinitions', normalized), definition); } catch (_) {}
+            return definition;
+          }
+        }
+      } catch (geminiErr) {
+        console.warn('Gemini vocabulary fetch failed:', geminiErr);
+      }
+    }
+
+    return null;
   }, [user]);
 
   const handleAddVocabularyWord = useCallback(async (
