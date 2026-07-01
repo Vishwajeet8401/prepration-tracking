@@ -33,7 +33,7 @@ export default function StarStoryBuilder({
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
 
   // ── Gesture scroll ──
-  useScrollGesture({ activeTab: 'STAR Stories & Achievements' });
+  useScrollGesture({ activeTab: 'Experience & Story Builder' });
 
 
   // Editor states

@@ -699,11 +699,11 @@ export default function App() {
         onExecuteAction={handleExecuteToastAction}
       />
 
-      {/* Floating AI Gesture Widget — always rendered so model loads eagerly */}
-      {user && <CameraGestureWidget />}
+      {/* Floating AI Gesture Widget — visible only when gesture control is active */}
+      {user && isGestureActive && <CameraGestureWidget />}
 
-      {/* Fixed bottom gesture instruction bar */}
-      {user && <GestureInstructionBar activeTab={activeTab} />}
+      {/* Fixed bottom gesture instruction bar — visible only when gesture control is active */}
+      {user && isGestureActive && <GestureInstructionBar activeTab={activeTab} />}
 
     </div>
   );

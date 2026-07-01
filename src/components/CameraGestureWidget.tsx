@@ -133,6 +133,18 @@ export default function CameraGestureWidget() {
     e.preventDefault();
   }, [pos]);
 
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!widgetRef.current) return;
+    const touch = e.touches[0];
+    dragRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      origX: pos.x,
+      origY: pos.y,
+    };
+    e.stopPropagation();
+  }, [pos]);
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragRef.current) return;
@@ -143,12 +155,26 @@ export default function CameraGestureWidget() {
         y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.origY + dy)),
       });
     };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragRef.current) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - dragRef.current.startX;
+      const dy = touch.clientY - dragRef.current.startY;
+      setPos({
+        x: Math.max(0, Math.min(window.innerWidth - 280, dragRef.current.origX + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.origY + dy)),
+      });
+    };
     const onMouseUp = () => { dragRef.current = null; };
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onMouseUp);
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onMouseUp);
     };
   }, []);
 
@@ -237,8 +263,7 @@ export default function CameraGestureWidget() {
         className="gesture-widget"
         style={{ left: pos.x, top: pos.y }}
       >
-        {/* Header / drag handle */}
-        <div className="gesture-widget__header" onMouseDown={onDragStart}>
+        <div className="gesture-widget__header" onMouseDown={onDragStart} onTouchStart={onTouchStart}>
           <div className="gesture-widget__title">
             <Hand size={14} className="gesture-widget__icon" />
             <span>Gesture Control</span>

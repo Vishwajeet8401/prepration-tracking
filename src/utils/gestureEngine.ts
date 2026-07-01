@@ -68,7 +68,7 @@ export interface GestureEvent {
 export const PINCH_THRESHOLD = 0.045;
 
 /** Wrist displacement (0‥1) per frame required to fire a swipe */
-export const SWIPE_THRESHOLD = 0.09;
+export const SWIPE_THRESHOLD = 0.018;
 
 /** Minimum confidence to emit a gesture event */
 export const CONFIDENCE_THRESHOLD = 0.7;
