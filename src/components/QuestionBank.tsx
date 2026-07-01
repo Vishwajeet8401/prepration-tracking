@@ -5,15 +5,18 @@
 
 import React, { useState, useMemo, useRef, useEffect, forwardRef } from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
+import { motion, AnimatePresence } from 'motion/react';
 import { Question, Topic, VoiceRecording } from '../types';
 import { createLocalObjectUrl, parseLocalFileRef } from '../localFileStore';
 import AudioPlayButton from './AudioPlayButton';
 import { 
   Layers, HelpCircle, Check, Play, Eye, RotateCcw, AlertTriangle, 
   Trash2, Plus, Edit2, Search, Mic, Square, Volume2, Save, Sparkles,
-  HelpCircle as HelpIcon, Calendar, ArrowRight, Tag
+  HelpCircle as HelpIcon, Calendar, ArrowRight, Tag, Hand
 } from 'lucide-react';
 import { useScrollGesture } from '../hooks/useScrollGesture';
+import { useGestureContext } from '../context/GestureContext';
+import { useGestureController } from '../hooks/useGestureController';
 
 interface QuestionBankProps {
   questions: Question[];
@@ -54,17 +57,47 @@ const QuestionBank = React.memo(function QuestionBank({
   // Nested navigation: 'bank' | 'practice' | 'voice'
   const [activeTab, setActiveTab] = useState<'bank' | 'practice' | 'voice'>('bank');
 
-  // ── Gesture scroll + tab switching ──
-  useScrollGesture({
+  const { state: gestureState } = useGestureContext();
+  const isGestureOn = gestureState.camera.active && gestureState.settings.enabled;
+
+  // ── Spaced Recall practice gesture controls ──
+  useGestureController({
     activeTab: 'Flashcards & Practice',
     onSwipeLeft: () => {
-      const idx = QB_TABS.indexOf(activeTab);
-      if (idx < QB_TABS.length - 1) { setActiveTab(QB_TABS[idx + 1]); setIsEditing(false); }
+      if (practiceActive && !sessionCompleted) {
+        handleRecallEvaluation('Forgot');
+      } else {
+        const idx = QB_TABS.indexOf(activeTab);
+        if (idx < QB_TABS.length - 1) { setActiveTab(QB_TABS[idx + 1]); setIsEditing(false); }
+      }
     },
     onSwipeRight: () => {
-      const idx = QB_TABS.indexOf(activeTab);
-      if (idx > 0) { setActiveTab(QB_TABS[idx - 1]); setIsEditing(false); }
+      if (practiceActive && !sessionCompleted) {
+        handleRecallEvaluation('Remembered');
+      } else {
+        const idx = QB_TABS.indexOf(activeTab);
+        if (idx > 0) { setActiveTab(QB_TABS[idx - 1]); setIsEditing(false); }
+      }
     },
+    onThumbUp: () => {
+      if (practiceActive && !sessionCompleted && showAnswer) {
+        handleRecallEvaluation('Remembered');
+      }
+    },
+    onFist: () => {
+      if (practiceActive && !sessionCompleted && showAnswer) {
+        handleRecallEvaluation('Forgot');
+      }
+    },
+    onClick: () => {
+      if (practiceActive && !sessionCompleted) {
+        if (!showAnswer) {
+          setShowAnswer(true);
+        } else {
+          handleRecallEvaluation('Partially');
+        }
+      }
+    }
   });
 
 
@@ -90,6 +123,7 @@ const QuestionBank = React.memo(function QuestionBank({
   const [showAnswer, setShowAnswer] = useState(false);
   const [practiceActive, setPracticeActive] = useState(false);
   const [sessionCompleted, setSessionCompleted] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | 'up' | null>(null);
   
   // Track previous responses in current practice run
   const [practiceTracker, setPracticeTracker] = useState<{question: string, questionId: string, status: string, difficulty: string}[]>([]);
@@ -253,19 +287,26 @@ const QuestionBank = React.memo(function QuestionBank({
     const activeQ = practiceQuestions[currentPracticeIndex];
     if (!activeQ) return;
 
+    // Set swipe direction for card animation exit
+    const dir = status === 'Forgot' ? 'left' : status === 'Remembered' ? 'right' : 'up';
+    setSwipeDirection(dir);
+
     // Call state modifier (updates intervals, sets topic level forgot count logs)
     onRecallResponse(activeQ.id, activeQ.topicId, status);
 
     // Track response locally — include difficulty + id for retry-missed
-    setPracticeTracker([...practiceTracker, { question: activeQ.question, questionId: activeQ.id, status, difficulty: activeQ.difficulty }]);
+    setPracticeTracker(prev => [...prev, { question: activeQ.question, questionId: activeQ.id, status, difficulty: activeQ.difficulty }]);
 
-    // Progress slide
-    if (currentPracticeIndex < practiceQuestions.length - 1) {
-      setCurrentPracticeIndex(currentPracticeIndex + 1);
-      setShowAnswer(false);
-    } else {
-      setSessionCompleted(true);
-    }
+    // Progress slide after animation completes
+    setTimeout(() => {
+      if (currentPracticeIndex < practiceQuestions.length - 1) {
+        setCurrentPracticeIndex(prev => prev + 1);
+        setShowAnswer(false);
+      } else {
+        setSessionCompleted(true);
+      }
+      setSwipeDirection(null);
+    }, 250);
   };
 
   // Retry only questions marked as 'Forgot'
@@ -878,6 +919,17 @@ const QuestionBank = React.memo(function QuestionBank({
             /* Interactive Card Phase slide */
             <div className="max-w-xl mx-auto space-y-6 text-slate-200">
               
+              {/* Gesture active banner */}
+              {isGestureOn && (
+                <div className="gesture-active-banner">
+                  <Hand size={13} />
+                  <span>
+                    ✋ Gesture Active — Swipe ← (Forgot) | Swipe → (Remembered) &nbsp;|&nbsp;
+                    🤏 Pinch = Flip / Partially
+                  </span>
+                </div>
+              )}
+
               {/* Progress bar */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] font-mono text-slate-400">
@@ -893,54 +945,69 @@ const QuestionBank = React.memo(function QuestionBank({
               </div>
 
               {/* Recall Card Container */}
-              <div className="p-6 bg-[#00000020] border border-white/5 rounded-2xl space-y-4 shadow-xs min-h-60 flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-60" />
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <span className="text-[10px] bg-indigo-500/15 text-indigo-305 px-2 py-0.5 rounded font-bold font-mono">
-                      {topics.find(t => t.id === practiceQuestions[currentPracticeIndex]?.topicId)?.name || 'General'}
-                    </span>
-                    <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full border ${
-                      practiceQuestions[currentPracticeIndex]?.difficulty === 'Hard' ? 'bg-rose-500/15 text-rose-300 border-rose-500/20' :
-                      practiceQuestions[currentPracticeIndex]?.difficulty === 'Medium' ? 'bg-amber-500/15 text-amber-300 border-amber-500/20' :
-                      'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
-                    }`}>
-                      {practiceQuestions[currentPracticeIndex]?.difficulty}
-                    </span>
-                  </div>
-                  <h4 className="text-lg font-extrabold text-white mt-1 leading-snug">
-                    {practiceQuestions[currentPracticeIndex]?.question}
-                  </h4>
-                  {(practiceQuestions[currentPracticeIndex]?.tags || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {practiceQuestions[currentPracticeIndex].tags.map(tag => (
-                        <span key={tag} className="px-1.5 py-0.5 bg-white/5 text-slate-400 border border-white/5 rounded text-[9px] font-mono">#{tag}</span>
-                      ))}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentPracticeIndex}
+                  initial={{ opacity: 0, scale: 0.95, x: 0, rotate: 0 }}
+                  animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
+                  exit={{
+                    opacity: 0,
+                    scale: 0.9,
+                    x: swipeDirection === 'left' ? -350 : swipeDirection === 'right' ? 350 : 0,
+                    y: swipeDirection === 'up' ? -200 : 0,
+                    rotate: swipeDirection === 'left' ? -12 : swipeDirection === 'right' ? 12 : 0,
+                  }}
+                  transition={{ type: 'spring', damping: 22, stiffness: 180 }}
+                  className="p-6 bg-[#00000020] border border-white/5 rounded-2xl space-y-4 shadow-xs min-h-60 flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-60" />
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="text-[10px] bg-indigo-500/15 text-indigo-305 px-2 py-0.5 rounded font-bold font-mono">
+                        {topics.find(t => t.id === practiceQuestions[currentPracticeIndex]?.topicId)?.name || 'General'}
+                      </span>
+                      <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full border ${
+                        practiceQuestions[currentPracticeIndex]?.difficulty === 'Hard' ? 'bg-rose-500/15 text-rose-300 border-rose-500/20' :
+                        practiceQuestions[currentPracticeIndex]?.difficulty === 'Medium' ? 'bg-amber-500/15 text-amber-300 border-amber-500/20' :
+                        'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+                      }`}>
+                        {practiceQuestions[currentPracticeIndex]?.difficulty}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <h4 className="text-lg font-extrabold text-white mt-1 leading-snug">
+                      {practiceQuestions[currentPracticeIndex]?.question}
+                    </h4>
+                    {(practiceQuestions[currentPracticeIndex]?.tags || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {practiceQuestions[currentPracticeIndex].tags.map(tag => (
+                          <span key={tag} className="px-1.5 py-0.5 bg-white/5 text-slate-400 border border-white/5 rounded text-[9px] font-mono">#{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                {showAnswer ? (
-                  <div className="mt-4 pt-4 border-t border-dashed border-white/10 text-xs text-slate-300 font-mono whitespace-pre-line leading-relaxed relative group/practice-answer">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="block font-sans font-extrabold text-indigo-400 uppercase text-[10px] tracking-wider">Verified System Answer:</span>
-                      <AudioPlayButton 
-                        text={practiceQuestions[currentPracticeIndex]?.answer || ''} 
-                        tooltip="Read answer aloud" 
-                        className="p-1 opacity-0 group-hover/practice-answer:opacity-100 transition-opacity" 
-                      />
+                  {showAnswer ? (
+                    <div className="mt-4 pt-4 border-t border-dashed border-white/10 text-xs text-slate-300 font-mono whitespace-pre-line leading-relaxed relative group/practice-answer">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="block font-sans font-extrabold text-indigo-400 uppercase text-[10px] tracking-wider">Verified System Answer:</span>
+                        <AudioPlayButton 
+                          text={practiceQuestions[currentPracticeIndex]?.answer || ''} 
+                          tooltip="Read answer aloud" 
+                          className="p-1 opacity-0 group-hover/practice-answer:opacity-100 transition-opacity" 
+                        />
+                      </div>
+                      {practiceQuestions[currentPracticeIndex]?.answer}
                     </div>
-                    {practiceQuestions[currentPracticeIndex]?.answer}
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setShowAnswer(true)}
-                    className="w-full py-2.5 bg-white/5 border border-white/10 hover:border-indigo-420 text-indigo-305 font-bold rounded-lg text-xs shadow-xs transition cursor-pointer"
-                  >
-                    Show Solution & Evaluators
-                  </button>
-                )}
-              </div>
+                  ) : (
+                    <button 
+                      onClick={() => setShowAnswer(true)}
+                      className="w-full py-2.5 bg-white/5 border border-white/10 hover:border-indigo-420 text-indigo-305 font-bold rounded-lg text-xs shadow-xs transition cursor-pointer"
+                    >
+                      Show Solution & Evaluators
+                    </button>
+                  )}
+                </motion.div>
+              </AnimatePresence>
 
               {/* Evaluation Response actions - Only visible when solution is open */}
               {showAnswer && (

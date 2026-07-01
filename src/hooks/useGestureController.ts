@@ -85,52 +85,57 @@ export function useGestureController(
     !options.activeTab ||
     settings.activeTabs.includes(options.activeTab);
 
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  });
+
   useEffect(() => {
     if (!lastEvent || !isGestureActive || !isTabAllowed) return;
     if (lastEvent.confidence < CONFIDENCE_THRESHOLD) return;
 
     const { gesture, cursor } = lastEvent;
     const cur = cursor ?? { x: 0.5, y: 0.5 };
+    const ops = optionsRef.current;
 
     switch (gesture) {
       case 'SWIPE_LEFT':
-        options.onSwipeLeft?.();
+        ops.onSwipeLeft?.();
         break;
       case 'SWIPE_RIGHT':
-        options.onSwipeRight?.();
+        ops.onSwipeRight?.();
         break;
       case 'SWIPE_UP':
-        options.onSwipeUp?.();
+        ops.onSwipeUp?.();
         break;
       case 'SWIPE_DOWN':
-        options.onSwipeDown?.();
+        ops.onSwipeDown?.();
         break;
       case 'PINCH':
-        options.onClick?.(cur);
+        ops.onClick?.(cur);
         break;
       case 'PINCH_HOLD':
-        options.onPinchHold?.(cur);
+        ops.onPinchHold?.(cur);
         break;
       case 'TWO_FINGERS':
-        options.onTwoFingers?.();
+        ops.onTwoFingers?.();
         break;
       case 'THUMB_UP':
-        options.onThumbUp?.();
+        ops.onThumbUp?.();
         break;
       case 'OPEN_HAND':
-        options.onOpenHand?.();
+        ops.onOpenHand?.();
         break;
       case 'FIST':
-        options.onFist?.();
+        ops.onFist?.();
         break;
       case 'POINT':
-        options.onPoint?.(cur);
+        ops.onPoint?.(cur);
         break;
       default:
         break;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastEvent]);
+  }, [lastEvent, isGestureActive, isTabAllowed]);
 
   return { cursorPos, isPinching, isGestureActive, lastEvent };
 }
