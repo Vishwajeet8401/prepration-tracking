@@ -2304,7 +2304,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         englishMeaning: exactMatch.englishMeaning,
         marathiMeaning: exactMatch.marathiMeaning,
         exampleSentence: exactMatch.exampleSentence,
-        fetchedAt: exactMatch.createdDate
+        fetchedAt: exactMatch.createdDate,
+        isAiGenerated: false
       };
     }
 
@@ -2313,7 +2314,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const cachedRef = doc(db, 'wordDefinitions', normalized);
       const cachedSnap = await getDoc(cachedRef);
       if (cachedSnap.exists()) {
-        return cachedSnap.data() as WordDefinition;
+        const cachedData = cachedSnap.data() as WordDefinition;
+        return {
+          ...cachedData,
+          isAiGenerated: true
+        };
       }
     } catch (err) {
       console.warn('Word definition cache lookup failed:', err);
@@ -2358,7 +2363,12 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
         const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
         if (parsed.englishMeaning) {
-          const definition: WordDefinition = { ...parsed, word: normalized, fetchedAt: new Date().toISOString() };
+          const definition: WordDefinition = {
+            ...parsed,
+            word: normalized,
+            fetchedAt: new Date().toISOString(),
+            isAiGenerated: true
+          };
           // Cache in Firestore
           try { await setDoc(doc(db, 'wordDefinitions', normalized), definition); } catch (_) {}
           return definition;
@@ -2389,7 +2399,12 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
           const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
           if (parsed.englishMeaning) {
-            const definition: WordDefinition = { ...parsed, word: normalized, fetchedAt: new Date().toISOString() };
+            const definition: WordDefinition = {
+              ...parsed,
+              word: normalized,
+              fetchedAt: new Date().toISOString(),
+              isAiGenerated: true
+            };
             try { await setDoc(doc(db, 'wordDefinitions', normalized), definition); } catch (_) {}
             return definition;
           }
