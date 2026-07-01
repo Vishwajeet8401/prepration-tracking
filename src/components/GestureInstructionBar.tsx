@@ -21,50 +21,50 @@ interface GestureInstruction {
 
 const TAB_INSTRUCTIONS: Record<string, GestureInstruction[]> = {
   'Home Dashboard': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'point',       emoji: '👆', label: 'Air Cursor' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Click' },
   ],
   'AI Learning Assistant': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'thumb-up',   emoji: '👍', label: 'Good Answer' },
     { gesture: 'pinch',      emoji: '🤏', label: 'Select' },
     { gesture: 'fist',       emoji: '✊', label: 'Stop / Clear' },
   ],
   'Study Topics & Revisions': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Expand Topic' },
     { gesture: 'thumb-up',    emoji: '👍', label: 'Mark Ready' },
   ],
   'Flashcards & Practice': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'swipe-left',  emoji: '⬅️', label: 'Forgot (Left)' },
     { gesture: 'swipe-right', emoji: '➡️', label: 'Remembered (Right)' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Flip Card / Partial' },
   ],
   'Goals & Applications': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',      emoji: '🤏', label: 'Open Item' },
     { gesture: 'thumb-up',   emoji: '👍', label: 'Mark Applied' },
   ],
   'Reminders & Habits': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'thumb-up',   emoji: '👍', label: 'Complete' },
     { gesture: 'fist',       emoji: '✊', label: 'Skip' },
     { gesture: 'pinch',      emoji: '🤏', label: 'Select' },
   ],
   'Task & Study Planner': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'thumb-up',   emoji: '👍', label: 'Complete Task' },
     { gesture: 'fist',       emoji: '✊', label: 'Skip Task' },
     { gesture: 'pinch',      emoji: '🤏', label: 'Open Task' },
   ],
   'Experience & Story Builder': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Open Story' },
   ],
   'Vocabulary Builder': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'swipe-left',  emoji: '⬅️', label: 'Prev Word' },
     { gesture: 'swipe-right', emoji: '➡️', label: 'Next Word' },
     { gesture: 'thumb-up',    emoji: '👍', label: 'Mastered' },
@@ -72,42 +72,42 @@ const TAB_INSTRUCTIONS: Record<string, GestureInstruction[]> = {
     { gesture: 'pinch',       emoji: '🤏', label: 'Mark Reviewed' },
   ],
   'Progress & Analytics': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Zoom In' },
   ],
   'Learning Roadmaps': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Expand Node' },
     { gesture: 'thumb-up',    emoji: '👍', label: 'Mark Done' },
   ],
   'My Achievements': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',      emoji: '🤏', label: 'View Badge' },
   ],
   'Daily Journal & Notes': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Open Entry' },
   ],
   'Practice Simulator': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'swipe-right', emoji: '➡️', label: 'Next Question' },
     { gesture: 'thumb-up',    emoji: '👍', label: 'Good Answer' },
     { gesture: 'fist',        emoji: '✊', label: 'Skip Question' },
     { gesture: 'pinch',       emoji: '🤏', label: 'Submit / Select' },
   ],
   'Mobile Sync Hub': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',      emoji: '🤏', label: 'Select' },
   ],
   'Backup & Data Settings': [
-    { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+    { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
     { gesture: 'pinch',      emoji: '🤏', label: 'Select' },
   ],
 };
 
 // Universal fallback instructions shown for all tabs
 const UNIVERSAL_INSTRUCTIONS: GestureInstruction[] = [
-  { gesture: 'open-hand',   emoji: '🖐️', label: 'Scroll Up/Down' },
+  { gesture: 'two-fingers', emoji: '✌️', label: 'Scroll Up/Down' },
   { gesture: 'point',       emoji: '👆', label: 'Air Cursor' },
   { gesture: 'pinch',       emoji: '🤏', label: 'Click' },
   { gesture: 'hold',        emoji: '🤌', label: 'Drag' },

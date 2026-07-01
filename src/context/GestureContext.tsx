@@ -416,8 +416,8 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
           emitGesture(finalGesture, 0.88, smoothedCursorRef.current, handedness);
         }
 
-        // ── continuous open hand scroll ─────────────────────────────────
-        if (confirmed === 'OPEN_HAND') {
+        // ── continuous two finger scroll ────────────────────────────────
+        if (confirmed === 'TWO_FINGERS') {
           const wristY = hand[0].y;
           if (prevWristYRef.current !== undefined) {
             const movement = prevWristYRef.current - wristY;
