@@ -2317,7 +2317,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const cachedData = cachedSnap.data() as WordDefinition;
         return {
           ...cachedData,
-          isAiGenerated: true
+          isAiGenerated: false
         };
       }
     } catch (err) {
