@@ -1,17 +1,17 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Topic, Question, InterviewIntelligenceQuestion, Mistake, 
-  ActivityPlan, Roadmap, Journal, Interview, Subject, UserSettings, MockPresetQuestion
+  ActivityPlan, Roadmap, Journal, Interview, Subject, UserSettings, MockPresetQuestion, VocabularyWord
 } from '../types';
 import { 
   FileJson, FileSpreadsheet, Copy, Check, Trash2, HelpCircle, 
   Upload, Download, AlertTriangle, CheckCircle, Info, Clipboard, Play,
   PackageOpen, ShieldCheck, Zap, Database, Tag, BookOpen, ChevronRight,
-  RefreshCw, Loader
+  RefreshCw, Loader, BookMarked
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore';
 
 interface BulkImportExportCenterProps {
   userId: string;
@@ -26,6 +26,7 @@ interface BulkImportExportCenterProps {
   subjects: Subject[];
   mockPresetQuestions: MockPresetQuestion[];
   userSettings: UserSettings | null;
+  vocabularyWords: VocabularyWord[];
   onUpdateCerebrasKey: (key: string) => Promise<void>;
   onUpdateTheme: (theme: string) => Promise<void>;
   onBulkImport: (dataType: string, records: any[], duplicatePolicy: 'skip' | 'replace' | 'keep') => Promise<{ imported: number; updated: number; skipped: number }>;
@@ -366,6 +367,37 @@ STRICT RULES:
     - "expectedKeywords" must be a comma-separated lowercase string of key terms.
     - "idealConcept" must be a 3-4 sentence detailed expert answer definition.
     - "roundType" must be exactly one of: Technical | HR | System Design | Behavioral`
+  },
+  Vocabulary: {
+    format: 'JSON / CSV / Excel',
+    requiredFields: ['word', 'englishMeaning', 'marathiMeaning'],
+    optionalFields: ['pronunciation', 'exampleSentence', 'status', 'reviewCount', 'lastReviewDate', 'createdDate', 'isAiGenerated'],
+    example: [
+      {
+        word: 'Although',
+        pronunciation: 'ऑल्दो',
+        englishMeaning: 'Even though; in spite of the fact that.',
+        marathiMeaning: 'जरी / तरीसुद्धा',
+        exampleSentence: 'Although it was raining, I went outside.',
+        status: 'Learning',
+        reviewCount: 0,
+        lastReviewDate: '2026-07-01T10:00:00Z',
+        createdDate: '2026-07-01T10:00:00Z',
+        isAiGenerated: false
+      }
+    ],
+    prompt: `You are an expert bilingual lexicographer. Generate a JSON array of 15 advanced English vocabulary words that frequently appear in technical interviews, product management documents, or professional communication.
+    
+    STRICT RULES:
+    - Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+    - "word" must be a useful English word
+    - "pronunciation" must be the phonetic spelling in Devanagari script (e.g. ऑल्दो, सेरेनडिपिटी)
+    - "englishMeaning" must be a clear explanation (1-2 sentences)
+    - "marathiMeaning" must be 1-3 synonyms in Devanagari script separated by /
+    - "exampleSentence" must be a natural professional example using the word
+    - "status" must be "Learning"
+    - "reviewCount" must be 0
+    - "isAiGenerated" must be false`
   }
 };
 
@@ -450,6 +482,18 @@ const sanitizeRecord = (type: string, rec: any): any => {
         r.expectedKeywords = [];
       }
       break;
+    case 'Vocabulary':
+      r.word = r.word || '';
+      r.pronunciation = r.pronunciation || '';
+      r.englishMeaning = r.englishMeaning || '';
+      r.marathiMeaning = r.marathiMeaning || '';
+      r.exampleSentence = r.exampleSentence || '';
+      r.status = r.status || 'Learning';
+      r.reviewCount = Number(r.reviewCount ?? 0);
+      r.createdDate = r.createdDate || new Date().toISOString();
+      r.lastReviewDate = r.lastReviewDate || new Date().toISOString();
+      r.isAiGenerated = r.isAiGenerated ?? false;
+      break;
   }
   return r;
 };
@@ -459,7 +503,7 @@ const sanitizeRecord = (type: string, rec: any): any => {
 export default function BulkImportExportCenter({
   userId, topics, questions, intelliQuestions, mistakes, plans, roadmaps, journals, interviews, subjects,
   mockPresetQuestions,
-  userSettings, onUpdateCerebrasKey, onUpdateTheme, onBulkImport
+  userSettings, vocabularyWords, onUpdateCerebrasKey, onUpdateTheme, onBulkImport
 }: BulkImportExportCenterProps) {
 
   const [activeSubTab, setActiveSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>('import');
@@ -493,6 +537,30 @@ export default function BulkImportExportCenter({
   // Export state
   const [stripIds, setStripIds] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Real Firestore counts for Topics, Questions, & Vocabulary (props are limited to 50 for UI perf)
+  const [realTopicCount, setRealTopicCount] = useState<number>(topics.length);
+  const [realQuestionCount, setRealQuestionCount] = useState<number>(questions.length);
+  const [realVocabularyCount, setRealVocabularyCount] = useState<number>(vocabularyWords.length);
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchRealCounts = async () => {
+      try {
+        const [topicsSnap, questionsSnap, vocabSnap] = await Promise.all([
+          getCountFromServer(query(collection(db, 'topics'), where('userId', '==', userId))),
+          getCountFromServer(query(collection(db, 'questions'), where('userId', '==', userId))),
+          getCountFromServer(query(collection(db, 'vocabularyWords'), where('userId', '==', userId)))
+        ]);
+        setRealTopicCount(topicsSnap.data().count);
+        setRealQuestionCount(questionsSnap.data().count);
+        setRealVocabularyCount(vocabSnap.data().count);
+      } catch (err) {
+        console.error('Failed to fetch real counts for export display:', err);
+      }
+    };
+    fetchRealCounts();
+  }, [userId]);
 
   // Template copy state
   const [copiedType, setCopiedType] = useState<string | null>(null);
@@ -708,33 +776,39 @@ export default function BulkImportExportCenter({
 
   /**
    * Fetches ALL records for collections that may be paginated in the UI
-   * (topics, questions). Other collections are passed in as props directly.
+   * (topics, questions, vocabularyWords). Other collections are passed in as props directly.
    */
   const fetchAllForExport = async (): Promise<{
     allTopics: any[];
     allQuestions: any[];
+    allVocabulary: any[];
   }> => {
-    const [topicsSnap, questionsSnap] = await Promise.all([
+    const [topicsSnap, questionsSnap, vocabSnap] = await Promise.all([
       getDocs(query(collection(db, 'topics'), where('userId', '==', userId))),
-      getDocs(query(collection(db, 'questions'), where('userId', '==', userId)))
+      getDocs(query(collection(db, 'questions'), where('userId', '==', userId))),
+      getDocs(query(collection(db, 'vocabularyWords'), where('userId', '==', userId)))
     ]);
     const allTopics: any[] = [];
     topicsSnap.forEach(doc => allTopics.push(doc.data()));
     const allQuestions: any[] = [];
     questionsSnap.forEach(doc => allQuestions.push(doc.data()));
-    return { allTopics, allQuestions };
+    const allVocabulary: any[] = [];
+    vocabSnap.forEach(doc => allVocabulary.push(doc.data()));
+    return { allTopics, allQuestions, allVocabulary };
   };
 
   const triggerDataExport = async (type: string, format: 'json' | 'csv' | 'xlsx') => {
     setIsExporting(true);
     try {
-      // For Topics and Questions, fetch ALL records from Firestore (bypass UI scroll limit)
+      // For Topics, Questions, and Vocabulary, fetch ALL records from Firestore (bypass UI scroll limit)
       let allTopics = topics;
       let allQuestions = questions;
-      if (type === 'Topics' || type === 'Questions') {
+      let allVocabulary = vocabularyWords;
+      if (type === 'Topics' || type === 'Questions' || type === 'Vocabulary') {
         const fetched = await fetchAllForExport();
         allTopics = fetched.allTopics;
         allQuestions = fetched.allQuestions;
+        allVocabulary = fetched.allVocabulary;
       }
 
       const dataMap: Record<string, any[]> = {
@@ -746,7 +820,8 @@ export default function BulkImportExportCenter({
         'Activity Plans': plans,
         Journals: journals,
         Roadmaps: roadmaps,
-        'Simulator Questions': mockPresetQuestions
+        'Simulator Questions': mockPresetQuestions,
+        Vocabulary: allVocabulary
       };
 
       const sourceData = dataMap[type];
@@ -796,8 +871,8 @@ export default function BulkImportExportCenter({
   const triggerFullBackup = async () => {
     setIsExporting(true);
     try {
-      // Always fetch ALL topics and questions from Firestore for a complete backup
-      const { allTopics, allQuestions } = await fetchAllForExport();
+      // Always fetch ALL topics, questions, and vocabulary from Firestore for a complete backup
+      const { allTopics, allQuestions, allVocabulary } = await fetchAllForExport();
 
       const backup = {
         exportedAt: new Date().toISOString(),
@@ -811,7 +886,8 @@ export default function BulkImportExportCenter({
           plans: plans.map(cleanExport),
           journals: journals.map(cleanExport),
           roadmaps: roadmaps.map(cleanExport),
-          mockPresetQuestions: mockPresetQuestions.map(cleanExport)
+          mockPresetQuestions: mockPresetQuestions.map(cleanExport),
+          vocabulary: allVocabulary.map(cleanExport)
         }
       };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -823,20 +899,21 @@ export default function BulkImportExportCenter({
     }
   };
 
-  const totalExportRecords = subjects.length + topics.length + questions.length + intelliQuestions.length + mistakes.length + plans.length + journals.length + roadmaps.length + mockPresetQuestions.length;
+  const totalExportRecords = subjects.length + realTopicCount + realQuestionCount + intelliQuestions.length + mistakes.length + plans.length + journals.length + roadmaps.length + mockPresetQuestions.length + realVocabularyCount;
 
   // ── Export cards config ──────────────────────────────────────────────────────
 
   const exportCards = [
     { type: 'Subjects', count: subjects.length, desc: 'Subject groups that organize your topics', icon: Tag, color: 'indigo' },
-    { type: 'Topics', count: topics.length, desc: 'Spacing repetition nodes with metrics', icon: BookOpen, color: 'violet' },
-    { type: 'Questions', count: questions.length, desc: 'Flashcards, difficulties & tag lists', icon: HelpCircle, color: 'sky' },
+    { type: 'Topics', count: realTopicCount, desc: 'Spacing repetition nodes with metrics', icon: BookOpen, color: 'violet' },
+    { type: 'Questions', count: realQuestionCount, desc: 'Flashcards, difficulties & tag lists', icon: HelpCircle, color: 'sky' },
     { type: 'Interview Questions', count: intelliQuestions.length, desc: 'Company-tagged intelligence questions', icon: Zap, color: 'amber' },
     { type: 'Mistakes', count: mistakes.length, desc: 'Post-mortem tracking & failure diagnostics', icon: AlertTriangle, color: 'rose' },
     { type: 'Activity Plans', count: plans.length, desc: 'Strategic weekly targets and durations', icon: CheckCircle, color: 'emerald' },
     { type: 'Journals', count: journals.length, desc: 'Reflective learning summaries', icon: FileJson, color: 'teal' },
     { type: 'Roadmaps', count: roadmaps.length, desc: 'Hierarchical learning tracks & dependency links', icon: Database, color: 'pink' },
-    { type: 'Simulator Questions', count: mockPresetQuestions.length, desc: 'Custom and seeded mock interview simulation pools', icon: RefreshCw, color: 'indigo' }
+    { type: 'Simulator Questions', count: mockPresetQuestions.length, desc: 'Custom and seeded mock interview simulation pools', icon: RefreshCw, color: 'indigo' },
+    { type: 'Vocabulary', count: realVocabularyCount, desc: 'Your personal vocabulary builder library with Marathi definitions', icon: BookMarked, color: 'sky' }
   ];
 
   const colorMap: Record<string, string> = {

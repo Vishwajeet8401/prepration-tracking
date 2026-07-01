@@ -1857,6 +1857,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           existing = mockPresetQuestionsRef.current.find(mpq => mpq.question.toLowerCase().trim() === item.question.toLowerCase().trim());
           break;
         }
+        case 'Vocabulary': {
+          colName = 'vocabularyWords';
+          existing = vocabularyWordsRef.current.find(vw => vw.word.toLowerCase().trim() === item.word.toLowerCase().trim());
+          break;
+        }
         default:
           return;
       }
@@ -2047,6 +2052,24 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             expectedKeywords: typeof item.expectedKeywords === 'string' 
               ? item.expectedKeywords.split(',').map((k: string) => k.trim().toLowerCase()).filter((k: string) => k !== '')
               : (Array.isArray(item.expectedKeywords) ? item.expectedKeywords : [])
+          };
+          break;
+        }
+        case 'Vocabulary': {
+          docId = existing ? existing.id : 'vocab-' + Date.now() + '-' + idx;
+          docData = {
+            id: docId,
+            userId: user.uid,
+            word: item.word,
+            pronunciation: item.pronunciation || '',
+            englishMeaning: item.englishMeaning || '',
+            marathiMeaning: item.marathiMeaning || '',
+            exampleSentence: item.exampleSentence || '',
+            status: item.status || 'Learning',
+            reviewCount: Number(item.reviewCount) || 0,
+            lastReviewDate: item.lastReviewDate || new Date().toISOString(),
+            createdDate: item.createdDate || new Date().toISOString(),
+            isAiGenerated: !!item.isAiGenerated
           };
           break;
         }

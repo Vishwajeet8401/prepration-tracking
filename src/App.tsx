@@ -613,6 +613,7 @@ export default function App() {
               subjects={subjects}
               mockPresetQuestions={mockPresetQuestions}
               userSettings={userSettings}
+              vocabularyWords={vocabularyWords}
               onUpdateCerebrasKey={handleUpdateCerebrasKey}
               onUpdateTheme={handleUpdateTheme}
               onBulkImport={handleBulkImport}
