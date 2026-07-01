@@ -16,7 +16,7 @@
  *   });
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGestureContext } from '../context/GestureContext';
 import type { CursorPos, GestureEvent } from '../context/GestureContext';
 import { CONFIDENCE_THRESHOLD } from '../utils/gestureEngine';
