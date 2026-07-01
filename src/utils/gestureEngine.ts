@@ -77,10 +77,10 @@ export const CONFIDENCE_THRESHOLD = 0.7;
 export const SMOOTH_FACTOR = 0.18;
 
 /** Number of frames in the sliding window for confirmation */
-export const HISTORY_WINDOW = 6;
+export const HISTORY_WINDOW = 8;
 
 /** How many frames in the window must agree before gesture is confirmed */
-export const CONFIRM_COUNT = 4;
+export const CONFIRM_COUNT = 6;
 
 /** Minimum ms between emitting the same gesture twice (cooldown) */
 export const GESTURE_COOLDOWN_MS = 550;
@@ -145,9 +145,14 @@ export function detectHandGesture(landmarks: HandLandmark[]): HandGesture {
     return 'OPEN_HAND';
   }
 
-  // ── PINCH ─────────────────────────────────────────────────────────────────
+  // Calculate relative scale-independent pinch distance normalized by hand size (wrist to middle MCP)
+  const handScale = landmarkDist(wrist, middleMcp);
   const pinchDist = landmarkDist(thumbTip, indexTip);
-  if (pinchDist < PINCH_THRESHOLD) {
+  const relPinchDist = handScale > 0 ? pinchDist / handScale : 999;
+
+  // ── PINCH ─────────────────────────────────────────────────────────────────
+  // Deliberate pinch: index is up, thumb touches index, and other fingers are folded
+  if (relPinchDist < 0.22 && !middleUp && !ringUp && !pinkyUp) {
     return 'PINCH'; // PINCH_HOLD is determined by duration, not shape
   }
 

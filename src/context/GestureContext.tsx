@@ -217,8 +217,8 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const now = Date.now();
       const cooldowns: Record<string, number> = {
-        PINCH: 220,
-        PINCH_HOLD: 180,
+        PINCH: 600,
+        PINCH_HOLD: 350,
         SWIPE_LEFT: 650,
         SWIPE_RIGHT: 650,
         THUMB_UP: 500,
@@ -386,13 +386,16 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
         // ── swipe detection ─────────────────────────────────────────────
         const wristX = hand[0].x;
         const wristY = hand[0].y;
-        const swipeResult = detectSwipe(
-          prevXRef.current,
-          prevYRef.current,
-          wristX,
-          wristY,
-          SWIPE_THRESHOLD / state.settings.sensitivity
-        );
+        const canSwipe = confirmed !== 'POINT' && confirmed !== 'PINCH' && confirmed !== 'PINCH_HOLD';
+        const swipeResult = canSwipe
+          ? detectSwipe(
+              prevXRef.current,
+              prevYRef.current,
+              wristX,
+              wristY,
+              SWIPE_THRESHOLD / state.settings.sensitivity
+            )
+          : { gesture: 'NONE' as HandGesture, deltaX: 0, deltaY: 0 };
         prevXRef.current = wristX;
         prevYRef.current = wristY;
 
