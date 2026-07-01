@@ -421,9 +421,10 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
           const wristY = hand[0].y;
           if (prevWristYRef.current !== undefined) {
             const movement = prevWristYRef.current - wristY;
-            if (Math.abs(movement) >= 0.015) {
+            if (Math.abs(movement) >= 0.003) {
               const sensitivity = 850 * state.settings.sensitivity;
               const scrollAmount = -movement * sensitivity;
+              const clampedScroll = Math.max(-60, Math.min(60, scrollAmount));
 
               // Find scroll container
               let scrollTarget: Element | Window = window;
@@ -433,7 +434,7 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
                 scrollTarget = container;
               }
 
-              scrollTarget.scrollBy({ top: scrollAmount, behavior: 'auto' });
+              scrollTarget.scrollBy({ top: clampedScroll, behavior: 'auto' });
             }
           }
           prevWristYRef.current = wristY;
