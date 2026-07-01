@@ -5,12 +5,15 @@ import './index.css';
 
 import { AuthProvider } from './context/AuthContext';
 import { DatabaseProvider } from './context/DatabaseContext';
+import { GestureProvider } from './context/GestureContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
       <DatabaseProvider>
-        <App />
+        <GestureProvider>
+          <App />
+        </GestureProvider>
       </DatabaseProvider>
     </AuthProvider>
   </StrictMode>,

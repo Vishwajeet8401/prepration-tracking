@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { gsap } from 'gsap';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+
 
 interface PreparationRoadmapsProps {
   roadmaps: Roadmap[];
@@ -126,6 +128,10 @@ const PreparationRoadmaps = React.memo(function PreparationRoadmaps({
   const [customDescription, setCustomDescription] = useState('');
   const [customTopicsInput, setCustomTopicsInput] = useState('');
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
+
+  // ── Gesture scroll ──
+  useScrollGesture({ activeTab: 'Learning Roadmaps' });
+
 
   // GSAP Entrance triggers on active roadmap reload
   const timelineRef = useRef<HTMLDivElement>(null);

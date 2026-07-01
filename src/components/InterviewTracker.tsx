@@ -9,6 +9,10 @@ import {
   Building2, Calendar, FileText, CheckCircle, AlertTriangle, Play, Plus, 
   Trash2, Edit2, Search, ArrowRight, ShieldAlert, BadgeInfo, Check, Save, Sparkles, BookOpen
 } from 'lucide-react';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+
+const TRACKER_SUBTABS: Array<'apps' | 'interview-scheduler' | 'mistake-journal'> = ['apps', 'interview-scheduler', 'mistake-journal'];
+
 
 interface InterviewTrackerProps {
   applications: JobApplication[];
@@ -42,6 +46,20 @@ const InterviewTracker = React.memo(function InterviewTracker({
 
   // Tabs: 'apps' | 'interview-scheduler' | 'mistake-journal'
   const [activeTab, setActiveTab] = useState<'apps' | 'interview-scheduler' | 'mistake-journal'>('apps');
+
+  // ── Gesture scroll + subtab switching ──
+  useScrollGesture({
+    activeTab: 'Goals & Applications',
+    onSwipeLeft: () => {
+      const idx = TRACKER_SUBTABS.indexOf(activeTab);
+      if (idx < TRACKER_SUBTABS.length - 1) { setActiveTab(TRACKER_SUBTABS[idx + 1]); }
+    },
+    onSwipeRight: () => {
+      const idx = TRACKER_SUBTABS.indexOf(activeTab);
+      if (idx > 0) { setActiveTab(TRACKER_SUBTABS[idx - 1]); }
+    },
+  });
+
 
   // Form toggles
   const [appFormOpen, setAppFormOpen] = useState(false);

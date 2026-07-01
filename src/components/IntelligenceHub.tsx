@@ -14,6 +14,10 @@ import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend
 } from 'recharts';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+
+const INTEL_SUBTABS = ['daily-plan', 'tech-readiness', 'freq-analytics', 'weak-recovering', 'five-min-revision', 'weekly-reports'];
+
 
 interface IntelligenceHubProps {
   topics: Topic[];
@@ -49,6 +53,20 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
 
   // Inner tab selection inside Intelligence Hub
   const [activeSubTab, setActiveSubTab] = useState<string>('daily-plan');
+
+  // ── Gesture scroll + subtab switching ──
+  useScrollGesture({
+    activeTab: 'AI Learning Assistant',
+    onSwipeLeft: () => {
+      const idx = INTEL_SUBTABS.indexOf(activeSubTab);
+      if (idx < INTEL_SUBTABS.length - 1) { setActiveSubTab(INTEL_SUBTABS[idx + 1]); }
+    },
+    onSwipeRight: () => {
+      const idx = INTEL_SUBTABS.indexOf(activeSubTab);
+      if (idx > 0) { setActiveSubTab(INTEL_SUBTABS[idx - 1]); }
+    },
+  });
+
 
   // Interactive Form State for Interview Intelligence Q&A DB
   const [isFormOpen, setIsFormOpen] = useState(false);

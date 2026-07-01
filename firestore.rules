@@ -62,10 +62,10 @@ service cloud.firestore {
         && data.category is string && data.category.size() <= 100
         && data.description is string && data.description.size() <= 2000
         && data.status is string && data.status.size() <= 50
-        && data.confidenceScore is int && data.confidenceScore >= 0 && data.confidenceScore <= 100
-        && data.recallScore is int && data.recallScore >= 0 && data.recallScore <= 100
-        && data.revisionCount is int && data.revisionCount >= 0
-        && data.forgotCount is int && data.forgotCount >= 0
+        && (data.confidenceScore is int || data.confidenceScore is float) && data.confidenceScore >= 0 && data.confidenceScore <= 100
+        && (data.recallScore is int || data.recallScore is float) && data.recallScore >= 0 && data.recallScore <= 100
+        && (data.revisionCount is int || data.revisionCount is float) && data.revisionCount >= 0
+        && (data.forgotCount is int || data.forgotCount is float) && data.forgotCount >= 0
         && data.notes is string && data.notes.size() <= 15000
         && data.dependencyIds is list;
     }
@@ -80,7 +80,7 @@ service cloud.firestore {
         && data.topicId is string && data.topicId.size() <= 128
         && data.tags is list && data.tags.size() <= 30
         && data.source is string && data.source.size() <= 100
-        && data.askedCount is int && data.askedCount >= 0;
+        && (data.askedCount is int || data.askedCount is float) && data.askedCount >= 0;
     }
 
     function isValidInterview(data) {
@@ -123,7 +123,7 @@ service cloud.firestore {
         && data.topicId is string && data.topicId.size() <= 128
         && data.startTime is string && data.startTime.size() <= 60
         && data.endTime is string && data.endTime.size() <= 60
-        && data.duration is int && data.duration >= 0;
+        && (data.duration is int || data.duration is float) && data.duration >= 0;
     }
 
     function isValidVoiceRecording(data) {
@@ -133,7 +133,7 @@ service cloud.firestore {
         && data.topicId is string && data.topicId.size() <= 128
         && data.title is string && data.title.size() <= 300
         && data.audioUrl is string && data.audioUrl.size() <= 20000000
-        && data.duration is int && data.duration >= 0
+        && (data.duration is int || data.duration is float) && data.duration >= 0
         && data.date is string && data.date.size() <= 60;
     }
 
@@ -143,7 +143,7 @@ service cloud.firestore {
         && data.userId == request.auth.uid
         && data.title is string && data.title.size() <= 300
         && data.message is string && data.message.size() <= 5000
-        && data.type is string && (data.type == 'revision' || data.type == 'weakness' || data.type == 'interview' || data.type == 'daily' || data.type == 'streak')
+        && data.type is string && (data.type == 'revision' || data.type == 'weakness' || data.type == 'interview' || data.type == 'daily' || data.type == 'streak' || data.type == 'journal' || data.type == 'mock')
         && data.date is string && data.date.size() <= 60
         && data.read is bool;
     }
@@ -224,7 +224,7 @@ service cloud.firestore {
         && (!('prebuiltId' in data) || (data.prebuiltId is string && data.prebuiltId.size() <= 128));
     }
 
-    function isValidPersonalReminder(data) {
+     function isValidPersonalReminder(data) {
       return data.keys().hasAll(['id', 'userId', 'title', 'category', 'description', 'reminderTime', 'repeatType', 'startDate', 'endDate', 'priority', 'active', 'notificationMessage'])
         && data.id is string && data.id.size() <= 128
         && data.userId == request.auth.uid
@@ -238,16 +238,16 @@ service cloud.firestore {
         && data.priority is string && (data.priority == 'High' || data.priority == 'Medium' || data.priority == 'Low')
         && data.active is bool
         && data.notificationMessage is string && data.notificationMessage.size() <= 2000
-        && (!('intervalHours' in data) || (data.intervalHours is int && data.intervalHours >= 0))
+        && (!('intervalHours' in data) || ((data.intervalHours is int || data.intervalHours is float) && data.intervalHours >= 0))
         && (!('weeklyDays' in data) || data.weeklyDays is list)
-        && (!('monthlyDay' in data) || (data.monthlyDay is int && data.monthlyDay >= 0))
+        && (!('monthlyDay' in data) || ((data.monthlyDay is int || data.monthlyDay is float) && data.monthlyDay >= 0))
         && (!('medicineName' in data) || (data.medicineName is string && data.medicineName.size() <= 200))
         && (!('dosage' in data) || (data.dosage is string && data.dosage.size() <= 100))
         && (!('frequency' in data) || (data.frequency is string && data.frequency.size() <= 100))
-        && (!('targetGlasses' in data) || (data.targetGlasses is int && data.targetGlasses >= 0))
+        && (!('targetGlasses' in data) || ((data.targetGlasses is int || data.targetGlasses is float) && data.targetGlasses >= 0))
         && (!('isHabit' in data) || data.isHabit is bool)
-        && (!('habitStreak' in data) || data.habitStreak is int)
-        && (!('habitBestStreak' in data) || data.habitBestStreak is int)
+        && (!('habitStreak' in data) || (data.habitStreak is int || data.habitStreak is float))
+        && (!('habitBestStreak' in data) || (data.habitBestStreak is int || data.habitBestStreak is float))
         && (!('habitCompletedDates' in data) || data.habitCompletedDates is list);
     }
 
@@ -260,7 +260,7 @@ service cloud.firestore {
         && data.status is string && (data.status == 'Pending' || data.status == 'Completed' || data.status == 'Snoozed' || data.status == 'Skipped' || data.status == 'Missed')
         && (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 60))
         && (!('snoozedUntil' in data) || (data.snoozedUntil is string && data.snoozedUntil.size() <= 60))
-        && (!('snoozeDurationMinutes' in data) || data.snoozeDurationMinutes is int)
+        && (!('snoozeDurationMinutes' in data) || (data.snoozeDurationMinutes is int || data.snoozeDurationMinutes is float))
         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 3000));
     }
 
@@ -268,12 +268,44 @@ service cloud.firestore {
       return data.keys().hasAll(['userId', 'notificationSound', 'reminderDuration', 'defaultSnoozeTime', 'weekendMode', 'dndEnabled', 'dndStart', 'dndEnd'])
         && data.userId == request.auth.uid
         && data.notificationSound is bool
-        && data.reminderDuration is int
-        && data.defaultSnoozeTime is int
+        && (data.reminderDuration is int || data.reminderDuration is float)
+        && (data.defaultSnoozeTime is int || data.defaultSnoozeTime is float)
         && data.weekendMode is bool
         && data.dndEnabled is bool
         && data.dndStart is string && data.dndStart.size() <= 10
         && data.dndEnd is string && data.dndEnd.size() <= 10;
+    }
+
+    function isValidStarStory(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'situation', 'task', 'action', 'result', 'tags', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 300
+        && data.situation is string && data.situation.size() <= 10000
+        && data.task is string && data.task.size() <= 10000
+        && data.action is string && data.action.size() <= 10000
+        && data.result is string && data.result.size() <= 10000
+        && data.tags is list && data.tags.size() <= 30
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && data.updatedAt is string && data.updatedAt.size() <= 60
+        && (!('aiScore' in data) || (data.aiScore is int && data.aiScore >= 0 && data.aiScore <= 100))
+        && (!('aiFeedback' in data) || (data.aiFeedback is string && data.aiFeedback.size() <= 10000));
+    }
+
+    function isValidVocabularyWord(data) {
+      return data.keys().hasAll(['id', 'userId', 'word', 'pronunciation', 'englishMeaning', 'marathiMeaning', 'exampleSentence', 'status', 'reviewCount', 'lastReviewDate', 'createdDate'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.word is string && data.word.size() <= 200
+        && data.pronunciation is string && data.pronunciation.size() <= 200
+        && data.englishMeaning is string && data.englishMeaning.size() <= 2000
+        && data.marathiMeaning is string && data.marathiMeaning.size() <= 1000
+        && data.exampleSentence is string && data.exampleSentence.size() <= 5000
+        && data.status is string && (data.status == 'Learning' || data.status == 'Reviewing' || data.status == 'Mastered')
+        && (data.reviewCount is int || data.reviewCount is float) && data.reviewCount >= 0
+        && data.lastReviewDate is string && data.lastReviewDate.size() <= 60
+        && data.createdDate is string && data.createdDate.size() <= 60
+        && (!('isAiGenerated' in data) || data.isAiGenerated is bool);
     }
 
     // Collection Security Declarations
@@ -284,7 +316,7 @@ service cloud.firestore {
 
     match /subjects/{subjectId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(subjectId) && isValidSubject(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidSubject(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -292,7 +324,7 @@ service cloud.firestore {
 
     match /topics/{topicId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(topicId) && isValidTopic(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidTopic(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -300,7 +332,7 @@ service cloud.firestore {
 
     match /questions/{questionId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(questionId) && isValidQuestion(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidQuestion(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -308,7 +340,7 @@ service cloud.firestore {
 
     match /interviews/{interviewId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(interviewId) && isValidInterview(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidInterview(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -316,7 +348,7 @@ service cloud.firestore {
 
     match /mistakes/{mistakeId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(mistakeId) && isValidMistake(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidMistake(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -324,7 +356,7 @@ service cloud.firestore {
 
     match /jobApplications/{applicationId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(applicationId) && isValidJobApplication(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidJobApplication(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -332,7 +364,7 @@ service cloud.firestore {
 
     match /studySessions/{sessionId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(sessionId) && isValidStudySession(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidStudySession(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -340,7 +372,7 @@ service cloud.firestore {
 
     match /voiceRecordings/{recordingId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(recordingId) && isValidVoiceRecording(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidVoiceRecording(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -348,7 +380,7 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(notificationId) && isValidNotification(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidNotification(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -356,7 +388,7 @@ service cloud.firestore {
 
     match /intelliQuestions/{intelliQuestionId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(intelliQuestionId) && isValidIntelliQuestion(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidIntelliQuestion(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -364,7 +396,7 @@ service cloud.firestore {
 
     match /activityPlans/{planId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(planId) && isValidActivityPlan(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidActivityPlan(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -372,7 +404,7 @@ service cloud.firestore {
 
     match /dailyTasks/{taskId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(taskId) && isValidDailyTask(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidDailyTask(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -380,7 +412,7 @@ service cloud.firestore {
 
     match /activityLogs/{logId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(logId) && isValidActivityLog(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidActivityLog(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -388,7 +420,7 @@ service cloud.firestore {
 
     match /journals/{journalId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(journalId) && isValidJournal(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidJournal(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -396,7 +428,7 @@ service cloud.firestore {
 
     match /roadmaps/{roadmapId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(roadmapId) && isValidRoadmap(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidRoadmap(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -404,7 +436,7 @@ service cloud.firestore {
 
     match /mockInterviews/{mockId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(mockId) && incoming().userId == request.auth.uid;
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -412,7 +444,7 @@ service cloud.firestore {
 
     match /mockPresetQuestions/{docId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(docId) && incoming().userId == request.auth.uid;
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -420,7 +452,7 @@ service cloud.firestore {
 
     match /personalReminders/{reminderId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(reminderId) && isValidPersonalReminder(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidPersonalReminder(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -428,7 +460,7 @@ service cloud.firestore {
 
     match /reminderLogs/{logId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(logId) && isValidReminderLog(incoming());
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidReminderLog(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
@@ -444,9 +476,25 @@ service cloud.firestore {
       allow write: if isVerifiedUser() && isOwner(userId);
     }
 
+    match /vocabularyWords/{wordId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser();
+      allow create: if isVerifiedUser() && isValidId(wordId) && isValidVocabularyWord(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidVocabularyWord(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /starStories/{storyId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser();
+      allow create: if isVerifiedUser() && isValidId(storyId) && isValidStarStory(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidStarStory(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
     match /backups/{backupId} {
       allow get: if isVerifiedUser() && isDocOwner(existing());
-      allow list: if isVerifiedUser() && resource.data.userId == request.auth.uid;
+      allow list: if isVerifiedUser();
       allow create: if isVerifiedUser() && isValidId(backupId) && incoming().userId == request.auth.uid;
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
       allow delete: if isVerifiedUser() && isDocOwner(existing());

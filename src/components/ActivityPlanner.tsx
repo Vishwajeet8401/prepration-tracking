@@ -1,14 +1,13 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useMemo } from 'react';
 import { ActivityPlan, DailyTask, ActivityLog, ActivityCategory } from '../types';
 import { 
   Plus, Calendar as CalendarIcon, Check, X, Flame, BarChart2, ListTodo, 
   Trash2, Info, ChevronLeft, ChevronRight, TrendingUp, Clock, HelpCircle
 } from 'lucide-react';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+
+const PLANNER_SUBTABS: Array<'today' | 'plans' | 'calendar' | 'reports'> = ['today', 'plans', 'calendar', 'reports'];
+
 
 interface ActivityPlannerProps {
   plans: ActivityPlan[];
@@ -34,6 +33,20 @@ const ActivityPlanner = React.memo(function ActivityPlanner({
 }: ActivityPlannerProps) {
   // Tabs: 'today' | 'plans' | 'calendar' | 'reports'
   const [activeSubTab, setActiveSubTab] = useState<'today' | 'plans' | 'calendar' | 'reports'>('today');
+
+  // ── Gesture scroll + subtab switching ──
+  useScrollGesture({
+    activeTab: 'Task & Study Planner',
+    onSwipeLeft: () => {
+      const idx = PLANNER_SUBTABS.indexOf(activeSubTab);
+      if (idx < PLANNER_SUBTABS.length - 1) { setActiveSubTab(PLANNER_SUBTABS[idx + 1]); }
+    },
+    onSwipeRight: () => {
+      const idx = PLANNER_SUBTABS.indexOf(activeSubTab);
+      if (idx > 0) { setActiveSubTab(PLANNER_SUBTABS[idx - 1]); }
+    },
+  });
+
 
   // Form State
   const [title, setTitle] = useState('');

@@ -13,6 +13,7 @@ import {
   Trash2, Plus, Edit2, Search, Mic, Square, Volume2, Save, Sparkles,
   HelpCircle as HelpIcon, Calendar, ArrowRight, Tag
 } from 'lucide-react';
+import { useScrollGesture } from '../hooks/useScrollGesture';
 
 interface QuestionBankProps {
   questions: Question[];
@@ -33,6 +34,9 @@ const GridContainer = forwardRef<HTMLDivElement, any>((props, ref) => (
 ));
 GridContainer.displayName = 'GridContainer';
 
+const QB_TABS: Array<'bank' | 'practice' | 'voice'> = ['bank', 'practice', 'voice'];
+
+
 const QuestionBank = React.memo(function QuestionBank({
   questions,
   topics,
@@ -49,6 +53,20 @@ const QuestionBank = React.memo(function QuestionBank({
 
   // Nested navigation: 'bank' | 'practice' | 'voice'
   const [activeTab, setActiveTab] = useState<'bank' | 'practice' | 'voice'>('bank');
+
+  // ── Gesture scroll + tab switching ──
+  useScrollGesture({
+    activeTab: 'Flashcards & Practice',
+    onSwipeLeft: () => {
+      const idx = QB_TABS.indexOf(activeTab);
+      if (idx < QB_TABS.length - 1) { setActiveTab(QB_TABS[idx + 1]); setIsEditing(false); }
+    },
+    onSwipeRight: () => {
+      const idx = QB_TABS.indexOf(activeTab);
+      if (idx > 0) { setActiveTab(QB_TABS[idx - 1]); setIsEditing(false); }
+    },
+  });
+
 
   // Search/Filter State
   const [searchQuery, setSearchQuery] = useState('');

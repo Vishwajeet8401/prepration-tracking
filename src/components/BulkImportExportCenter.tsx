@@ -7,11 +7,17 @@ import {
   FileJson, FileSpreadsheet, Copy, Check, Trash2, HelpCircle, 
   Upload, Download, AlertTriangle, CheckCircle, Info, Clipboard, Play,
   PackageOpen, ShieldCheck, Zap, Database, Tag, BookOpen, ChevronRight,
-  RefreshCw, Loader, BookMarked
+  RefreshCw, Loader, BookMarked, Hand
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+import { useGestureContext } from '../context/GestureContext';
+
+
+const BACKUP_SUBTABS: Array<'import' | 'templates' | 'export' | 'settings'> = ['import', 'templates', 'export', 'settings'];
+
 
 interface BulkImportExportCenterProps {
   userId: string;
@@ -507,6 +513,24 @@ export default function BulkImportExportCenter({
 }: BulkImportExportCenterProps) {
 
   const [activeSubTab, setActiveSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>('import');
+
+  // ── Gesture context global controls ──
+  const { state: gestureState, updateSettings } = useGestureContext();
+
+
+  // ── Gesture scroll + subtab switching ──
+  useScrollGesture({
+    activeTab: 'Backup & Data Settings',
+    onSwipeLeft: () => {
+      const idx = BACKUP_SUBTABS.indexOf(activeSubTab);
+      if (idx < BACKUP_SUBTABS.length - 1) { setActiveSubTab(BACKUP_SUBTABS[idx + 1]); }
+    },
+    onSwipeRight: () => {
+      const idx = BACKUP_SUBTABS.indexOf(activeSubTab);
+      if (idx > 0) { setActiveSubTab(BACKUP_SUBTABS[idx - 1]); }
+    },
+  });
+
 
   // Key configurations states
   const [localKey, setLocalKey] = useState(userSettings?.cerebrasApiKey || '');
@@ -1541,7 +1565,42 @@ export default function BulkImportExportCenter({
               })}
             </div>
           </div>
+
+          {/* Card 3: AI Gesture Control master switcher toggle */}
+          <div className="glass-card p-6 border border-white/5 space-y-6 animate-fade-in text-left">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+                <Hand className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-sm">AI Gesture Controls</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Control the application, scroll and navigate tabs using hand movements and camera gestures.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs font-sans">
+              <div className="space-y-1">
+                <span className="text-slate-300 font-bold block">Enable Camera Gestures</span>
+                <p className="text-[10px] text-slate-500 max-w-sm leading-normal">
+                  Turn this setting ON to activate the air-cursor mouse and camera classification overlay HUD. Keep OFF for traditional keyboard/mouse tracking.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateSettings({ enabled: !gestureState.settings.enabled })}
+                className={`px-4 py-2 rounded-xl text-xs font-bold font-sans transition cursor-pointer border ${
+                  gestureState.settings.enabled
+                    ? 'bg-emerald-600/10 text-emerald-450 border-emerald-500/20'
+                    : 'bg-white/5 text-slate-400 border-white/10'
+                }`}
+              >
+                {gestureState.settings.enabled ? 'ON (Activated)' : 'OFF (Deactivated)'}
+              </button>
+            </div>
+          </div>
+
         </div>
+
       )}
     </div>
   );

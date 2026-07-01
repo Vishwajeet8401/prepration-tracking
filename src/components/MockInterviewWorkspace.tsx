@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { speakNativeText, stopNativeSpeech, startNativeSpeechToText, stopNativeSpeechToText } from '../utils/mobileScheduler';
 import AudioPlayButton from './AudioPlayButton';
+import { useScrollGesture } from '../hooks/useScrollGesture';
 
 interface MockInterviewWorkspaceProps {
   subjects: Subject[];
@@ -170,6 +171,18 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
 Your task is to generate exactly 3 challenging, thinking-based, scenario-oriented interview questions for a candidate.
 Avoid simple definitions like "what is oops" or "what is a class". 
 Generate scenario-based questions that test deep technical/conceptual knowledge, system design choices, or soft skills/problem-solving based on the stream.`;
+
+  // ── Gesture scroll + swipe-right to next question ──
+  useScrollGesture({
+    activeTab: 'Practice Simulator',
+    onSwipeRight: () => {
+      if (isSessionActive && currentQuestionIndex + 1 < questionsList.length) {
+        setCurrentQuestionIndex(prev => prev + 1);
+        setUserAnswer('');
+        setTimerSeconds(limitSecondsPerQuestion);
+      }
+    },
+  });
 
   const [localPersonaPrompt, setLocalPersonaPrompt] = useState(customInterviewPrompt || DEFAULT_PERSONA_PROMPT);
   const [showPersonaPromptEditor, setShowPersonaPromptEditor] = useState(false);

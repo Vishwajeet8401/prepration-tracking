@@ -11,6 +11,10 @@ import {
   ChevronLeft, ChevronRight, Play, CheckCircle, Info, CalendarDays, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+
+const REMINDER_SUBTABS = ['My Reminders', 'Water Intake Tracker', 'Medicine Cabinet', 'Streak & Analytics', 'Calendar Compliance', 'System Settings'];
+
 
 interface PersonalRemindersProps {
   reminders: PersonalReminder[];
@@ -35,6 +39,20 @@ const PersonalReminders = React.memo(function PersonalReminders({
 }: PersonalRemindersProps) {
   // Tabs: 'Active', 'Water Tracker', 'Medicine Tracking', 'Habit Insights', 'Calendar View', 'Settings & History'
   const [activeSubTab, setActiveSubTab] = useState<string>('My Reminders');
+
+  // ── Gesture scroll + subtab switching ──
+  useScrollGesture({
+    activeTab: 'Reminders & Habits',
+    onSwipeLeft: () => {
+      const idx = REMINDER_SUBTABS.indexOf(activeSubTab);
+      if (idx < REMINDER_SUBTABS.length - 1) { setActiveSubTab(REMINDER_SUBTABS[idx + 1]); }
+    },
+    onSwipeRight: () => {
+      const idx = REMINDER_SUBTABS.indexOf(activeSubTab);
+      if (idx > 0) { setActiveSubTab(REMINDER_SUBTABS[idx - 1]); }
+    },
+  });
+
   
   // States for new reminder form
   const [isAdding, setIsAdding] = useState(false);

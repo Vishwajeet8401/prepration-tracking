@@ -8,6 +8,7 @@ import {
   RefreshCw, CheckCircle, Trophy, BarChart2
 } from 'lucide-react';
 import AudioPlayButton from './AudioPlayButton';
+import { useScrollGesture } from '../hooks/useScrollGesture';
 
 interface StarStoryBuilderProps {
   starStories: StarStory[];
@@ -30,6 +31,10 @@ export default function StarStoryBuilder({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
+
+  // ── Gesture scroll ──
+  useScrollGesture({ activeTab: 'STAR Stories & Achievements' });
+
 
   // Editor states
   const [isEditing, setIsEditing] = useState(false);

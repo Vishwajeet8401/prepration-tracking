@@ -10,10 +10,12 @@ import {
   Search, BookMarked, Plus, CheckCircle2, RotateCcw, Trash2,
   Flame, Star, Trophy, ChevronDown, ChevronUp, Volume2, Info,
   Sparkles, BookOpen, Eye, Filter, SortAsc, SortDesc, X, Loader2,
-  AlertCircle, ArrowRight, Zap, Brain
+  AlertCircle, ArrowRight, Zap, Brain, Hand
 } from 'lucide-react';
 import { VocabularyWord, WordDefinition, VocabularyStatus } from '../types';
 import AudioPlayButton from './AudioPlayButton';
+import { useGestureController } from '../hooks/useGestureController';
+import { useGestureContext } from '../context/GestureContext';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -649,6 +651,53 @@ export default function VocabularyBuilder({
 
   const TABS: LibraryTab[] = ['All', 'Learning', 'Reviewing', 'Mastered'];
 
+  // ── Gesture control ────────────────────────────────────────────────────────────
+  const { state: gestureState } = useGestureContext();
+  const isGestureOn = gestureState.camera.active && gestureState.settings.enabled;
+
+  // Track which library word is currently "focused" by gestures
+  const [gestureWordIndex, setGestureWordIndex] = useState(0);
+
+  // Keep index in bounds as filteredWords changes
+  useEffect(() => {
+    setGestureWordIndex(i => Math.min(i, Math.max(0, filteredWords.length - 1)));
+  }, [filteredWords.length]);
+
+  useGestureController({
+    activeTab: 'Vocabulary Builder',
+    // Swipe left = previous word
+    onSwipeLeft: () => {
+      setGestureWordIndex(i => Math.max(0, i - 1));
+    },
+    // Swipe right = next word
+    onSwipeRight: () => {
+      setGestureWordIndex(i => Math.min(filteredWords.length - 1, i + 1));
+    },
+    // Scroll library up with swipe up
+    onSwipeUp: () => {
+      document.querySelector('.vocab-library-scroll')?.scrollBy({ top: -80, behavior: 'smooth' });
+    },
+    // Scroll library down with swipe down
+    onSwipeDown: () => {
+      document.querySelector('.vocab-library-scroll')?.scrollBy({ top: 80, behavior: 'smooth' });
+    },
+    // Thumb-up → mark current word Mastered
+    onThumbUp: () => {
+      const w = filteredWords[gestureWordIndex];
+      if (w) handleStatusChange(w, 'Mastered');
+    },
+    // Fist → mark current word Learning (needs more practice)
+    onFist: () => {
+      const w = filteredWords[gestureWordIndex];
+      if (w) handleStatusChange(w, 'Learning');
+    },
+    // Pinch → mark current word as reviewed
+    onClick: () => {
+      const w = filteredWords[gestureWordIndex];
+      if (w) handleReview(w.id);
+    },
+  });
+
   return (
     <div className="space-y-6 pb-8">
       {/* ─── Header ─────────────────────────────────────────────────────── */}
@@ -668,6 +717,22 @@ export default function VocabularyBuilder({
           <span className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-rose-400" />{stats.reviewedToday} reviewed today</span>
         </div>
       </div>
+
+      {/* Gesture active banner */}
+      {isGestureOn && filteredWords.length > 0 && (
+        <div className="gesture-active-banner">
+          <Hand size={13} />
+          <span>
+            ✋ Gesture Mode — Swipe ←→ navigate &nbsp;|&nbsp;
+            👍 Thumb Up = Mastered &nbsp;|&nbsp;
+            ✊ Fist = Learning &nbsp;|&nbsp;
+            🤏 Pinch = Mark Reviewed
+          </span>
+          <span className="ml-auto text-indigo-400 font-mono text-[10px]">
+            {gestureWordIndex + 1}/{filteredWords.length}
+          </span>
+        </div>
+      )}
 
       {/* ─── Stats Bar ──────────────────────────────────────────────────── */}
       {stats.total > 0 && (

@@ -14,6 +14,7 @@ import {
   Calendar, RotateCcw, Flame, Award
 } from 'lucide-react';
 import AudioPlayButton from './AudioPlayButton';
+import { useScrollGesture } from '../hooks/useScrollGesture';
 
 interface TopicManagementProps {
   subjects: Subject[];
@@ -70,6 +71,9 @@ const TopicManagement = React.memo(function TopicManagement({
 
   // Fetch full lightweight topic list for dependency mapping to bypass pagination limit
   const { allTopics } = useAllTopics(userId);
+
+  // ── Gesture scroll ──
+  useScrollGesture({ activeTab: 'Study Topics & Revisions' });
   
   // Tabs: 'subjects' | 'all' | 'scheduler' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'
   const [activeSubTab, setActiveSubTab] = useState<'subjects' | 'all' | 'scheduler' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'>('all');

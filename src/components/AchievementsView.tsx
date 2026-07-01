@@ -8,6 +8,8 @@ import { StudySession, Question, Interview, JobApplication, DailyTask } from '..
 import { Award, CheckCircle2, Lock, Sparkles, BookOpen, Flame, HelpCircle, Briefcase, Send, Target, Calendar, Trophy, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { gsap } from 'gsap';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+
 
 interface AchievementsViewProps {
   sessions: StudySession[];
@@ -38,6 +40,10 @@ export default function AchievementsView({
 }: AchievementsViewProps) {
 
   const [celebratedBadge, setCelebratedBadge] = useState<Achievement | null>(null);
+
+  // ── Gesture scroll ──
+  useScrollGesture({ activeTab: 'My Achievements' });
+
 
   const totalStudyHours = useMemo(() => {
     const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);

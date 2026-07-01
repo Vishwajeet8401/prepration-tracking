@@ -13,6 +13,7 @@ import {
   Clock, Play, Pause, Square, TrendingUp, Calendar, BookOpen, 
   CheckCircle, Plus, Dumbbell, Activity, Save, Sparkles, Award
 } from 'lucide-react';
+import { useScrollGesture } from '../hooks/useScrollGesture';
 
 interface AnalyticsProps {
   sessions: StudySession[];
@@ -40,6 +41,13 @@ const Analytics = React.memo(function Analytics({
 
   // Active sub tab: 'charts' | 'timer-tracker'
   const [activeSubTab, setActiveSubTab] = useState<'charts' | 'timer-tracker'>('charts');
+
+  // ── Gesture scroll control ──
+  useScrollGesture({
+    activeTab: 'Progress & Analytics',
+    onSwipeLeft:  () => setActiveSubTab('timer-tracker'),
+    onSwipeRight: () => setActiveSubTab('charts'),
+  });
 
   // STUDY TIMER STATES
   const [timerActive, setTimerActive] = useState(false);

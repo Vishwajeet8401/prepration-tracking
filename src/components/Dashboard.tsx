@@ -11,6 +11,7 @@ import {
   TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square, ListTodo
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useScrollGesture } from '../hooks/useScrollGesture';
 
 interface DashboardProps {
   topics: Topic[];
@@ -175,6 +176,9 @@ const Dashboard = React.memo(function Dashboard({
 
   // Accessibility tracking prefers-reduced-motion check
   const [reducedMotion, setReducedMotion] = useState(false);
+
+  // ── Gesture scroll ──
+  useScrollGesture({ activeTab: 'Home Dashboard', scrollAmount: 150 });
 
   // Active Task Timer State
   // `startTime` = wall-clock ms when the current running segment began

@@ -5,6 +5,8 @@ import {
   Settings, Wifi, WifiOff, FileDown, ShieldCheck, Database, Zap, Sparkles, Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useScrollGesture } from '../hooks/useScrollGesture';
+
 
 interface MobileOfflineHubProps {
   notifications: AppNotification[];
@@ -29,6 +31,10 @@ export default function MobileOfflineHub({
   const [precachePercent, setPrecachePercent] = useState(100);
   const [fcmEnabled, setFcmEnabled] = useState(true);
   const [localDBSafe, setLocalDBSafe] = useState(true);
+
+  // ── Gesture scroll ──
+  useScrollGesture({ activeTab: 'Mobile Sync Hub' });
+
 
   // Simulated System Network state
   const [isOnline, setIsOnline] = useState(true);

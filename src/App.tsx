@@ -29,10 +29,17 @@ import BulkImportExportCenter from './components/BulkImportExportCenter';
 import PersonalReminders from './components/PersonalReminders';
 import StarStoryBuilder from './components/StarStoryBuilder';
 import VocabularyBuilder from './components/VocabularyBuilder';
+import CameraGestureWidget from './components/CameraGestureWidget';
+import GestureInstructionBar from './components/GestureInstructionBar';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
+
+// Gesture control
+import { useGestureContext } from './context/GestureContext';
+import { useGestureController } from './hooks/useGestureController';
+import { Hand } from 'lucide-react';
 
 // Lucide Icon assets
 import { 
@@ -41,6 +48,26 @@ import {
   BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked
 } from 'lucide-react';
 import { AppNotification } from './types';
+
+// ── Tab order for gesture swipe navigation ───────────────────────────────────
+const ALL_TABS = [
+  'Home Dashboard',
+  'AI Learning Assistant',
+  'Study Topics & Revisions',
+  'Flashcards & Practice',
+  'Goals & Applications',
+  'Reminders & Habits',
+  'Task & Study Planner',
+  'Experience & Story Builder',
+  'Vocabulary Builder',
+  'Progress & Analytics',
+  'Learning Roadmaps',
+  'My Achievements',
+  'Daily Journal & Notes',
+  'Practice Simulator',
+  'Mobile Sync Hub',
+  'Backup & Data Settings',
+];
 
 export default function App() {
   const { user, userProfile, authLoading } = useAuth();
@@ -71,6 +98,25 @@ export default function App() {
   const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
 
   const isHandlingHistoryRef = useRef(false);
+
+  // ── Gesture context & global swipe navigation ────────────────────────────
+  const { state: gestureState, startCamera, stopCamera } = useGestureContext();
+  const isGestureActive = gestureState.camera.active && gestureState.settings.enabled;
+
+  useGestureController({
+    onSwipeLeft: () => {
+      setActiveTab(prev => {
+        const idx = ALL_TABS.indexOf(prev);
+        return ALL_TABS[Math.max(0, idx - 1)];
+      });
+    },
+    onSwipeRight: () => {
+      setActiveTab(prev => {
+        const idx = ALL_TABS.indexOf(prev);
+        return ALL_TABS[Math.min(ALL_TABS.length - 1, idx + 1)];
+      });
+    },
+  });
 
   const handleExecuteToastAction = (toast: AppNotification) => {
     setActiveToasts(prev => prev.filter(t => t.id !== toast.id));
@@ -150,6 +196,17 @@ export default function App() {
               </span>
             </div>
           </div>
+
+          {/* Gesture toggle — shown only on sm+ */}
+          <button
+            className={`hidden sm:flex gesture-header-toggle ${isGestureActive ? 'active' : ''}`}
+            onClick={() => isGestureActive ? stopCamera() : startCamera()}
+            title={isGestureActive ? 'Disable Gesture Control' : 'Enable Gesture Control'}
+          >
+            <span className="dot" />
+            <Hand size={12} />
+            {isGestureActive ? 'Gesture On' : 'Gesture Off'}
+          </button>
 
           <div className="flex items-center gap-3.5 text-xs text-indigo-100 shrink-0 font-sans">
             <div className="hidden sm:flex flex-col items-end leading-none gap-1">
@@ -641,6 +698,12 @@ export default function App() {
         onDismiss={(id) => setActiveToasts(prev => prev.filter(t => t.id !== id))}
         onExecuteAction={handleExecuteToastAction}
       />
+
+      {/* Floating AI Gesture Widget — always rendered so model loads eagerly */}
+      {user && <CameraGestureWidget />}
+
+      {/* Fixed bottom gesture instruction bar */}
+      {user && <GestureInstructionBar activeTab={activeTab} />}
 
     </div>
   );

@@ -7,6 +7,7 @@ import {
   ExternalLink, ArrowLeft, ChevronLeft, ChevronRight, HelpCircle 
 } from 'lucide-react';
 import AudioPlayButton from './AudioPlayButton';
+import { useScrollGesture } from '../hooks/useScrollGesture';
 
 interface PersonalJournalProps {
   journals: Journal[];
@@ -32,6 +33,7 @@ const PersonalJournal = React.memo(function PersonalJournal({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('All');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string>('All');
+
 
   // Form State for creating/editing journal entry
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -278,6 +280,13 @@ const PersonalJournal = React.memo(function PersonalJournal({
     old.setMonth(old.getMonth() + 1);
     setCurrentCalendarDate(old);
   };
+
+  // ── Gesture scroll + calendar month nav ──
+  useScrollGesture({
+    activeTab: 'Daily Journal & Notes',
+    onSwipeLeft:  handleCalendarPrevMonth,
+    onSwipeRight: handleCalendarNextMonth,
+  });
 
   return (
     <div className="space-y-6">
