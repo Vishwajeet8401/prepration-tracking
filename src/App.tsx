@@ -103,20 +103,7 @@ export default function App() {
   const { state: gestureState, startCamera, stopCamera } = useGestureContext();
   const isGestureActive = gestureState.camera.active && gestureState.settings.enabled;
 
-  useGestureController({
-    onSwipeLeft: () => {
-      setActiveTab(prev => {
-        const idx = ALL_TABS.indexOf(prev);
-        return ALL_TABS[Math.max(0, idx - 1)];
-      });
-    },
-    onSwipeRight: () => {
-      setActiveTab(prev => {
-        const idx = ALL_TABS.indexOf(prev);
-        return ALL_TABS[Math.min(ALL_TABS.length - 1, idx + 1)];
-      });
-    },
-  });
+  // Global swipe navigation is disabled to prevent accidental page switching.
 
   const handleExecuteToastAction = (toast: AppNotification) => {
     setActiveToasts(prev => prev.filter(t => t.id !== toast.id));

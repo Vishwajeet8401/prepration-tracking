@@ -161,10 +161,7 @@ export function detectHandGesture(landmarks: HandLandmark[]): HandGesture {
     return 'POINT';
   }
 
-  // ── TWO_FINGERS ───────────────────────────────────────────────────────────
-  if (indexUp && middleUp && !ringUp && !pinkyUp) {
-    return 'TWO_FINGERS';
-  }
+
 
   // ── THUMB_UP ──────────────────────────────────────────────────────────────
   // Thumb tip is clearly above wrist, other fingers down
