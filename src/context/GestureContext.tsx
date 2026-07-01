@@ -156,9 +156,9 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
   const landmarkerRef = useRef<HandLandmarker | null>(null);
   const animFrameRef = useRef<number | null>(null);
 
-  // detection loop internals
   const prevXRef = useRef<number | undefined>(undefined);
   const prevYRef = useRef<number | undefined>(undefined);
+  const prevWristYRef = useRef<number | undefined>(undefined);
   const smoothedCursorRef = useRef<CursorPos>({ x: 0.5, y: 0.5 });
   const confEngineRef = useRef(new ConfidenceEngine());
   const lastEmitTimeRef = useRef<Record<string, number>>({});
@@ -404,6 +404,31 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
           emitGesture(finalGesture, 0.88, smoothedCursorRef.current, handedness);
         }
 
+        // ── continuous open hand scroll ─────────────────────────────────
+        if (confirmed === 'OPEN_HAND') {
+          const wristY = hand[0].y;
+          if (prevWristYRef.current !== undefined) {
+            const movement = prevWristYRef.current - wristY;
+            if (Math.abs(movement) >= 0.015) {
+              const sensitivity = 850 * state.settings.sensitivity;
+              const scrollAmount = -movement * sensitivity;
+
+              // Find scroll container
+              let scrollTarget: Element | Window = window;
+              const activeTabEl = document.querySelector('.tab-content-active, .tab-pane-active') || document;
+              const container = activeTabEl.querySelector('.overflow-y-auto, [class*="scrollable"], .virtuoso-grid, .virtuoso-list');
+              if (container) {
+                scrollTarget = container;
+              }
+
+              scrollTarget.scrollBy({ top: scrollAmount, behavior: 'auto' });
+            }
+          }
+          prevWristYRef.current = wristY;
+        } else {
+          prevWristYRef.current = undefined;
+        }
+
         // update detection state every frame (no cooldown here — just for display)
         setState(prev => ({
           ...prev,
@@ -424,6 +449,7 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
         confEngineRef.current.reset();
         prevXRef.current = undefined;
         prevYRef.current = undefined;
+        prevWristYRef.current = undefined;
         isPinchingRef.current = false;
         pinchStartRef.current = null;
         setIsPinching(false);

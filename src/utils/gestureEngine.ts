@@ -199,13 +199,10 @@ export function detectSwipe(
   const deltaX = currX - prevX;
   const deltaY = currY - prevY;
 
-  // Horizontal wins if its magnitude is larger
+  // Only detect horizontal swipes for tab navigation
   if (Math.abs(deltaX) > Math.abs(deltaY)) {
     if (deltaX > threshold)  return { gesture: 'SWIPE_RIGHT', deltaX, deltaY };
     if (deltaX < -threshold) return { gesture: 'SWIPE_LEFT', deltaX, deltaY };
-  } else {
-    if (deltaY > threshold)  return { gesture: 'SWIPE_DOWN', deltaX, deltaY };
-    if (deltaY < -threshold) return { gesture: 'SWIPE_UP', deltaX, deltaY };
   }
 
   return { gesture: 'NONE', deltaX, deltaY };
