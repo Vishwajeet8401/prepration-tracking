@@ -116,6 +116,37 @@ export default function CameraGestureWidget() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCalibration, setShowCalibration] = useState(false);
   const [gestureLog, setGestureLog] = useState<string[]>([]);
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
+
+  useEffect(() => {
+    if (!lastEvent || lastEvent.gesture !== 'PINCH') return;
+    const rippleId = Date.now() + Math.random();
+    setRipples(prev => [...prev, { id: rippleId, x: cursorPos.x, y: cursorPos.y }]);
+    const t = setTimeout(() => {
+      setRipples(prev => prev.filter(r => r.id !== rippleId));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [lastEvent, cursorPos]);
+
+  const getDynamicGlow = () => {
+    if (!camera.active || detection.gesture === 'NONE') return {};
+    const colors: Record<string, string> = {
+      PINCH: 'rgba(251, 146, 60, 0.45)',
+      PINCH_HOLD: 'rgba(251, 146, 60, 0.35)',
+      SWIPE_LEFT: 'rgba(96, 165, 250, 0.45)',
+      SWIPE_RIGHT: 'rgba(96, 165, 250, 0.45)',
+      THUMB_UP: 'rgba(74, 222, 128, 0.45)',
+      FIST: 'rgba(239, 68, 68, 0.45)',
+      OPEN_HAND: 'rgba(167, 139, 250, 0.45)',
+    };
+    const glowColor = colors[detection.gesture];
+    if (!glowColor) return {};
+    return {
+      borderColor: glowColor,
+      boxShadow: `0 24px 60px rgba(0, 0, 0, 0.6), 0 0 16px 2px ${glowColor}`,
+      transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+    };
+  };
 
   // ── dragging ───────────────────────────────────────────────────────────────
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -257,11 +288,23 @@ export default function CameraGestureWidget() {
         />
       )}
 
+      {/* Ripple visual clicks */}
+      {camera.active && ripples.map(r => (
+        <div
+          key={r.id}
+          className="gesture-air-cursor-ripple"
+          style={{
+            left: `${r.x * window.innerWidth}px`,
+            top:  `${r.y * window.innerHeight}px`,
+          }}
+        />
+      ))}
+
       {/* ── Widget ─────────────────────────────────────────────────────── */}
       <div
         ref={widgetRef}
         className="gesture-widget"
-        style={{ left: pos.x, top: pos.y }}
+        style={{ left: pos.x, top: pos.y, ...getDynamicGlow() }}
       >
         <div className="gesture-widget__header" onMouseDown={onDragStart} onTouchStart={onTouchStart}>
           <div className="gesture-widget__title">

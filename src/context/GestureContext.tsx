@@ -216,8 +216,17 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
       if (confidence < CONFIDENCE_THRESHOLD) return;
 
       const now = Date.now();
+      const cooldowns: Record<string, number> = {
+        PINCH: 220,
+        PINCH_HOLD: 180,
+        SWIPE_LEFT: 650,
+        SWIPE_RIGHT: 650,
+        THUMB_UP: 500,
+        FIST: 500,
+      };
+      const cooldown = cooldowns[gesture] ?? GESTURE_COOLDOWN_MS;
       const lastEmit = lastEmitTimeRef.current[gesture] ?? 0;
-      if (now - lastEmit < GESTURE_COOLDOWN_MS) return;
+      if (now - lastEmit < cooldown) return;
 
       lastEmitTimeRef.current[gesture] = now;
 
