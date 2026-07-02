@@ -42,7 +42,8 @@ public class WidgetBridgePlugin extends Plugin {
 
         Context context = getContext();
         SharedPreferences prefs = context.getSharedPreferences("WidgetPrefs", Context.MODE_PRIVATE);
-        String value = prefs.getString(key, "");
+        Object obj = prefs.getAll().get(key);
+        String value = obj != null ? String.valueOf(obj) : "";
 
         JSObject ret = new JSObject();
         ret.put("value", value);
@@ -54,19 +55,17 @@ public class WidgetBridgePlugin extends Plugin {
         Context context = getContext();
         AppWidgetManager mgr = AppWidgetManager.getInstance(context);
         
-        // 1. Force update for Daily Goal Widget
-        Intent updateDaily = new Intent(context, DailyGoalWidget.class);
-        updateDaily.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+        // 1. Force synchronous update for Daily Goal Widget
         int[] idsDaily = mgr.getAppWidgetIds(new ComponentName(context, DailyGoalWidget.class));
-        updateDaily.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, idsDaily);
-        context.sendBroadcast(updateDaily);
+        for (int id : idsDaily) {
+            DailyGoalWidget.updateAppWidget(context, mgr, id);
+        }
 
-        // 2. Force update for Hydration Widget
-        Intent updateHydration = new Intent(context, HydrationWidget.class);
-        updateHydration.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+        // 2. Force synchronous update for Hydration Widget
         int[] idsHydration = mgr.getAppWidgetIds(new ComponentName(context, HydrationWidget.class));
-        updateHydration.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, idsHydration);
-        context.sendBroadcast(updateHydration);
+        for (int id : idsHydration) {
+            HydrationWidget.updateAppWidget(context, mgr, id);
+        }
 
         call.resolve();
     }

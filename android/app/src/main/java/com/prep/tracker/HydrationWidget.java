@@ -31,13 +31,22 @@ public class HydrationWidget extends AppWidgetProvider {
         }
     }
 
-    private void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+    public static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.hydration_widget);
         SharedPreferences prefs = context.getSharedPreferences("WidgetPrefs", Context.MODE_PRIVATE);
 
-        // 1. Read water stats
-        int completed = prefs.getInt("water_completed_ml", 0);
-        int target = prefs.getInt("water_target_ml", 2000);
+        // 1. Read water stats safely as String
+        int completed = 0;
+        int target = 2000;
+        try {
+            Object completedObj = prefs.getAll().get("water_completed_ml");
+            Object targetObj = prefs.getAll().get("water_target_ml");
+            completed = completedObj != null ? Integer.parseInt(String.valueOf(completedObj)) : 0;
+            target = targetObj != null ? Integer.parseInt(String.valueOf(targetObj)) : 2000;
+        } catch (Exception e) {
+            completed = 0;
+            target = 2000;
+        }
         if (target <= 0) target = 2000;
 
         views.setTextViewText(R.id.widget_hydration_text, completed + " ml");
@@ -56,7 +65,7 @@ public class HydrationWidget extends AppWidgetProvider {
         appWidgetManager.updateAppWidget(appWidgetId, views);
     }
 
-    private Bitmap drawWaterProgress(Context context, int completed, int target) {
+    public static Bitmap drawWaterProgress(Context context, int completed, int target) {
         try {
             int size = 120;
             Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);

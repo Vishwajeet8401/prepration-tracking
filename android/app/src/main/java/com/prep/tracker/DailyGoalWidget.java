@@ -36,7 +36,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         }
     }
 
-    private void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+    public static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.daily_goal_widget);
         SharedPreferences prefs = context.getSharedPreferences("WidgetPrefs", Context.MODE_PRIVATE);
 
@@ -170,7 +170,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         appWidgetManager.updateAppWidget(appWidgetId, views);
     }
 
-    private Bitmap drawProgressRing(Context context, int percentage) {
+    public static Bitmap drawProgressRing(Context context, int percentage) {
         try {
             int size = 150;
             Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
@@ -219,7 +219,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         }
     }
 
-    private PendingIntent getPendingSelfIntent(Context context, String action, int requestCode) {
+    private static PendingIntent getPendingSelfIntent(Context context, String action, int requestCode) {
         Intent intent = new Intent(context, DailyGoalWidget.class);
         intent.setAction(action);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
@@ -229,7 +229,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         return PendingIntent.getBroadcast(context, requestCode, intent, flags);
     }
 
-    private PendingIntent getPlayTaskPendingIntent(Context context, int index) {
+    private static PendingIntent getPlayTaskPendingIntent(Context context, int index) {
         Intent intent = new Intent(context, DailyGoalWidget.class);
         intent.setAction(ACTION_PLAY_TASK);
         intent.putExtra(EXTRA_TASK_INDEX, index);
@@ -347,7 +347,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         onUpdate(context, mgr, ids);
     }
 
-    private String formatDuration(long totalSeconds) {
+    private static String formatDuration(long totalSeconds) {
         long m = (totalSeconds % 3600) / 60;
         long s = totalSeconds % 60;
         return String.format("%02d:%02d", m, s);
