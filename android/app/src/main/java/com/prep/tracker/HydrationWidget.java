@@ -124,7 +124,7 @@ public class HydrationWidget extends AppWidgetProvider {
         }
     }
 
-    private PendingIntent getPendingSelfIntent(Context context, String action, int requestCode) {
+    private static PendingIntent getPendingSelfIntent(Context context, String action, int requestCode) {
         Intent intent = new Intent(context, HydrationWidget.class);
         intent.setAction(action);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
