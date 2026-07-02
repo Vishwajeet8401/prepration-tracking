@@ -45,7 +45,8 @@ import { Hand } from 'lucide-react';
 import { 
   BookOpen, Sparkles, Award, ListTodo, Calendar, 
   Settings, Flame, Activity, Compass, HelpCircle as HelpIcon, Bell, 
-  BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked
+  BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked,
+  ArrowUp
 } from 'lucide-react';
 import { AppNotification } from './types';
 
@@ -99,6 +100,21 @@ export default function App() {
   const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
 
   const isHandlingHistoryRef = useRef(false);
+
+  // Scroll to top state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // ── Gesture context & global swipe navigation ────────────────────────────
   const { state: gestureState, startCamera, stopCamera } = useGestureContext();
@@ -215,7 +231,7 @@ export default function App() {
 
             <button
               onClick={() => setIsNavOpen(!isNavOpen)}
-              className="sm:hidden p-2 hover:bg-white/10 rounded-lg transition"
+              className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition"
               aria-label="Toggle navigation"
             >
               <Menu className="w-5 h-5 text-slate-300" />
@@ -701,6 +717,24 @@ export default function App() {
         onDismiss={(id) => setActiveToasts(prev => prev.filter(t => t.id !== id))}
         onExecuteAction={handleExecuteToastAction}
       />
+
+      {/* Floating Scroll to Top button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: 20 }}
+            whileHover={{ scale: 1.1, translateY: -3 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 p-3.5 bg-indigo-650 hover:bg-indigo-500 text-white rounded-full shadow-lg border border-indigo-500/40 backdrop-blur-md cursor-pointer z-50 transition-colors duration-250 flex items-center justify-center hover:shadow-indigo-500/25"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-5 h-5 text-indigo-100" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Floating AI Gesture Widget — visible only when gesture control is active */}
       {user && isGestureActive && <CameraGestureWidget />}
