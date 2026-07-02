@@ -67,26 +67,53 @@ export interface GestureEvent {
 /** Thumb–index normalised distance below which we consider a pinch */
 export const PINCH_THRESHOLD = 0.045;
 
-/** Wrist displacement (0‥1) per frame required to fire a swipe */
-export const SWIPE_THRESHOLD = 0.018;
+/**
+ * Net wrist displacement (0‥1) across the velocity window to fire a swipe.
+ * Raised from 0.018 → 0.035 to prevent hand-tremor false positives.
+ */
+export const SWIPE_THRESHOLD = 0.035;
 
 /** Minimum confidence to emit a gesture event */
 export const CONFIDENCE_THRESHOLD = 0.7;
 
-/** Exponential smoothing factor for cursor (lower = smoother but laggier) */
-export const SMOOTH_FACTOR = 0.18;
+/**
+ * Exponential smoothing factor for cursor (lower = smoother but laggier).
+ * Raised from 0.18 → 0.25 for snappier tracking.
+ */
+export const SMOOTH_FACTOR = 0.25;
 
-/** Number of frames in the sliding window for confirmation */
-export const HISTORY_WINDOW = 8;
+/**
+ * Number of frames in the sliding window for gesture confirmation.
+ * Reduced from 8 → 6 to cut latency from ~250ms to ~120ms.
+ */
+export const HISTORY_WINDOW = 6;
 
-/** How many frames in the window must agree before gesture is confirmed */
-export const CONFIRM_COUNT = 6;
+/**
+ * How many frames in the window must agree before gesture is confirmed.
+ * Reduced from 6 → 4 to match the smaller window.
+ */
+export const CONFIRM_COUNT = 4;
 
 /** Minimum ms between emitting the same gesture twice (cooldown) */
 export const GESTURE_COOLDOWN_MS = 550;
 
 /** Ms of continuous PINCH before it becomes PINCH_HOLD (drag) */
 export const PINCH_HOLD_MS = 280;
+
+/** Number of frames in the swipe velocity accumulator window */
+export const SWIPE_VELOCITY_FRAMES = 6;
+
+/**
+ * Minimum wrist Y movement for two-finger scroll (dead-zone).
+ * Raised from 0.003 → 0.007 to eliminate hand-tremor scroll jitter.
+ */
+export const SCROLL_DEAD_ZONE = 0.007;
+
+/**
+ * Relative pinch distance (thumb-index / hand-scale) threshold for
+ * continuous pinch-hold detection. Same metric as detectHandGesture.
+ */
+export const REL_PINCH_THRESHOLD = 0.22;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,11 +124,22 @@ export function landmarkDist(a: HandLandmark, b: HandLandmark): number {
 }
 
 /**
- * Determines if a finger tip is "folded" (below its MCP joint in image Y space).
- * MediaPipe y increases downward so tip.y > mcp.y means folded.
+ * Determines if a finger is "folded" using rotation-invariant distance check.
+ * Compares wrist→tip vs wrist→pip distance. When folded, the tip curls
+ * back towards the wrist so tip_dist < pip_dist.
+ * This works regardless of hand orientation (upright, sideways, tilted).
+ *
+ * PIP indices: index=6, middle=10, ring=14, pinky=18
  */
-function isFolded(tip: HandLandmark, mcp: HandLandmark): boolean {
-  return tip.y > mcp.y - 0.01; // 0.01 tolerance
+function isFolded(
+  tip: HandLandmark,
+  pip: HandLandmark,
+  wrist: HandLandmark
+): boolean {
+  const tipDist = landmarkDist(tip, wrist);
+  const pipDist = landmarkDist(pip, wrist);
+  // Folded when tip is closer to wrist than PIP joint (with 5% tolerance)
+  return tipDist < pipDist * 1.05;
 }
 
 // ─── Core Gesture Classifier ─────────────────────────────────────────────────
@@ -122,18 +160,23 @@ export function detectHandGesture(landmarks: HandLandmark[]): HandGesture {
   const wrist     = landmarks[0];
   const thumbTip  = landmarks[4];
   const indexMcp  = landmarks[5];
+  const indexPip  = landmarks[6];
   const indexTip  = landmarks[8];
   const middleMcp = landmarks[9];
+  const middlePip = landmarks[10];
   const middleTip = landmarks[12];
   const ringMcp   = landmarks[13];
+  const ringPip   = landmarks[14];
   const ringTip   = landmarks[16];
   const pinkyMcp  = landmarks[17];
+  const pinkyPip  = landmarks[18];
   const pinkyTip  = landmarks[20];
 
-  const indexUp  = !isFolded(indexTip, indexMcp);
-  const middleUp = !isFolded(middleTip, middleMcp);
-  const ringUp   = !isFolded(ringTip, ringMcp);
-  const pinkyUp  = !isFolded(pinkyTip, pinkyMcp);
+  // Rotation-invariant fold detection using wrist-relative distances
+  const indexUp  = !isFolded(indexTip, indexPip, wrist);
+  const middleUp = !isFolded(middleTip, middlePip, wrist);
+  const ringUp   = !isFolded(ringTip, ringPip, wrist);
+  const pinkyUp  = !isFolded(pinkyTip, pinkyPip, wrist);
 
   // ── FIST ──────────────────────────────────────────────────────────────────
   if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
@@ -176,7 +219,7 @@ export function detectHandGesture(landmarks: HandLandmark[]): HandGesture {
   return 'NONE';
 }
 
-// ─── Swipe Detection ─────────────────────────────────────────────────────────
+// ─── Swipe Detection (Velocity-Accumulated) ─────────────────────────────────
 
 export interface SwipeResult {
   gesture: HandGesture;
@@ -185,8 +228,88 @@ export interface SwipeResult {
 }
 
 /**
- * Detects swipe from the change in wrist/palm-center position between frames.
- * Returns NONE if no swipe threshold is met.
+ * Multi-frame velocity accumulator for reliable swipe detection.
+ * Tracks wrist positions over a sliding window and only fires a swipe when:
+ *   1. The NET displacement exceeds the threshold (not per-frame jitter).
+ *   2. The direction is consistent across the majority of frames.
+ *   3. After firing, the buffer resets to prevent double/triple fires.
+ */
+export class SwipeVelocityTracker {
+  private buffer: { x: number; y: number }[] = [];
+  private readonly windowSize: number;
+  private readonly threshold: number;
+
+  constructor(
+    windowSize: number = SWIPE_VELOCITY_FRAMES,
+    threshold: number = SWIPE_THRESHOLD
+  ) {
+    this.windowSize = windowSize;
+    this.threshold = threshold;
+  }
+
+  /**
+   * Push a new wrist position and check for a completed swipe.
+   * @param sensitivity Multiplier from user settings (higher = easier to trigger)
+   */
+  push(x: number, y: number, sensitivity: number = 1.0): SwipeResult {
+    this.buffer.push({ x, y });
+    if (this.buffer.length > this.windowSize) this.buffer.shift();
+
+    // Need a full window to evaluate
+    if (this.buffer.length < this.windowSize) {
+      return { gesture: 'NONE', deltaX: 0, deltaY: 0 };
+    }
+
+    const first = this.buffer[0];
+    const last = this.buffer[this.buffer.length - 1];
+    const netDeltaX = last.x - first.x;
+    const netDeltaY = last.y - first.y;
+    const adjustedThreshold = this.threshold / sensitivity;
+
+    // Check direction consistency — count how many consecutive frames
+    // agree on the dominant direction
+    let consistentFrames = 0;
+    const dominantDir = Math.abs(netDeltaX) > Math.abs(netDeltaY) ? 'x' : 'y';
+    const sign = dominantDir === 'x' ? Math.sign(netDeltaX) : Math.sign(netDeltaY);
+
+    for (let i = 1; i < this.buffer.length; i++) {
+      const delta = dominantDir === 'x'
+        ? this.buffer[i].x - this.buffer[i - 1].x
+        : this.buffer[i].y - this.buffer[i - 1].y;
+      if (Math.sign(delta) === sign) consistentFrames++;
+    }
+
+    // Require majority of frames to agree on direction (≥60%)
+    const minConsistent = Math.ceil((this.windowSize - 1) * 0.6);
+    if (consistentFrames < minConsistent) {
+      return { gesture: 'NONE', deltaX: netDeltaX, deltaY: netDeltaY };
+    }
+
+    // Horizontal swipe
+    if (Math.abs(netDeltaX) > Math.abs(netDeltaY) && Math.abs(netDeltaX) > adjustedThreshold) {
+      const gesture: HandGesture = netDeltaX > 0 ? 'SWIPE_RIGHT' : 'SWIPE_LEFT';
+      this.reset(); // Prevent double-fire
+      return { gesture, deltaX: netDeltaX, deltaY: netDeltaY };
+    }
+
+    // Vertical swipe
+    if (Math.abs(netDeltaY) > Math.abs(netDeltaX) && Math.abs(netDeltaY) > adjustedThreshold) {
+      const gesture: HandGesture = netDeltaY > 0 ? 'SWIPE_DOWN' : 'SWIPE_UP';
+      this.reset(); // Prevent double-fire
+      return { gesture, deltaX: netDeltaX, deltaY: netDeltaY };
+    }
+
+    return { gesture: 'NONE', deltaX: netDeltaX, deltaY: netDeltaY };
+  }
+
+  reset(): void {
+    this.buffer = [];
+  }
+}
+
+/**
+ * Simple single-frame swipe detector (kept for backward compat / lightweight use).
+ * For the main loop, prefer SwipeVelocityTracker.
  */
 export function detectSwipe(
   prevX: number | undefined,
@@ -202,7 +325,6 @@ export function detectSwipe(
   const deltaX = currX - prevX;
   const deltaY = currY - prevY;
 
-  // Only detect horizontal swipes for tab navigation
   if (Math.abs(deltaX) > Math.abs(deltaY)) {
     if (deltaX > threshold)  return { gesture: 'SWIPE_RIGHT', deltaX, deltaY };
     if (deltaX < -threshold) return { gesture: 'SWIPE_LEFT', deltaX, deltaY };
@@ -288,6 +410,134 @@ export class ConfidenceEngine {
     }
     return best;
   }
+}
+
+// ─── Platform Detection ───────────────────────────────────────────────────────
+
+export type GesturePlatform = 'desktop' | 'mobile-web' | 'capacitor-android' | 'capacitor-ios' | 'unknown';
+
+export interface PlatformCapabilities {
+  platform: GesturePlatform;
+  /** Whether the platform supports gesture camera navigation */
+  gestureSupported: boolean;
+  /** Reason if not supported */
+  unsupportedReason?: string;
+  /** Whether to use GPU or CPU delegate for MediaPipe */
+  preferredDelegate: 'GPU' | 'CPU';
+  /** Whether the device is primarily touch-based (phones) */
+  isTouchPrimary: boolean;
+}
+
+/** Detect whether running inside a Capacitor native shell */
+function isCapacitor(): boolean {
+  return typeof (window as any)?.Capacitor !== 'undefined';
+}
+
+/** Detect Android Capacitor specifically */
+function isCapacitorAndroid(): boolean {
+  return isCapacitor() && (window as any)?.Capacitor?.getPlatform?.() === 'android';
+}
+
+/** Detect iOS Capacitor specifically */
+function isCapacitorIOS(): boolean {
+  return isCapacitor() && (window as any)?.Capacitor?.getPlatform?.() === 'ios';
+}
+
+/** Detect mobile browser (not Capacitor) */
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)
+    && !isCapacitor();
+}
+
+/** Check if WebGL2 is available (needed for MediaPipe GPU delegate) */
+function hasWebGL2(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl2');
+    return gl !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Check if getUserMedia is available */
+function hasGetUserMedia(): boolean {
+  return !!(navigator?.mediaDevices?.getUserMedia);
+}
+
+/**
+ * Check if the screen is phone-sized (likely held in hand).
+ * Gesture camera nav makes no sense on a phone — user holds it with one hand
+ * and can't gesture with the other at a tiny screen.
+ */
+function isPhoneScreen(): boolean {
+  const short = Math.min(window.innerWidth, window.innerHeight);
+  return short < 600; // phones are typically < 600px on the short side
+}
+
+/**
+ * Full platform capability detection for the gesture system.
+ * Call once at startup to decide whether to enable gesture features.
+ */
+export function detectPlatformCapabilities(): PlatformCapabilities {
+  // ── Capacitor Android ──
+  if (isCapacitorAndroid()) {
+    const webgl2 = hasWebGL2();
+    const camera = hasGetUserMedia();
+    // Android WebView: GPU delegate is unreliable, use CPU
+    // Camera requires native permission + WebView chrome client config
+    if (!camera) {
+      return {
+        platform: 'capacitor-android',
+        gestureSupported: false,
+        unsupportedReason: 'Camera access not available in this Android WebView. Ensure CAMERA permission is declared.',
+        preferredDelegate: 'CPU',
+        isTouchPrimary: true,
+      };
+    }
+    return {
+      platform: 'capacitor-android',
+      gestureSupported: true,
+      preferredDelegate: webgl2 ? 'GPU' : 'CPU',
+      isTouchPrimary: true,
+    };
+  }
+
+  // ── Capacitor iOS ──
+  if (isCapacitorIOS()) {
+    return {
+      platform: 'capacitor-ios',
+      gestureSupported: hasGetUserMedia(),
+      unsupportedReason: hasGetUserMedia() ? undefined : 'Camera not available on this iOS device.',
+      preferredDelegate: 'GPU', // iOS WebView has good WebGL2
+      isTouchPrimary: true,
+    };
+  }
+
+  // ── Mobile browser (not Capacitor) ──
+  if (isMobileBrowser()) {
+    const phone = isPhoneScreen();
+    return {
+      platform: 'mobile-web',
+      gestureSupported: !phone && hasGetUserMedia(),
+      unsupportedReason: phone
+        ? 'Gesture navigation is designed for desktop/tablet screens. Use touch controls on phone.'
+        : (!hasGetUserMedia() ? 'Camera API not available in this browser.' : undefined),
+      preferredDelegate: hasWebGL2() ? 'GPU' : 'CPU',
+      isTouchPrimary: true,
+    };
+  }
+
+  // ── Desktop browser ──
+  return {
+    platform: 'desktop',
+    gestureSupported: hasGetUserMedia(),
+    unsupportedReason: hasGetUserMedia() ? undefined : 'Camera not available. Check browser permissions.',
+    preferredDelegate: hasWebGL2() ? 'GPU' : 'CPU',
+    isTouchPrimary: false,
+  };
 }
 
 // ─── Canvas Drawing Utilities ─────────────────────────────────────────────────

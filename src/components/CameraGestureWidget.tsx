@@ -110,6 +110,8 @@ export default function CameraGestureWidget() {
   } = useGestureContext();
 
   const { settings, camera, detection, isModelReady } = state;
+  const platformInfo = state.platformInfo;
+  const isUnsupported = platformInfo && !platformInfo.gestureSupported;
 
   // ── widget UI state ────────────────────────────────────────────────────────
   const [collapsed, setCollapsed] = useState(false);
@@ -269,11 +271,21 @@ export default function CameraGestureWidget() {
   };
 
   // ── status label ──────────────────────────────────────────────────────────
-  const statusLabel = !isModelReady
+  const statusLabel = isUnsupported
+    ? 'Unsupported'
+    : !isModelReady
     ? 'Loading model…'
     : camera.active
     ? 'Live'
     : 'Paused';
+
+  const platformBadge = platformInfo
+    ? platformInfo.platform === 'desktop' ? '💻'
+    : platformInfo.platform === 'capacitor-android' ? '📱'
+    : platformInfo.platform === 'capacitor-ios' ? '📱'
+    : platformInfo.platform === 'mobile-web' ? '🌐'
+    : ''
+    : '';
 
   return (
     <>
@@ -310,9 +322,10 @@ export default function CameraGestureWidget() {
           <div className="gesture-widget__title">
             <Hand size={14} className="gesture-widget__icon" />
             <span>Gesture Control</span>
+            {platformBadge && <span style={{ fontSize: '11px' }}>{platformBadge}</span>}
             <span
               className="gesture-widget__badge"
-              style={{ color: camera.active ? '#4ade80' : '#64748b' }}
+              style={{ color: isUnsupported ? '#f97316' : camera.active ? '#4ade80' : '#64748b' }}
             >
               {statusLabel}
             </span>
@@ -383,8 +396,19 @@ export default function CameraGestureWidget() {
                     </>
                   ) : (
                     <div className="gesture-widget__placeholder">
-                      <CameraOff size={28} style={{ opacity: 0.4 }} />
-                      <span>{isModelReady ? 'Camera off' : 'Loading AI model…'}</span>
+                      {isUnsupported ? (
+                        <>
+                          <Hand size={28} style={{ opacity: 0.4 }} />
+                          <span style={{ textAlign: 'center', fontSize: '11px', lineHeight: 1.4, padding: '0 8px' }}>
+                            {platformInfo?.unsupportedReason ?? 'Gesture navigation not available on this device.'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <CameraOff size={28} style={{ opacity: 0.4 }} />
+                          <span>{isModelReady ? 'Camera off' : 'Loading AI model…'}</span>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -449,7 +473,7 @@ export default function CameraGestureWidget() {
               <button
                 className={`gesture-widget__btn ${camera.active ? 'gesture-widget__btn--danger' : 'gesture-widget__btn--primary'}`}
                 onClick={handleToggle}
-                disabled={!isModelReady}
+                disabled={!isModelReady || !!isUnsupported}
               >
                 {camera.active ? (
                   <><CameraOff size={13} /> Stop</>

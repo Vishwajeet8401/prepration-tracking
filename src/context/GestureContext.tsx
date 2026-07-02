@@ -23,19 +23,22 @@ import type { HandLandmarkerResult } from '@mediapipe/tasks-vision';
 
 import {
   detectHandGesture,
-  detectSwipe,
   getCursor,
   smoothCursor,
   drawHandOnCanvas,
   ConfidenceEngine,
+  SwipeVelocityTracker,
   landmarkDist,
+  detectPlatformCapabilities,
   CONFIDENCE_THRESHOLD,
   GESTURE_COOLDOWN_MS,
-  PINCH_THRESHOLD,
   PINCH_HOLD_MS,
   SMOOTH_FACTOR,
-  SWIPE_THRESHOLD,
+  SCROLL_DEAD_ZONE,
+  REL_PINCH_THRESHOLD,
 } from '../utils/gestureEngine';
+
+import type { PlatformCapabilities } from '../utils/gestureEngine';
 
 import type { CursorPos, GestureEvent, HandGesture } from '../utils/gestureEngine';
 
@@ -75,6 +78,8 @@ export interface GestureState {
   };
   /** true once HandLandmarker WASM is loaded */
   isModelReady: boolean;
+  /** Platform capability info for UI display */
+  platformInfo: PlatformCapabilities | null;
 }
 
 export interface GestureContextValue {
@@ -133,6 +138,7 @@ const DEFAULT_STATE: GestureState = {
   detection: DEFAULT_DETECTION,
   calibration: { calibrated: false, centerX: 0.5, centerY: 0.5 },
   isModelReady: false,
+  platformInfo: null,
 };
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -156,38 +162,74 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
   const landmarkerRef = useRef<HandLandmarker | null>(null);
   const animFrameRef = useRef<number | null>(null);
 
-  const prevXRef = useRef<number | undefined>(undefined);
-  const prevYRef = useRef<number | undefined>(undefined);
   const prevWristYRef = useRef<number | undefined>(undefined);
   const smoothedCursorRef = useRef<CursorPos>({ x: 0.5, y: 0.5 });
   const confEngineRef = useRef(new ConfidenceEngine());
+  const swipeTrackerRef = useRef(new SwipeVelocityTracker());
   const lastEmitTimeRef = useRef<Record<string, number>>({});
   const pinchStartRef = useRef<number | null>(null);
   const isPinchingRef = useRef(false);
   const lastHoveredElementRef = useRef<Element | null>(null);
 
 
-  // ── load MediaPipe HandLandmarker ──────────────────────────────────────────
+  // ── detect platform capabilities on mount ──────────────────────────────────
+  const platformRef = useRef<PlatformCapabilities | null>(null);
+
+  useEffect(() => {
+    const caps = detectPlatformCapabilities();
+    platformRef.current = caps;
+    setState(prev => ({ ...prev, platformInfo: caps }));
+    console.log('[GestureEngine] Platform:', caps.platform,
+      '| Gesture supported:', caps.gestureSupported,
+      '| Delegate:', caps.preferredDelegate,
+      caps.unsupportedReason ? `| Reason: ${caps.unsupportedReason}` : '');
+  }, []);
+
+  // ── load MediaPipe HandLandmarker (with GPU→CPU fallback) ─────────────────
   useEffect(() => {
     let cancelled = false;
+
+    async function tryCreateLandmarker(
+      vision: any,
+      delegate: 'GPU' | 'CPU'
+    ): Promise<HandLandmarker> {
+      return HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath:
+            'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+          delegate,
+        },
+        numHands: 1, // single hand for better perf on mobile
+        runningMode: 'VIDEO',
+        minHandDetectionConfidence: 0.55,
+        minHandPresenceConfidence: 0.55,
+        minTrackingConfidence: 0.55,
+      });
+    }
 
     async function loadModel() {
       try {
         const vision = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm'
         );
-        const landmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath:
-              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-            delegate: 'GPU',
-          },
-          numHands: 2,
-          runningMode: 'VIDEO',
-          minHandDetectionConfidence: 0.5,
-          minHandPresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
+
+        const preferred = platformRef.current?.preferredDelegate ?? 'GPU';
+        let landmarker: HandLandmarker;
+
+        try {
+          // Try preferred delegate first
+          landmarker = await tryCreateLandmarker(vision, preferred);
+          console.log(`[GestureEngine] Model loaded with ${preferred} delegate ✓`);
+        } catch (gpuErr) {
+          if (preferred === 'GPU') {
+            // GPU failed — fallback to CPU
+            console.warn('[GestureEngine] GPU delegate failed, falling back to CPU:', gpuErr);
+            landmarker = await tryCreateLandmarker(vision, 'CPU');
+            console.log('[GestureEngine] Model loaded with CPU delegate (fallback) ✓');
+          } else {
+            throw gpuErr;
+          }
+        }
 
         if (!cancelled) {
           landmarkerRef.current = landmarker;
@@ -197,6 +239,13 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (err) {
         if (!cancelled) {
           console.error('[GestureEngine] Failed to load model:', err);
+          setState(prev => ({
+            ...prev,
+            camera: {
+              ...prev.camera,
+              error: 'Failed to load AI hand-tracking model. Check your internet connection.',
+            },
+          }));
         }
       }
     }
@@ -353,9 +402,14 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
 
-        // ── pinch detection (continuous) ────────────────────────────────
+        // ── pinch detection (scale-normalized, continuous) ───────────────
+        // Use relative pinch: thumb-index distance / hand scale (wrist-to-middleMCP)
+        const wrist = hand[0];
+        const middleMcp = hand[9];
+        const handScale = landmarkDist(wrist, middleMcp);
         const pinchDist = landmarkDist(hand[4], hand[8]);
-        const nowPinching = pinchDist < PINCH_THRESHOLD;
+        const relPinch = handScale > 0 ? pinchDist / handScale : 999;
+        const nowPinching = relPinch < REL_PINCH_THRESHOLD;
 
         if (nowPinching && !isPinchingRef.current) {
           // pinch started
@@ -383,45 +437,51 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
           emitGesture('PINCH_HOLD', 0.90, smoothedCursorRef.current, handedness);
         }
 
-        // ── swipe detection ─────────────────────────────────────────────
+        // ── swipe detection (velocity-accumulated, OPEN_HAND only) ──────
+        // Only allow swipes when the raw gesture is OPEN_HAND (intentional
+        // palm push). This prevents accidental swipes from FIST, POINT, etc.
         const wristX = hand[0].x;
         const wristY = hand[0].y;
-        const canSwipe = confirmed !== 'POINT' && confirmed !== 'PINCH' && confirmed !== 'PINCH_HOLD';
-        const swipeResult = canSwipe
-          ? detectSwipe(
-              prevXRef.current,
-              prevYRef.current,
-              wristX,
-              wristY,
-              SWIPE_THRESHOLD / state.settings.sensitivity
-            )
-          : { gesture: 'NONE' as HandGesture, deltaX: 0, deltaY: 0 };
-        prevXRef.current = wristX;
-        prevYRef.current = wristY;
+
+        let swipeGesture: HandGesture = 'NONE';
+        if (rawGesture === 'OPEN_HAND' && !nowPinching) {
+          // Feed wrist position into the velocity accumulator
+          const swipeResult = swipeTrackerRef.current.push(
+            wristX,
+            wristY,
+            state.settings.sensitivity
+          );
+          swipeGesture = swipeResult.gesture;
+        } else {
+          // Not in swipe-eligible gesture — reset the tracker so partial
+          // motion doesn't carry over
+          swipeTrackerRef.current.reset();
+        }
 
         // ── combine and emit ────────────────────────────────────────────
         let finalGesture: HandGesture = confirmed;
 
-        // swipes have priority over static gestures (except pinch)
+        // Swipes have priority over static gestures (except pinch)
         if (
-          swipeResult.gesture !== 'NONE' &&
+          swipeGesture !== 'NONE' &&
           !nowPinching &&
           finalGesture !== 'PINCH' &&
           finalGesture !== 'PINCH_HOLD'
         ) {
-          finalGesture = swipeResult.gesture;
+          finalGesture = swipeGesture;
         }
 
         if (finalGesture !== 'NONE' && !nowPinching) {
           emitGesture(finalGesture, 0.88, smoothedCursorRef.current, handedness);
         }
 
-        // ── continuous two finger scroll ────────────────────────────────
+        // ── continuous two finger scroll (with dead-zone) ───────────────
         if (confirmed === 'TWO_FINGERS') {
-          const wristY = hand[0].y;
+          const scrollWristY = hand[0].y;
           if (prevWristYRef.current !== undefined) {
-            const movement = prevWristYRef.current - wristY;
-            if (Math.abs(movement) >= 0.003) {
+            const movement = prevWristYRef.current - scrollWristY;
+            // Dead-zone: ignore tiny hand tremor movements
+            if (Math.abs(movement) >= SCROLL_DEAD_ZONE) {
               const sensitivity = 850 * state.settings.sensitivity;
               const scrollAmount = -movement * sensitivity;
               const clampedScroll = Math.max(-60, Math.min(60, scrollAmount));
@@ -437,7 +497,7 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
               scrollTarget.scrollBy({ top: clampedScroll, behavior: 'auto' });
             }
           }
-          prevWristYRef.current = wristY;
+          prevWristYRef.current = scrollWristY;
         } else {
           prevWristYRef.current = undefined;
         }
@@ -458,10 +518,9 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
           drawHandOnCanvas(ctx, hand, canvas.width, canvas.height, nowPinching);
         }
       } else {
-        // no hand visible — reset
+        // no hand visible — reset all trackers
         confEngineRef.current.reset();
-        prevXRef.current = undefined;
-        prevYRef.current = undefined;
+        swipeTrackerRef.current.reset();
         prevWristYRef.current = undefined;
         isPinchingRef.current = false;
         pinchStartRef.current = null;
@@ -483,12 +542,32 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [state.camera.active, state.isModelReady, state.settings.sensitivity, emitGesture]);
 
-  // ── camera controls ────────────────────────────────────────────────────────
+  // ── camera controls (platform-aware) ─────────────────────────────────────────
   const startCamera = useCallback(async () => {
     if (state.camera.active) return;
+
+    // Check platform support before trying camera
+    const caps = platformRef.current;
+    if (caps && !caps.gestureSupported) {
+      setState(prev => ({
+        ...prev,
+        camera: {
+          ...prev.camera,
+          error: caps.unsupportedReason ?? 'Gesture navigation not supported on this device.',
+        },
+      }));
+      return;
+    }
+
     try {
+      // Use lower resolution on mobile/Capacitor for performance
+      const isMobile = caps?.isTouchPrimary ?? false;
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        video: {
+          facingMode: 'user',
+          width: { ideal: isMobile ? 320 : 640 },
+          height: { ideal: isMobile ? 240 : 480 },
+        },
       });
 
       if (videoRef.current) {
@@ -502,7 +581,15 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
         settings: { ...prev.settings, enabled: true },
       }));
     } catch (err: any) {
-      const errMsg = err?.message ?? 'Camera access denied';
+      let errMsg = err?.message ?? 'Camera access denied';
+
+      // Provide platform-specific error guidance
+      if (caps?.platform === 'capacitor-android') {
+        errMsg += '\n\nOn Android: Go to Settings > Apps > Preparation Tracker > Permissions > Camera > Allow.';
+      } else if (caps?.platform === 'capacitor-ios') {
+        errMsg += '\n\nOn iOS: Go to Settings > Preparation Tracker > Camera > Allow.';
+      }
+
       console.error('[GestureEngine] Camera error:', err);
       setState(prev => ({
         ...prev,
@@ -527,8 +614,7 @@ export const GestureProvider: React.FC<{ children: React.ReactNode }> = ({
       lastHoveredElementRef.current = null;
     }
     confEngineRef.current.reset();
-    prevXRef.current = undefined;
-    prevYRef.current = undefined;
+    swipeTrackerRef.current.reset();
     isPinchingRef.current = false;
     pinchStartRef.current = null;
     setIsPinching(false);
