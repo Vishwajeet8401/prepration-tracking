@@ -579,7 +579,7 @@ export default function BulkImportExportCenter({
         systemPrompt: "You are a developer diagnostic utility. Always reply with the exact single word: Success.",
         userPrompt: "Diagnose.",
         temperature: 0.1,
-        maxTokens: 5,
+        maxTokens: 150,
         cerebrasApiKey: localKey,
         cerebrasModel: localCerebrasModel
       });
@@ -605,7 +605,7 @@ export default function BulkImportExportCenter({
         systemPrompt: "You are a developer diagnostic utility. Always reply with the exact single word: Success.",
         userPrompt: "Diagnose.",
         temperature: 0.1,
-        maxTokens: 5,
+        maxTokens: 150,
         geminiApiKey: activeKey,
         geminiModel: localGeminiModel
       });
@@ -630,7 +630,7 @@ export default function BulkImportExportCenter({
         systemPrompt: "You are a developer diagnostic utility. Always reply with the exact single word: Success.",
         userPrompt: "Diagnose.",
         temperature: 0.1,
-        maxTokens: 5,
+        maxTokens: 150,
         groqApiKey: localGroqKey,
         groqModel: localGroqModel
       });

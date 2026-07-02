@@ -154,7 +154,7 @@ Result: ${story.result}`;
         systemPrompt,
         userPrompt,
         temperature: 0.5,
-        maxTokens: 400,
+        maxTokens: 800,
         cerebrasApiKey,
         geminiApiKey,
         groqApiKey,

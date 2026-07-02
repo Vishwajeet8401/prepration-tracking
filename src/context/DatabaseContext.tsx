@@ -2547,7 +2547,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         systemPrompt,
         userPrompt: jsonPrompt,
         temperature: 0.2,
-        maxTokens: 300,
+        maxTokens: 600,
         cerebrasApiKey: cerebrasKey,
         geminiApiKey: geminiKey,
         groqApiKey: groqKey,
