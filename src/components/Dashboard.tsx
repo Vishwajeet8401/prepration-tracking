@@ -4,6 +4,7 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus } from '../types';
 import { GlobalStats } from '../hooks/useGlobalStats';
 import {
@@ -662,6 +663,169 @@ const Dashboard = React.memo(function Dashboard({
     const completed = todaysRemindersList.filter(r => r.status === 'Completed').length;
     return Math.round((completed / todaysRemindersList.length) * 100);
   }, [todaysRemindersList]);
+
+  // Synchronize React state to SharedPreferences
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const syncToWidget = async () => {
+      try {
+        const WidgetBridge = registerPlugin<any>('WidgetBridge');
+
+        // 1. Sync goals progress
+        await WidgetBridge.setItem({ key: 'goal_completion_percentage', value: String(todayCompletionPercentage) });
+        
+        // 2. Sync top 3 tasks list
+        const maxTasks = Math.min(todayTasks.length, 3);
+        await WidgetBridge.setItem({ key: 'task_count', value: String(maxTasks) });
+        for (let i = 0; i < maxTasks; i++) {
+          const t = todayTasks[i];
+          await WidgetBridge.setItem({ key: `task_${i + 1}_id`, value: t.id });
+          await WidgetBridge.setItem({ key: `task_${i + 1}_title`, value: t.title });
+          await WidgetBridge.setItem({ key: `task_${i + 1}_target`, value: String(t.targetHours) });
+          const isCompleted = t.status === 'Completed';
+          await WidgetBridge.setItem({ key: `complete_task_${t.id}`, value: String(isCompleted) });
+        }
+
+        // 3. Sync Active Task Timer state
+        if (activeTaskTimer) {
+          await WidgetBridge.setItem({ key: 'active_task_id', value: activeTaskTimer.taskId });
+          await WidgetBridge.setItem({ key: 'active_task_title', value: activeTaskTimer.taskTitle });
+          await WidgetBridge.setItem({ key: 'active_task_elapsed', value: String(activeTaskTimer.displaySeconds) });
+          await WidgetBridge.setItem({ key: 'active_task_start_time', value: String(activeTaskTimer.startTime) });
+          await WidgetBridge.setItem({ key: 'active_task_is_paused', value: String(activeTaskTimer.isPaused) });
+        } else {
+          // Clear active task variables if deleted in widget or stopped in app
+          const currIdRes = await WidgetBridge.getItem({ key: 'active_task_id' });
+          if (currIdRes?.value) {
+            await WidgetBridge.setItem({ key: 'active_task_id', value: '' });
+          }
+        }
+
+        // 4. Sync water progress
+        const completedWaterMl = waterIntakeProgress.completed * 250;
+        const targetWaterMl = waterIntakeProgress.target * 250;
+        await WidgetBridge.setItem({ key: 'water_completed_ml', value: String(completedWaterMl) });
+        await WidgetBridge.setItem({ key: 'water_target_ml', value: String(targetWaterMl) });
+
+        // 5. Signal widgets to redraw
+        await WidgetBridge.reloadAllTimelines();
+      } catch (err) {
+        console.error('Failed to sync widget data:', err);
+      }
+    };
+
+    syncToWidget();
+  }, [todayCompletionPercentage, todayTasks, activeTaskTimer, waterIntakeProgress]);
+
+  // Synchronize SharedPreferences back to React state when app is focused/resumed
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const syncFromWidget = async () => {
+      try {
+        const WidgetBridge = registerPlugin<any>('WidgetBridge');
+        const syncReqRes = await WidgetBridge.getItem({ key: 'widget_sync_required' });
+        
+        if (syncReqRes?.value === 'true') {
+          // Reset the sync flag
+          await WidgetBridge.setItem({ key: 'widget_sync_required', value: 'false' });
+
+          // 1. Sync task completions from home screen widget
+          for (let i = 0; i < Math.min(todayTasks.length, 3); i++) {
+            const task = todayTasks[i];
+            if (task.status !== 'Completed') {
+              const compRes = await WidgetBridge.getItem({ key: `complete_task_${task.id}` });
+              if (compRes?.value === 'true') {
+                const fallbackHours = Number(task.targetHours) || 1;
+                await onUpdateTask({
+                  ...task,
+                  targetHours: fallbackHours,
+                  status: 'Completed',
+                  completedAt: new Date().toISOString()
+                }, fallbackHours, 'Completed via home screen widget.');
+              }
+            }
+          }
+
+          // 2. Sync water intake updates from home screen widget
+          const waterRes = await WidgetBridge.getItem({ key: 'water_completed_ml' });
+          if (waterRes?.value) {
+            const widgetCompletedMl = parseInt(waterRes.value, 10) || 0;
+            const appCompletedMl = waterIntakeProgress.completed * 250;
+            
+            if (widgetCompletedMl > appCompletedMl) {
+              const extraGlasses = Math.floor((widgetCompletedMl - appCompletedMl) / 250);
+              if (extraGlasses > 0 && onActionReminder && waterIntakeProgress.reminderId) {
+                for (let k = 0; k < extraGlasses; k++) {
+                  await onActionReminder(waterIntakeProgress.reminderId, 'Completed');
+                }
+              }
+            }
+          }
+
+          // 3. Sync Active Task timer states from home screen widget
+          const activeIdRes = await WidgetBridge.getItem({ key: 'active_task_id' });
+          const activeTitleRes = await WidgetBridge.getItem({ key: 'active_task_title' });
+          const activeElapsedRes = await WidgetBridge.getItem({ key: 'active_task_elapsed' });
+          const activeStartRes = await WidgetBridge.getItem({ key: 'active_task_start_time' });
+          const activePausedRes = await WidgetBridge.getItem({ key: 'active_task_is_paused' });
+
+          const widgetTaskId = activeIdRes?.value || null;
+
+          if (widgetTaskId) {
+            const matchingTask = todayTasks.find(t => t.id === widgetTaskId);
+            if (matchingTask) {
+              const isPaused = activePausedRes?.value === 'true';
+              const elapsed = parseInt(activeElapsedRes?.value || '0', 10);
+              const startTime = parseInt(activeStartRes?.value || '0', 10);
+
+              setActiveTaskTimer({
+                taskId: widgetTaskId,
+                taskTitle: activeTitleRes?.value || matchingTask.title,
+                task: matchingTask,
+                startTime: startTime,
+                elapsed: elapsed,
+                isPaused: isPaused,
+                displaySeconds: elapsed + (isPaused ? 0 : Math.floor((Date.now() - startTime) / 1000))
+              });
+            }
+          } else {
+            if (activeTaskTimer) {
+              setActiveTaskTimer(null);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync data from widget:', err);
+      }
+    };
+
+    syncFromWidget();
+
+    // Check when window gets focused
+    window.addEventListener('focus', syncFromWidget);
+    
+    // Check when Capacitor app resumes (active State change)
+    let resumeListener: any = null;
+    // @ts-ignore
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appStateChange', (state) => {
+        if (state.isActive) {
+          syncFromWidget();
+        }
+      }).then(listener => {
+        resumeListener = listener;
+      });
+    }).catch(() => {});
+
+    return () => {
+      window.removeEventListener('focus', syncFromWidget);
+      if (resumeListener) {
+        resumeListener.remove();
+      }
+    };
+  }, [todayTasks, activeTaskTimer, waterIntakeProgress, onUpdateTask, onActionReminder]);
 
   // Spacing algorithm priority scoring recommendation list
   const priorityItems = useMemo(() => {

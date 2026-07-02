@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(WidgetBridgePlugin.class);
         super.onCreate(savedInstanceState);
 
         // Get the Capacitor WebView and configure it to grant camera permissions

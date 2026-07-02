@@ -27,6 +27,38 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Daily Goal Widget Receiver -->
+        <receiver
+            android:name=".DailyGoalWidget"
+            android:label="Daily Goals Tracker"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.prep.tracker.ACTION_PLAY_PAUSE" />
+                <action android:name="com.prep.tracker.ACTION_STOP" />
+                <action android:name="com.prep.tracker.ACTION_COMPLETE" />
+                <action android:name="com.prep.tracker.ACTION_PLAY_TASK" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/daily_goal_widget_info" />
+        </receiver>
+
+        <!-- Hydration Widget Receiver -->
+        <receiver
+            android:name=".HydrationWidget"
+            android:label="Water Hydration Tracker"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.prep.tracker.ACTION_ADD_WATER_250" />
+                <action android:name="com.prep.tracker.ACTION_ADD_WATER_500" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hydration_widget_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->

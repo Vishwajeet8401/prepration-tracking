@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="12dp"
+    android:gravity="center">
+
+    <!-- Header label -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="HYDRATION"
+        android:textColor="#38BDF8"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Center Progress Area -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <!-- Water Droplet Indicator -->
+        <ImageView
+            android:id="@+id/widget_hydration_glass"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_widget_water"
+            android:scaleType="fitCenter" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="8dp">
+
+            <TextView
+                android:id="@+id/widget_hydration_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 ml"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_hydration_goal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Goal: 2000 ml"
+                android:textColor="#94A3B8"
+                android:textSize="8sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Quick action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- Button +250ml -->
+        <TextView
+            android:id="@+id/widget_btn_water_250"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="+250ml"
+            android:textColor="#38BDF8"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:padding="6dp"
+            android:background="#2038BDF8"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Spacer -->
+        <View
+            android:layout_width="8dp"
+            android:layout_height="1dp" />
+
+        <!-- Button +500ml -->
+        <TextView
+            android:id="@+id/widget_btn_water_500"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="+500ml"
+            android:textColor="#06B6D4"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:padding="6dp"
+            android:background="#2006B6D4"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+</LinearLayout>
