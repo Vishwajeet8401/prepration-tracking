@@ -542,7 +542,7 @@ export default function BulkImportExportCenter({
   const [localKey, setLocalKey] = useState(userSettings?.cerebrasApiKey || '');
   const [localGeminiKey, setLocalGeminiKey] = useState(userSettings?.geminiApiKey || '');
   const [localGroqKey, setLocalGroqKey] = useState(userSettings?.groqApiKey || '');
-  const [localCerebrasModel, setLocalCerebrasModel] = useState(userSettings?.cerebrasModel || 'llama3.1-8b');
+  const [localCerebrasModel, setLocalCerebrasModel] = useState(userSettings?.cerebrasModel || 'gpt-oss-120b');
   const [localGeminiModel, setLocalGeminiModel] = useState(userSettings?.geminiModel || 'gemini-2.5-flash');
   const [localGroqModel, setLocalGroqModel] = useState(userSettings?.groqModel || 'llama-3.3-70b-versatile');
 
@@ -562,7 +562,7 @@ export default function BulkImportExportCenter({
       setLocalKey(userSettings.cerebrasApiKey || '');
       setLocalGeminiKey(userSettings.geminiApiKey || '');
       setLocalGroqKey(userSettings.groqApiKey || '');
-      setLocalCerebrasModel(userSettings.cerebrasModel || 'llama3.1-8b');
+      setLocalCerebrasModel(userSettings.cerebrasModel || 'gpt-oss-120b');
       setLocalGeminiModel(userSettings.geminiModel || 'gemini-2.5-flash');
       setLocalGroqModel(userSettings.groqModel || 'llama-3.3-70b-versatile');
     }
@@ -1553,11 +1553,11 @@ export default function BulkImportExportCenter({
                   type="text"
                   value={localCerebrasModel}
                   onChange={e => setLocalCerebrasModel(e.target.value)}
-                  placeholder="e.g. llama3.1-8b or llama3.3-70b"
+                  placeholder="e.g. gpt-oss-120b or llama-3.3-70b"
                   className="w-full px-3 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
                 />
                 <p className="text-[9px] text-slate-550 leading-normal italic">
-                  Note: If a model returns access errors, try substituting it with another active Cerebras model (e.g. <code>llama3.1-8b</code>).
+                  Note: If a model returns access errors, try substituting it with another active Cerebras model (e.g. <code>gpt-oss-120b</code>).
                 </p>
               </div>
               <button
@@ -1766,7 +1766,7 @@ export default function BulkImportExportCenter({
                   type="text"
                   value={localGroqModel}
                   onChange={e => setLocalGroqModel(e.target.value)}
-                  placeholder="e.g. llama-3.3-70b-versatile or GPT-OSS-120B"
+                  placeholder="e.g. llama-3.3-70b-versatile or openai/gpt-oss-120b"
                   className="w-full px-3 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
                 />
               </div>

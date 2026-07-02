@@ -593,7 +593,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           cerebrasApiKey: '',
           geminiApiKey: '',
           groqApiKey: '',
-          cerebrasModel: 'llama-3.3-70b',
+          cerebrasModel: 'gpt-oss-120b',
           geminiModel: 'gemini-2.5-flash',
           groqModel: 'llama-3.3-70b-versatile',
           theme: 'cyber-midnight'
@@ -607,7 +607,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         cerebrasApiKey: '',
         geminiApiKey: '',
         groqApiKey: '',
-        cerebrasModel: 'llama-3.3-70b',
+        cerebrasModel: 'gpt-oss-120b',
         geminiModel: 'gemini-2.5-flash',
         groqModel: 'llama-3.3-70b-versatile',
         theme: 'cyber-midnight'
@@ -2528,7 +2528,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cerebrasKey = userSettingsRef.current?.cerebrasApiKey || '';
     const geminiKey = userSettingsRef.current?.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
     const groqKey = userSettingsRef.current?.groqApiKey || '';
-    const cerebrasModel = userSettingsRef.current?.cerebrasModel || 'llama3.1-8b';
+    const cerebrasModel = userSettingsRef.current?.cerebrasModel || 'gpt-oss-120b';
     const geminiModel = userSettingsRef.current?.geminiModel || 'gemini-2.5-flash';
     const groqModel = userSettingsRef.current?.groqModel || 'llama-3.3-70b-versatile';
 

@@ -19,7 +19,7 @@ export interface AICallParams {
 }
 
 export async function callAI(params: AICallParams): Promise<string> {
-  const cModel = params.cerebrasModel || 'llama3.1-8b';
+  const cModel = params.cerebrasModel || 'gpt-oss-120b';
   const gModel = params.geminiModel || 'gemini-2.5-flash';
   const grModel = params.groqModel || 'llama-3.3-70b-versatile';
   const temp = params.temperature ?? 0.2;
