@@ -264,7 +264,7 @@ const TopicManagement = React.memo(function TopicManagement({
     
     subjectIds.forEach(subjId => {
       const subject = subjects.find(s => s.id === subjId);
-      const subjTopics = filteredTopics.filter(t => t.subjectId === subjId);
+      const subjTopics = filteredTopics.filter(t => (t.subjectId || '') === subjId);
       if (subjTopics.length > 0) {
         items.push({ type: 'header', subjectId: subjId || 'uncategorized', subject });
         subjTopics.forEach(topic => {
