@@ -4,6 +4,9 @@
   "webDir": "dist",
   "bundledWebRuntime": false,
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "GoogleAuth": {
       "scopes": ["profile", "email"],
       "serverClientId": "992882220557-c5fc854isb3e8oao492ls6fig8aih4fg.apps.googleusercontent.com",

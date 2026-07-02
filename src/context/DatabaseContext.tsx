@@ -21,6 +21,7 @@ import { useGlobalStats } from '../hooks/useGlobalStats';
 import { useUrgentTopics } from '../hooks/useUrgentTopics';
 import { requestNativeNotificationPermission, scheduleNativeNotification, cancelNativeNotification, triggerImmediateNativeNotification } from '../utils/mobileScheduler';
 import { saveLocalFile } from '../localFileStore';
+import { callAI } from '../utils/aiService';
 
 export interface DatabaseContextType {
   subjects: Subject[];
@@ -89,6 +90,11 @@ export interface DatabaseContextType {
   handleActionPersonalReminder: (reminderId: string, status: ReminderStatus, snoozeMinutes?: number) => Promise<void>;
   handleUpdateReminderSettings: (updatedSettings: PersonalReminderSettings) => Promise<void>;
   handleUpdateCerebrasKey: (key: string) => Promise<void>;
+  handleUpdateGeminiKey: (key: string) => Promise<void>;
+  handleUpdateGroqKey: (key: string) => Promise<void>;
+  handleUpdateCerebrasModel: (model: string) => Promise<void>;
+  handleUpdateGeminiModel: (model: string) => Promise<void>;
+  handleUpdateGroqModel: (model: string) => Promise<void>;
   handleUpdateTheme: (theme: string) => Promise<void>;
   handleAddStarStory: (story: Omit<StarStory, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   handleUpdateStarStory: (story: StarStory) => Promise<void>;
@@ -584,7 +590,12 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUserSettings({
           id: user.uid,
           userId: user.uid,
-          cerebrasApiKey: 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2',
+          cerebrasApiKey: '',
+          geminiApiKey: '',
+          groqApiKey: '',
+          cerebrasModel: 'llama-3.3-70b',
+          geminiModel: 'gemini-2.5-flash',
+          groqModel: 'llama-3.3-70b-versatile',
           theme: 'cyber-midnight'
         });
       }
@@ -593,7 +604,12 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setUserSettings({
         id: user.uid,
         userId: user.uid,
-        cerebrasApiKey: 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2',
+        cerebrasApiKey: '',
+        geminiApiKey: '',
+        groqApiKey: '',
+        cerebrasModel: 'llama-3.3-70b',
+        geminiModel: 'gemini-2.5-flash',
+        groqModel: 'llama-3.3-70b-versatile',
         theme: 'cyber-midnight'
       });
     });
@@ -1734,6 +1750,96 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user]);
 
+  const handleUpdateGeminiKey = useCallback(async (key: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        geminiApiKey: key.trim()
+      }, { merge: true });
+      await pushNotification({
+        title: 'API Settings Saved',
+        message: 'Your Gemini AI Integration Key has been updated and securely synchronized with Firestore.',
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error updating Gemini API key settings:", err);
+    }
+  }, [user]);
+
+  const handleUpdateGroqKey = useCallback(async (key: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        groqApiKey: key.trim()
+      }, { merge: true });
+      await pushNotification({
+        title: 'API Settings Saved',
+        message: 'Your Groq AI Integration Key has been updated and securely synchronized with Firestore.',
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error updating Groq API key settings:", err);
+    }
+  }, [user]);
+
+  const handleUpdateCerebrasModel = useCallback(async (model: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        cerebrasModel: model.trim()
+      }, { merge: true });
+      await pushNotification({
+        title: 'API Settings Saved',
+        message: 'Your Cerebras Model Name has been updated and securely synchronized with Firestore.',
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error updating Cerebras model settings:", err);
+    }
+  }, [user]);
+
+  const handleUpdateGeminiModel = useCallback(async (model: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        geminiModel: model.trim()
+      }, { merge: true });
+      await pushNotification({
+        title: 'API Settings Saved',
+        message: 'Your Gemini Model Name has been updated and securely synchronized with Firestore.',
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error updating Gemini model settings:", err);
+    }
+  }, [user]);
+
+  const handleUpdateGroqModel = useCallback(async (model: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        groqModel: model.trim()
+      }, { merge: true });
+      await pushNotification({
+        title: 'API Settings Saved',
+        message: 'Your Groq Model Name has been updated and securely synchronized with Firestore.',
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error updating Groq model settings:", err);
+    }
+  }, [user]);
+
   const handleUpdateTheme = useCallback(async (newTheme: string) => {
     if (!user) return;
     try {
@@ -1814,52 +1920,84 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       switch (dataType) {
         case 'Subjects': {
           colName = 'subjects';
-          existing = subjectsRef.current.find((s: any) => s.name.toLowerCase().trim() === item.name.toLowerCase().trim());
+          existing = subjectsRef.current.find((s: any) => 
+            s.name.toLowerCase().trim() === item.name.toLowerCase().trim() ||
+            (item.id && s.id === item.id) ||
+            (item.subjectId && s.id === item.subjectId)
+          );
           break;
         }
         case 'Topics': {
           colName = 'topics';
-          existing = topicsRef.current.find(t => t.name.toLowerCase().trim() === item.name.toLowerCase().trim());
+          existing = topicsRef.current.find(t => 
+            t.name.toLowerCase().trim() === item.name.toLowerCase().trim() ||
+            (item.id && t.id === item.id) ||
+            (item.topicId && t.id === item.topicId)
+          );
           break;
         }
         case 'Questions': {
           colName = 'questions';
-          existing = questionsRef.current.find(q => q.question.toLowerCase().trim() === item.question.toLowerCase().trim());
+          existing = questionsRef.current.find(q => 
+            q.question.toLowerCase().trim() === item.question.toLowerCase().trim() ||
+            (item.id && q.id === item.id)
+          );
           break;
         }
         case 'Interview Questions': {
           colName = 'intelliQuestions';
-          existing = intelliQuestionsRef.current.find(iq => iq.question.toLowerCase().trim() === item.question.toLowerCase().trim());
+          existing = intelliQuestionsRef.current.find(iq => 
+            iq.question.toLowerCase().trim() === item.question.toLowerCase().trim() ||
+            (item.id && iq.id === item.id)
+          );
           break;
         }
         case 'Mistake Journals': {
           colName = 'mistakes';
-          existing = mistakesRef.current.find(m => m.companyName.toLowerCase().trim() === item.companyName.toLowerCase().trim() && m.reason.toLowerCase().trim() === item.reason.toLowerCase().trim());
+          existing = mistakesRef.current.find(m => 
+            (m.companyName.toLowerCase().trim() === item.companyName.toLowerCase().trim() && m.reason.toLowerCase().trim() === item.reason.toLowerCase().trim()) ||
+            (item.id && m.id === item.id)
+          );
           break;
         }
         case 'Activity Plans': {
           colName = 'activityPlans';
-          existing = plansRef.current.find(p => p.title.toLowerCase().trim() === item.title.toLowerCase().trim());
+          existing = plansRef.current.find(p => 
+            p.title.toLowerCase().trim() === item.title.toLowerCase().trim() ||
+            (item.id && p.id === item.id)
+          );
           break;
         }
         case 'Roadmaps': {
           colName = 'roadmaps';
-          existing = roadmapsRef.current.find(r => r.title.toLowerCase().trim() === item.title.toLowerCase().trim());
+          existing = roadmapsRef.current.find(r => 
+            r.title.toLowerCase().trim() === item.title.toLowerCase().trim() ||
+            (item.id && r.id === item.id)
+          );
           break;
         }
         case 'Journal Entries': {
           colName = 'journals';
-          existing = journalsRef.current.find(j => j.title.toLowerCase().trim() === item.title.toLowerCase().trim() && j.content.toLowerCase().trim() === item.content.toLowerCase().trim());
+          existing = journalsRef.current.find(j => 
+            (j.title.toLowerCase().trim() === item.title.toLowerCase().trim() && j.content.toLowerCase().trim() === item.content.toLowerCase().trim()) ||
+            (item.id && j.id === item.id)
+          );
           break;
         }
         case 'Simulator Questions': {
           colName = 'mockPresetQuestions';
-          existing = mockPresetQuestionsRef.current.find(mpq => mpq.question.toLowerCase().trim() === item.question.toLowerCase().trim());
+          existing = mockPresetQuestionsRef.current.find(mpq => 
+            mpq.question.toLowerCase().trim() === item.question.toLowerCase().trim() ||
+            (item.id && mpq.id === item.id)
+          );
           break;
         }
         case 'Vocabulary': {
           colName = 'vocabularyWords';
-          existing = vocabularyWordsRef.current.find(vw => vw.word.toLowerCase().trim() === item.word.toLowerCase().trim());
+          existing = vocabularyWordsRef.current.find(vw => 
+            vw.word.toLowerCase().trim() === item.word.toLowerCase().trim() ||
+            (item.id && vw.id === item.id)
+          );
           break;
         }
         default:
@@ -1886,7 +2024,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       switch (dataType) {
         case 'Subjects': {
-          docId = existing ? existing.id : 'subject-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || item.subjectId || 'subject-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -1898,12 +2036,30 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Topics': {
-          docId = existing ? existing.id : 'topic-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || item.topicId || 'topic-' + Date.now() + '-' + idx);
+          
+          // Resolve subjectId: look up in subjectsRef by ID, Name, or Category
+          let resolvedSubjectId = '';
+          const targetSubjectId = item.subjectId || item.subjectName || item.category;
+          if (targetSubjectId) {
+            const matchedSubject = subjectsRef.current.find(s => 
+              s.id === targetSubjectId || 
+              s.name.toLowerCase().trim() === targetSubjectId.toLowerCase().trim()
+            );
+            if (matchedSubject) {
+              resolvedSubjectId = matchedSubject.id;
+            } else if (item.subjectId) {
+              // Fallback to raw user-defined subjectId if not yet created/loaded locally
+              resolvedSubjectId = item.subjectId;
+            }
+          }
+
           docData = {
             id: docId,
             userId: user.uid,
             name: item.name,
             category: item.category,
+            subjectId: resolvedSubjectId || '',
             description: item.description || '',
             status: item.status || 'Not Started',
             confidenceScore: Number(item.confidenceScore) || 0,
@@ -1916,19 +2072,37 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Questions': {
-          docId = existing ? existing.id : 'question-' + Date.now() + '-' + idx;
-          let topicId = '';
-          if (item.topicName) {
-            const matchedTopic = topicsRef.current.find(t => t.name.toLowerCase().trim() === item.topicName.toLowerCase().trim());
+          docId = existing ? existing.id : (item.id || 'question-' + Date.now() + '-' + idx);
+          let resolvedTopicId = '';
+          
+          const targetTopicId = item.topicId || item.topicName;
+          if (targetTopicId) {
+            const matchedTopic = topicsRef.current.find(t => 
+              t.id === targetTopicId || 
+              t.name.toLowerCase().trim() === targetTopicId.toLowerCase().trim()
+            );
             if (matchedTopic) {
-              topicId = matchedTopic.id;
+              resolvedTopicId = matchedTopic.id;
             } else {
-              const newTopicId = 'topic-' + Date.now() + '-' + idx;
+              // Auto-generate missing topic so reference doesn't break
+              const newTopicId = item.topicId || ('topic-' + Date.now() + '-' + idx);
+              const newTopicName = item.topicName || item.topicId || 'Untitled Topic';
+              
+              // Match subject for the auto-created topic if a category matches a subject
+              let autoTopicSubjectId = '';
+              if (item.category) {
+                const matchedSubject = subjectsRef.current.find(s => 
+                  s.name.toLowerCase().trim() === item.category.toLowerCase().trim()
+                );
+                if (matchedSubject) autoTopicSubjectId = matchedSubject.id;
+              }
+              
               batch.set(doc(db, 'topics', newTopicId), {
                 id: newTopicId,
                 userId: user.uid,
-                name: item.topicName,
-                category: 'Uncategorized',
+                name: newTopicName,
+                category: item.category || 'Uncategorized',
+                subjectId: autoTopicSubjectId,
                 description: 'Auto-generated topic from bulk questions import.',
                 status: 'Not Started',
                 confidenceScore: 0,
@@ -1938,10 +2112,12 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 notes: '',
                 dependencyIds: []
               });
+
               topicsRef.current.push({
                 id: newTopicId,
-                name: item.topicName,
-                category: 'Uncategorized',
+                name: newTopicName,
+                category: item.category || 'Uncategorized',
+                subjectId: autoTopicSubjectId,
                 description: 'Auto-generated topic from bulk questions import.',
                 status: 'Not Started',
                 confidenceScore: 0,
@@ -1951,7 +2127,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 notes: '',
                 dependencyIds: []
               });
-              topicId = newTopicId;
+              
+              resolvedTopicId = newTopicId;
             }
           }
 
@@ -1961,7 +2138,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             question: item.question,
             answer: item.answer,
             difficulty: item.difficulty || 'Medium',
-            topicId: topicId || 'general',
+            topicId: resolvedTopicId || 'general',
             tags: typeof item.tags === 'string' ? item.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t !== '') : (Array.isArray(item.tags) ? item.tags : []),
             source: item.source || 'Interview',
             askedCount: Number(item.askedCount) || 0
@@ -1969,7 +2146,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Interview Questions': {
-          docId = existing ? existing.id : 'intelli-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || 'intelli-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -1984,7 +2161,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Mistake Journals': {
-          docId = existing ? existing.id : 'mistake-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || 'mistake-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -1996,7 +2173,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Activity Plans': {
-          docId = existing ? existing.id : 'plan-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || 'plan-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -2010,7 +2187,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Roadmaps': {
-          docId = existing ? existing.id : 'roadmap-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || 'roadmap-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -2028,7 +2205,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Journal Entries': {
-          docId = existing ? existing.id : 'journal-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || 'journal-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -2042,7 +2219,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Simulator Questions': {
-          docId = existing ? existing.id : 'mpq-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || 'mpq-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -2056,7 +2233,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           break;
         }
         case 'Vocabulary': {
-          docId = existing ? existing.id : 'vocab-' + Date.now() + '-' + idx;
+          docId = existing ? existing.id : (item.id || 'vocab-' + Date.now() + '-' + idx);
           docData = {
             id: docId,
             userId: user.uid,
@@ -2347,11 +2524,15 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.warn('Word definition cache lookup failed:', err);
     }
 
-    // Tier 3: fetch from AI — try Cerebras first, then Gemini REST as fallback
-    const CEREBRAS_DEFAULT_KEY = 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2';
-    const cerebrasKey = userSettingsRef.current?.cerebrasApiKey || CEREBRAS_DEFAULT_KEY;
-    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+    // Tier 3: fetch from AI — try Cerebras first, then Gemini REST as fallback, then Groq
+    const cerebrasKey = userSettingsRef.current?.cerebrasApiKey || '';
+    const geminiKey = userSettingsRef.current?.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
+    const groqKey = userSettingsRef.current?.groqApiKey || '';
+    const cerebrasModel = userSettingsRef.current?.cerebrasModel || 'llama3.1-8b';
+    const geminiModel = userSettingsRef.current?.geminiModel || 'gemini-2.5-flash';
+    const groqModel = userSettingsRef.current?.groqModel || 'llama-3.3-70b-versatile';
 
+    const systemPrompt = 'You are a bilingual English-Marathi dictionary. Always respond with valid JSON only.';
     const jsonPrompt = `You are a bilingual English-Marathi dictionary. For the English word "${normalized}", respond ONLY with a valid JSON object (no markdown, no explanation, no extra text) with exactly these fields:
 {
   "word": "${normalized}",
@@ -2361,80 +2542,36 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   "exampleSentence": "<one natural English example sentence using the word>"
 }`;
 
-    // ── 3a: Cerebras Llama (fast, free, already used in app) ──────────────────
     try {
-      const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cerebrasKey}`
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b',
-          messages: [
-            { role: 'system', content: 'You are a bilingual English-Marathi dictionary. Always respond with valid JSON only.' },
-            { role: 'user', content: jsonPrompt }
-          ],
-          temperature: 0.2,
-          max_completion_tokens: 300
-        })
+      const raw = await callAI({
+        systemPrompt,
+        userPrompt: jsonPrompt,
+        temperature: 0.2,
+        maxTokens: 300,
+        cerebrasApiKey: cerebrasKey,
+        geminiApiKey: geminiKey,
+        groqApiKey: groqKey,
+        cerebrasModel,
+        geminiModel,
+        groqModel,
+        responseMimeType: "application/json"
       });
 
-      if (response.ok) {
-        const resData = await response.json();
-        const raw = resData.choices?.[0]?.message?.content?.trim() || '{}';
-        const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
-        const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
-        if (parsed.englishMeaning) {
-          const definition: WordDefinition = {
-            ...parsed,
-            word: normalized,
-            fetchedAt: new Date().toISOString(),
-            isAiGenerated: true
-          };
-          // Cache in Firestore
-          try { await setDoc(doc(db, 'wordDefinitions', normalized), definition); } catch (_) {}
-          return definition;
-        }
+      const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
+      const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
+      if (parsed.englishMeaning) {
+        const definition: WordDefinition = {
+          ...parsed,
+          word: normalized,
+          fetchedAt: new Date().toISOString(),
+          isAiGenerated: true
+        };
+        // Cache in Firestore
+        try { await setDoc(doc(db, 'wordDefinitions', normalized), definition); } catch (_) {}
+        return definition;
       }
-    } catch (cerebrasErr) {
-      console.warn('Cerebras vocabulary fetch failed, trying Gemini:', cerebrasErr);
-    }
-
-    // ── 3b: Gemini REST API fallback (if VITE_GEMINI_API_KEY is set) ──────────
-    if (geminiKey) {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: jsonPrompt }] }],
-              generationConfig: { temperature: 0.2, maxOutputTokens: 300 }
-            })
-          }
-        );
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
-          const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
-          const parsed = JSON.parse(cleaned) as Omit<WordDefinition, 'fetchedAt'>;
-          if (parsed.englishMeaning) {
-            const definition: WordDefinition = {
-              ...parsed,
-              word: normalized,
-              fetchedAt: new Date().toISOString(),
-              isAiGenerated: true
-            };
-            try { await setDoc(doc(db, 'wordDefinitions', normalized), definition); } catch (_) {}
-            return definition;
-          }
-        }
-      } catch (geminiErr) {
-        console.warn('Gemini vocabulary fetch failed:', geminiErr);
-      }
+    } catch (err) {
+      console.warn('[handleSearchWordDefinition] AI fetch failed:', err);
     }
 
     return null;
@@ -2529,7 +2666,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       handleAddApplication, handleUpdateApplication, handleDeleteApplication, handleAddInterview, handleUpdateInterview,
       handleDeleteInterview, handleAddMockInterview, handleDeleteMockInterview, handleAddStarStory, handleUpdateStarStory,
       handleDeleteStarStory, handleAddPersonalReminder, handleUpdatePersonalReminder, handleDeletePersonalReminder,
-      handleActionPersonalReminder, handleUpdateReminderSettings, handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport,
+      handleActionPersonalReminder, handleUpdateReminderSettings, handleUpdateCerebrasKey, handleUpdateGeminiKey, handleUpdateGroqKey, 
+      handleUpdateCerebrasModel, handleUpdateGeminiModel, handleUpdateGroqModel, handleUpdateTheme, handleBulkImport,
       handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead, handleClearAll,
       handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan, handleUpdateTaskInApp,
       handleDeleteTaskInApp, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion, handleUpdateCustomPrompt,

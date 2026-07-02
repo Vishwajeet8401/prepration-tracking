@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import AudioPlayButton from './AudioPlayButton';
 import { useScrollGesture } from '../hooks/useScrollGesture';
+import { callAI } from '../utils/aiService';
 
 interface StarStoryBuilderProps {
   starStories: StarStory[];
@@ -16,6 +17,11 @@ interface StarStoryBuilderProps {
   onUpdateStarStory: (story: StarStory) => Promise<void>;
   onDeleteStarStory: (id: string) => Promise<void>;
   cerebrasApiKey?: string;
+  geminiApiKey?: string;
+  groqApiKey?: string;
+  cerebrasModel?: string;
+  geminiModel?: string;
+  groqModel?: string;
 }
 
 const PRESET_TAGS = ['Leadership', 'Conflict Resolution', 'Crisis Management', 'Technical Innovation', 'Process Improvement', 'Team Collaboration'];
@@ -25,7 +31,12 @@ export default function StarStoryBuilder({
   onAddStarStory,
   onUpdateStarStory,
   onDeleteStarStory,
-  cerebrasApiKey
+  cerebrasApiKey,
+  geminiApiKey,
+  groqApiKey,
+  cerebrasModel,
+  geminiModel,
+  groqModel
 }: StarStoryBuilderProps) {
   // Navigation states
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,57 +132,46 @@ export default function StarStoryBuilder({
   const runAiAudit = async (story: StarStory) => {
     setIsAuditingId(story.id);
     try {
-      const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${cerebrasApiKey || 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert technical recruiter and executive communication coach.
-              Evaluate the candidate's STAR story based on standard behavioral scoring parameters.
-              Specifically verify:
-              1. If Situation and Task are brief but provide sufficient technical context.
-              2. If Action clearly highlights candidate's individual contributions, tool choices, and engineering steps (rather than saying "we did").
-              3. If Result is quantifiable with tangible metrics (e.g. %, ms speed improvements, dollar metrics).
-              
-              You must return a JSON object with these exact fields:
-              - "score": a number from 0 to 100 representing overall narrative quality.
-              - "feedback": 3-4 sentence detailed review focusing on what went well, what is missing, and how to rewrite it.`
-            },
-            {
-              role: "user",
-              content: `STAR Story:
-              Title: ${story.title}
-              Situation: ${story.situation}
-              Task: ${story.task}
-              Action: ${story.action}
-              Result: ${story.result}`
-            }
-          ],
-          temperature: 0.5,
-          max_completion_tokens: 400
-        })
+      const systemPrompt = `You are an expert technical recruiter and executive communication coach.
+Evaluate the candidate's STAR story based on standard behavioral scoring parameters.
+Specifically verify:
+1. If Situation and Task are brief but provide sufficient technical context.
+2. If Action clearly highlights candidate's individual contributions, tool choices, and engineering steps (rather than saying "we did").
+3. If Result is quantifiable with tangible metrics (e.g. %, ms speed improvements, dollar metrics).
+
+You must return a JSON object with these exact fields:
+- "score": a number from 0 to 100 representing overall narrative quality.
+- "feedback": 3-4 sentence detailed review focusing on what went well, what is missing, and how to rewrite it.`;
+
+      const userPrompt = `STAR Story:
+Title: ${story.title}
+Situation: ${story.situation}
+Task: ${story.task}
+Action: ${story.action}
+Result: ${story.result}`;
+
+      const raw = await callAI({
+        systemPrompt,
+        userPrompt,
+        temperature: 0.5,
+        maxTokens: 400,
+        cerebrasApiKey,
+        geminiApiKey,
+        groqApiKey,
+        cerebrasModel,
+        geminiModel,
+        groqModel,
+        responseMimeType: "application/json"
       });
 
-      if (response.ok) {
-        const resData = await response.json();
-        const text = resData.choices[0].message.content.trim();
-        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const audit = JSON.parse(cleaned);
+      const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+      const audit = JSON.parse(cleaned);
 
-        await onUpdateStarStory({
-          ...story,
-          aiScore: audit.score,
-          aiFeedback: audit.feedback
-        });
-      } else {
-        throw new Error("Invalid response status");
-      }
+      await onUpdateStarStory({
+        ...story,
+        aiScore: audit.score,
+        aiFeedback: audit.feedback
+      });
     } catch (e) {
       console.error(e);
       alert("Failed to analyze story with AI. Using mock analysis fallback.");

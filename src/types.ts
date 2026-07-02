@@ -339,6 +339,11 @@ export interface UserSettings {
   id: string;
   userId: string;
   cerebrasApiKey: string;
+  geminiApiKey?: string;
+  groqApiKey?: string;
+  cerebrasModel?: string;
+  geminiModel?: string;
+  groqModel?: string;
   theme?: string;
   customInterviewPrompt?: string;
 }

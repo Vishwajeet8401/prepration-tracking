@@ -14,6 +14,7 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore';
 import { useScrollGesture } from '../hooks/useScrollGesture';
 import { useGestureContext } from '../context/GestureContext';
+import { callAI } from '../utils/aiService';
 
 
 const BACKUP_SUBTABS: Array<'import' | 'templates' | 'export' | 'settings'> = ['import', 'templates', 'export', 'settings'];
@@ -34,6 +35,11 @@ interface BulkImportExportCenterProps {
   userSettings: UserSettings | null;
   vocabularyWords: VocabularyWord[];
   onUpdateCerebrasKey: (key: string) => Promise<void>;
+  onUpdateGeminiKey: (key: string) => Promise<void>;
+  onUpdateGroqKey: (key: string) => Promise<void>;
+  onUpdateCerebrasModel: (model: string) => Promise<void>;
+  onUpdateGeminiModel: (model: string) => Promise<void>;
+  onUpdateGroqModel: (model: string) => Promise<void>;
   onUpdateTheme: (theme: string) => Promise<void>;
   onBulkImport: (dataType: string, records: any[], duplicatePolicy: 'skip' | 'replace' | 'keep') => Promise<{ imported: number; updated: number; skipped: number }>;
 }
@@ -509,7 +515,7 @@ const sanitizeRecord = (type: string, rec: any): any => {
 export default function BulkImportExportCenter({
   userId, topics, questions, intelliQuestions, mistakes, plans, roadmaps, journals, interviews, subjects,
   mockPresetQuestions,
-  userSettings, vocabularyWords, onUpdateCerebrasKey, onUpdateTheme, onBulkImport
+  userSettings, vocabularyWords, onUpdateCerebrasKey, onUpdateGeminiKey, onUpdateGroqKey, onUpdateCerebrasModel, onUpdateGeminiModel, onUpdateGroqModel, onUpdateTheme, onBulkImport
 }: BulkImportExportCenterProps) {
 
   const [activeSubTab, setActiveSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>('import');
@@ -534,14 +540,109 @@ export default function BulkImportExportCenter({
 
   // Key configurations states
   const [localKey, setLocalKey] = useState(userSettings?.cerebrasApiKey || '');
+  const [localGeminiKey, setLocalGeminiKey] = useState(userSettings?.geminiApiKey || '');
+  const [localGroqKey, setLocalGroqKey] = useState(userSettings?.groqApiKey || '');
+  const [localCerebrasModel, setLocalCerebrasModel] = useState(userSettings?.cerebrasModel || 'llama3.1-8b');
+  const [localGeminiModel, setLocalGeminiModel] = useState(userSettings?.geminiModel || 'gemini-2.5-flash');
+  const [localGroqModel, setLocalGroqModel] = useState(userSettings?.groqModel || 'llama-3.3-70b-versatile');
+
   const [showKey, setShowKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showGroqKey, setShowGroqKey] = useState(false);
   const [isSavingKey, setIsSavingKey] = useState(false);
+  const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false);
+  const [isSavingGroqKey, setIsSavingGroqKey] = useState(false);
+
+  const [testStatusCerebras, setTestStatusCerebras] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message?: string }>({ status: 'idle' });
+  const [testStatusGemini, setTestStatusGemini] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message?: string }>({ status: 'idle' });
+  const [testStatusGroq, setTestStatusGroq] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message?: string }>({ status: 'idle' });
 
   React.useEffect(() => {
     if (userSettings) {
-      setLocalKey(userSettings.cerebrasApiKey);
+      setLocalKey(userSettings.cerebrasApiKey || '');
+      setLocalGeminiKey(userSettings.geminiApiKey || '');
+      setLocalGroqKey(userSettings.groqApiKey || '');
+      setLocalCerebrasModel(userSettings.cerebrasModel || 'llama3.1-8b');
+      setLocalGeminiModel(userSettings.geminiModel || 'gemini-2.5-flash');
+      setLocalGroqModel(userSettings.groqModel || 'llama-3.3-70b-versatile');
     }
   }, [userSettings]);
+
+  const testCerebrasConnection = async () => {
+    if (!localKey.trim()) {
+      setTestStatusCerebras({ status: 'error', message: 'API key is required.' });
+      return;
+    }
+    setTestStatusCerebras({ status: 'testing' });
+    try {
+      const response = await callAI({
+        systemPrompt: "You are a developer diagnostic utility. Always reply with the exact single word: Success.",
+        userPrompt: "Diagnose.",
+        temperature: 0.1,
+        maxTokens: 5,
+        cerebrasApiKey: localKey,
+        cerebrasModel: localCerebrasModel
+      });
+      if (response.toLowerCase().includes('success') || response.trim().length > 0) {
+        setTestStatusCerebras({ status: 'success', message: `Connected! Responded: "${response}"` });
+      } else {
+        throw new Error(`Unexpected model output: ${response}`);
+      }
+    } catch (err: any) {
+      setTestStatusCerebras({ status: 'error', message: err?.message || 'Verification failed.' });
+    }
+  };
+
+  const testGeminiConnection = async () => {
+    const activeKey = localGeminiKey.trim() || import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
+    if (!activeKey) {
+      setTestStatusGemini({ status: 'error', message: 'Gemini key is required (either entered here or in .env.local).' });
+      return;
+    }
+    setTestStatusGemini({ status: 'testing' });
+    try {
+      const response = await callAI({
+        systemPrompt: "You are a developer diagnostic utility. Always reply with the exact single word: Success.",
+        userPrompt: "Diagnose.",
+        temperature: 0.1,
+        maxTokens: 5,
+        geminiApiKey: activeKey,
+        geminiModel: localGeminiModel
+      });
+      if (response.toLowerCase().includes('success') || response.trim().length > 0) {
+        setTestStatusGemini({ status: 'success', message: `Connected! Responded: "${response}"` });
+      } else {
+        throw new Error(`Unexpected model output: ${response}`);
+      }
+    } catch (err: any) {
+      setTestStatusGemini({ status: 'error', message: err?.message || 'Verification failed.' });
+    }
+  };
+
+  const testGroqConnection = async () => {
+    if (!localGroqKey.trim()) {
+      setTestStatusGroq({ status: 'error', message: 'API key is required.' });
+      return;
+    }
+    setTestStatusGroq({ status: 'testing' });
+    try {
+      const response = await callAI({
+        systemPrompt: "You are a developer diagnostic utility. Always reply with the exact single word: Success.",
+        userPrompt: "Diagnose.",
+        temperature: 0.1,
+        maxTokens: 5,
+        groqApiKey: localGroqKey,
+        groqModel: localGroqModel
+      });
+      if (response.toLowerCase().includes('success') || response.trim().length > 0) {
+        setTestStatusGroq({ status: 'success', message: `Connected! Responded: "${response}"` });
+      } else {
+        throw new Error(`Unexpected model output: ${response}`);
+      }
+    } catch (err: any) {
+      setTestStatusGroq({ status: 'error', message: err?.message || 'Verification failed.' });
+    }
+  };
 
   // Import state
   const [targetType, setTargetType] = useState<keyof typeof TEMPLATES>('Topics');
@@ -1409,18 +1510,23 @@ export default function BulkImportExportCenter({
           {/* Card 1: API Key Config */}
           <div className="glass-card p-6 border border-white/5 space-y-6 animate-fade-in text-left">
             <div className="flex items-center gap-3 border-b border-white/5 pb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Cerebras AI Integrations Config</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">Manage token keys used for real-time evaluations and hints.</p>
+                <h3 className="font-bold text-white text-sm">AI Engine Integration Settings</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Manage keys and model definitions for real-time AI assistance, interview simulation, and vocabulary definitions.</p>
               </div>
             </div>
 
+            {/* Cerebras Llama config */}
             <div className="space-y-4 text-xs font-sans">
+              <h4 className="font-bold text-white uppercase text-[9px] tracking-wider border-b border-white/5 pb-1 flex items-center justify-between">
+                <span>Cerebras Llama API</span>
+                {localKey && <span className="text-[8px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-1.5 py-0.25 rounded font-mono font-bold lowercase">configured</span>}
+              </h4>
               <div className="space-y-2">
-                <label className="text-slate-300 font-bold block">Cerebras API Key</label>
+                <label className="text-slate-350 font-bold block">Cerebras API Key</label>
                 <div className="relative flex items-center">
                   <input
                     type={showKey ? 'text' : 'password'}
@@ -1441,36 +1547,294 @@ export default function BulkImportExportCenter({
                   Don't have a key? Sign up at <a href="https://cloud.cerebras.ai" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline hover:text-indigo-305">cloud.cerebras.ai</a> to get a free developer key.
                 </p>
               </div>
-
+              <div className="space-y-2">
+                <label className="text-slate-350 font-bold block">Cerebras Model Name</label>
+                <input
+                  type="text"
+                  value={localCerebrasModel}
+                  onChange={e => setLocalCerebrasModel(e.target.value)}
+                  placeholder="e.g. llama3.1-8b or llama3.3-70b"
+                  className="w-full px-3 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
+                />
+                <p className="text-[9px] text-slate-550 leading-normal italic">
+                  Note: If a model returns access errors, try substituting it with another active Cerebras model (e.g. <code>llama3.1-8b</code>).
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={async () => {
-                  if (!localKey.trim()) {
-                    alert('Key cannot be empty.');
-                    return;
-                  }
                   setIsSavingKey(true);
                   try {
                     await onUpdateCerebrasKey(localKey);
+                    await onUpdateCerebrasModel(localCerebrasModel);
                   } finally {
                     setIsSavingKey(false);
                   }
                 }}
                 disabled={isSavingKey}
-                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow transition disabled:opacity-50"
+                className="w-full py-2.5 bg-indigo-650/40 hover:bg-indigo-600 border border-indigo-500/20 text-white rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow transition disabled:opacity-50"
               >
                 {isSavingKey ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Synchronizing API Settings...</span>
+                    <span>Saving Cerebras Settings...</span>
                   </>
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>Update Cerebras Key</span>
+                    <span>Save Cerebras Config</span>
                   </>
                 )}
               </button>
+
+              <button
+                type="button"
+                onClick={testCerebrasConnection}
+                disabled={testStatusCerebras.status === 'testing'}
+                className="w-full py-2 border border-white/10 hover:border-white/20 text-slate-300 rounded-xl font-bold flex items-center justify-center gap-1.5 cursor-pointer text-[10.5px] transition disabled:opacity-50 mt-1"
+              >
+                {testStatusCerebras.status === 'testing' ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Testing Connection...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Test Cerebras Connection</span>
+                  </>
+                )}
+              </button>
+
+              {testStatusCerebras.status !== 'idle' && (
+                <div className={`p-2.5 rounded-xl border text-[10.5px] leading-normal font-sans ${
+                  testStatusCerebras.status === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                    : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                }`}>
+                  {testStatusCerebras.status === 'success' ? (
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>{testStatusCerebras.message}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>Connection failed: {testStatusCerebras.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Gemini API config */}
+            <div className="space-y-4 text-xs font-sans pt-6 border-t border-white/5">
+              <h4 className="font-bold text-white uppercase text-[9px] tracking-wider border-b border-white/5 pb-1 flex items-center justify-between">
+                <span>Google Gemini API (CORS Supported)</span>
+                {(localGeminiKey || import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY) && <span className="text-[8px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-1.5 py-0.25 rounded font-mono font-bold lowercase">configured</span>}
+              </h4>
+              <div className="space-y-2">
+                <label className="text-slate-350 font-bold block">Gemini API Key</label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showGeminiKey ? 'text' : 'password'}
+                    value={localGeminiKey}
+                    onChange={e => setLocalGeminiKey(e.target.value)}
+                    placeholder={import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY ? "Loaded from env variables" : "Enter AIzaSy..."}
+                    className="w-full pl-3 pr-10 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                    className="absolute right-3 text-slate-500 hover:text-white cursor-pointer select-none text-[10px] font-bold"
+                  >
+                    {showGeminiKey ? 'HIDE' : 'SHOW'}
+                  </button>
+                </div>
+                <p className="text-[9px] text-slate-500 leading-normal">
+                  No key? Get a free API key at <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline hover:text-indigo-305">aistudio.google.com</a>. Can also be set as <code>GEMINI_API_KEY</code> in <code>.env.local</code>.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-slate-350 font-bold block">Gemini Model Name</label>
+                <input
+                  type="text"
+                  value={localGeminiModel}
+                  onChange={e => setLocalGeminiModel(e.target.value)}
+                  placeholder="e.g. gemini-2.5-flash"
+                  className="w-full px-3 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsSavingGeminiKey(true);
+                  try {
+                    await onUpdateGeminiKey(localGeminiKey);
+                    await onUpdateGeminiModel(localGeminiModel);
+                  } finally {
+                    setIsSavingGeminiKey(false);
+                  }
+                }}
+                disabled={isSavingGeminiKey}
+                className="w-full py-2.5 bg-indigo-650/40 hover:bg-indigo-600 border border-indigo-500/20 text-white rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow transition disabled:opacity-50"
+              >
+                {isSavingGeminiKey ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Saving Gemini Settings...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Save Gemini Config</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={testGeminiConnection}
+                disabled={testStatusGemini.status === 'testing'}
+                className="w-full py-2 border border-white/10 hover:border-white/20 text-slate-300 rounded-xl font-bold flex items-center justify-center gap-1.5 cursor-pointer text-[10.5px] transition disabled:opacity-50 mt-1"
+              >
+                {testStatusGemini.status === 'testing' ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Testing Connection...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Test Gemini Connection</span>
+                  </>
+                )}
+              </button>
+
+              {testStatusGemini.status !== 'idle' && (
+                <div className={`p-2.5 rounded-xl border text-[10.5px] leading-normal font-sans ${
+                  testStatusGemini.status === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                    : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                }`}>
+                  {testStatusGemini.status === 'success' ? (
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>{testStatusGemini.message}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>Connection failed: {testStatusGemini.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Groq API config */}
+            <div className="space-y-4 text-xs font-sans pt-6 border-t border-white/5">
+              <h4 className="font-bold text-white uppercase text-[9px] tracking-wider border-b border-white/5 pb-1 flex items-center justify-between">
+                <span>Groq API</span>
+                {(localGroqKey || import.meta.env.VITE_GROQ_API_KEY || import.meta.env.GROQ_API_KEY) && <span className="text-[8px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-1.5 py-0.25 rounded font-mono font-bold lowercase">configured</span>}
+              </h4>
+              <div className="space-y-2">
+                <label className="text-slate-350 font-bold block">Groq API Key</label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showGroqKey ? 'text' : 'password'}
+                    value={localGroqKey}
+                    onChange={e => setLocalGroqKey(e.target.value)}
+                    placeholder={import.meta.env.VITE_GROQ_API_KEY || import.meta.env.GROQ_API_KEY ? "Loaded from env variables" : "Enter gsk_..."}
+                    className="w-full pl-3 pr-10 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGroqKey(!showGroqKey)}
+                    className="absolute right-3 text-slate-500 hover:text-white cursor-pointer select-none text-[10px] font-bold"
+                  >
+                    {showGroqKey ? 'HIDE' : 'SHOW'}
+                  </button>
+                </div>
+                <p className="text-[9px] text-slate-500 leading-normal">
+                  No key? Get a developer key at <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline hover:text-indigo-305">console.groq.com</a>.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-slate-350 font-bold block">Groq Model Name</label>
+                <input
+                  type="text"
+                  value={localGroqModel}
+                  onChange={e => setLocalGroqModel(e.target.value)}
+                  placeholder="e.g. llama-3.3-70b-versatile or GPT-OSS-120B"
+                  className="w-full px-3 py-2.5 border rounded-xl glass-input text-slate-200 bg-[#111827]"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsSavingGroqKey(true);
+                  try {
+                    await onUpdateGroqKey(localGroqKey);
+                    await onUpdateGroqModel(localGroqModel);
+                  } finally {
+                    setIsSavingGroqKey(false);
+                  }
+                }}
+                disabled={isSavingGroqKey}
+                className="w-full py-2.5 bg-indigo-650/40 hover:bg-indigo-600 border border-indigo-500/20 text-white rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow transition disabled:opacity-50"
+              >
+                {isSavingGroqKey ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Saving Groq Settings...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Save Groq Config</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={testGroqConnection}
+                disabled={testStatusGroq.status === 'testing'}
+                className="w-full py-2 border border-white/10 hover:border-white/20 text-slate-300 rounded-xl font-bold flex items-center justify-center gap-1.5 cursor-pointer text-[10.5px] transition disabled:opacity-50 mt-1"
+              >
+                {testStatusGroq.status === 'testing' ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Testing Connection...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Test Groq Connection</span>
+                  </>
+                )}
+              </button>
+
+              {testStatusGroq.status !== 'idle' && (
+                <div className={`p-2.5 rounded-xl border text-[10.5px] leading-normal font-sans ${
+                  testStatusGroq.status === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                    : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                }`}>
+                  {testStatusGroq.status === 'success' ? (
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>{testStatusGroq.message}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>Connection failed: {testStatusGroq.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

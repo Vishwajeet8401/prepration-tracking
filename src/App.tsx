@@ -85,7 +85,8 @@ export default function App() {
     handleDeleteInterview, handleAddMockInterview, handleDeleteMockInterview, handleAddStarStory, handleUpdateStarStory,
     handleDeleteStarStory, handleAddPersonalReminder,
     handleUpdatePersonalReminder, handleDeletePersonalReminder, handleActionPersonalReminder, handleUpdateReminderSettings,
-    handleUpdateCerebrasKey, handleUpdateTheme, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
+    handleUpdateCerebrasKey, handleUpdateGeminiKey, handleUpdateGroqKey, handleUpdateCerebrasModel, handleUpdateGeminiModel, handleUpdateGroqModel,
+    handleUpdateTheme, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
     handleClearAll, handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan,
     handleUpdateTaskInApp, handleDeleteTaskInApp, handleUpdateCustomPrompt, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion,
     vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
@@ -604,6 +605,11 @@ export default function App() {
               onUpdateStarStory={handleUpdateStarStory}
               onDeleteStarStory={handleDeleteStarStory}
               cerebrasApiKey={userSettings?.cerebrasApiKey}
+              geminiApiKey={userSettings?.geminiApiKey}
+              groqApiKey={userSettings?.groqApiKey}
+              cerebrasModel={userSettings?.cerebrasModel}
+              geminiModel={userSettings?.geminiModel}
+              groqModel={userSettings?.groqModel}
             />
           )}
 
@@ -631,6 +637,11 @@ export default function App() {
               onDeleteMockPresetQuestion={handleDeleteMockPresetQuestion}
               interviews={mockInterviews}
               cerebrasApiKey={userSettings?.cerebrasApiKey}
+              geminiApiKey={userSettings?.geminiApiKey}
+              groqApiKey={userSettings?.groqApiKey}
+              cerebrasModel={userSettings?.cerebrasModel}
+              geminiModel={userSettings?.geminiModel}
+              groqModel={userSettings?.groqModel}
               onAddInterview={handleAddMockInterview}
               onDeleteInterview={handleDeleteMockInterview}
             />
@@ -659,6 +670,11 @@ export default function App() {
               userSettings={userSettings}
               vocabularyWords={vocabularyWords}
               onUpdateCerebrasKey={handleUpdateCerebrasKey}
+              onUpdateGeminiKey={handleUpdateGeminiKey}
+              onUpdateGroqKey={handleUpdateGroqKey}
+              onUpdateCerebrasModel={handleUpdateCerebrasModel}
+              onUpdateGeminiModel={handleUpdateGeminiModel}
+              onUpdateGroqModel={handleUpdateGroqModel}
               onUpdateTheme={handleUpdateTheme}
               onBulkImport={handleBulkImport}
             />

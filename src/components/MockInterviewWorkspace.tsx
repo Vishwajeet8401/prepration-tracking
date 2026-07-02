@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { speakNativeText, stopNativeSpeech, startNativeSpeechToText, stopNativeSpeechToText } from '../utils/mobileScheduler';
 import AudioPlayButton from './AudioPlayButton';
 import { useScrollGesture } from '../hooks/useScrollGesture';
+import { callAI } from '../utils/aiService';
 
 interface MockInterviewWorkspaceProps {
   subjects: Subject[];
@@ -23,6 +24,11 @@ interface MockInterviewWorkspaceProps {
   onDeleteMockPresetQuestion: (id: string) => Promise<void>;
   interviews: MockInterview[];
   cerebrasApiKey?: string;
+  geminiApiKey?: string;
+  groqApiKey?: string;
+  cerebrasModel?: string;
+  geminiModel?: string;
+  groqModel?: string;
   onAddInterview: (int: Omit<MockInterview, 'id' | 'userId'>) => Promise<void>;
   onDeleteInterview: (id: string) => Promise<void>;
 }
@@ -164,6 +170,11 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
   onDeleteMockPresetQuestion,
   interviews,
   cerebrasApiKey,
+  geminiApiKey,
+  groqApiKey,
+  cerebrasModel,
+  geminiModel,
+  groqModel,
   onAddInterview,
   onDeleteInterview
 }: MockInterviewWorkspaceProps) {
@@ -215,10 +226,10 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
 
   // Ensure questionSource is not 'AI Generated' if there is no api key
   useEffect(() => {
-    if (!cerebrasApiKey && questionSource === 'AI Generated') {
+    if (!cerebrasApiKey && !geminiApiKey && !groqApiKey && questionSource === 'AI Generated') {
       setQuestionSource('Presets');
     }
-  }, [cerebrasApiKey, questionSource]);
+  }, [cerebrasApiKey, geminiApiKey, groqApiKey, questionSource]);
   
   // Active session state
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -373,44 +384,28 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
     }
   }, [isSessionActive, currentQuestionIndex, questionsList, vocalPrompts]);
 
-  // Real-time hint generator from Cerebras Llama 3.3 70b
+  // Real-time hint generator from AI
   const requestHint = async () => {
     const currentQ = questionsList[currentQuestionIndex];
     if (!currentQ) return;
     setActiveHintLoading(true);
     try {
-      const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${cerebrasApiKey || 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b",
-          messages: [
-            {
-              role: "system",
-              content: "You are an expert tech interviewer coach. Provide a short, constructive, one-sentence hint to help the candidate structure their answer to the question. Do not answer it directly; give a helpful structural tip."
-            },
-            {
-              role: "user",
-              content: `Question: ${currentQ.question}`
-            }
-          ],
-          temperature: 0.5,
-          max_completion_tokens: 80
-        })
+      const hintText = await callAI({
+        systemPrompt: "You are an expert tech interviewer coach. Provide a short, constructive, one-sentence hint to help the candidate structure their answer to the question. Do not answer it directly; give a helpful structural tip.",
+        userPrompt: `Question: ${currentQ.question}`,
+        temperature: 0.5,
+        maxTokens: 80,
+        cerebrasApiKey,
+        geminiApiKey,
+        groqApiKey,
+        cerebrasModel,
+        geminiModel,
+        groqModel
       });
-      if (response.ok) {
-        const resData = await response.json();
-        const hintText = resData.choices[0].message.content.trim();
-        setActiveHint(hintText);
-        setHintUsed(true);
-      } else {
-        throw new Error("Failed response status");
-      }
+      setActiveHint(hintText);
+      setHintUsed(true);
     } catch (e) {
-      console.warn("Cerebras hint generation failed, generating local fallback hint:", e);
+      console.warn("AI hint generation failed, generating local fallback hint:", e);
       setActiveHint(`Focus on structuring your thoughts around: ${currentQ.expectedKeywords.slice(0, 3).join(', ')}.`);
       setHintUsed(true);
     } finally {
@@ -485,48 +480,37 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
       ].filter(Boolean).join('. ');
 
       try {
-        const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${cerebrasApiKey || 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'}`
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b",
-            messages: [
-              {
-                role: "system",
-                content: `${localPersonaPrompt}
-                
-                Strict formatting requirements:
-                You must return a JSON array containing exactly 3 objects. Each object must have these fields:
-                - "id": a unique string ID (e.g. "ai-q1")
-                - "question": the scenario-based question text
-                - "expectedKeywords": an array of 5-8 lowercase strings representing key technical terms/concepts candidate should reference in their response
-                - "idealConcept": a 3-4 sentence detailed ideal answer that represents an expert/mastered response
-                
-                Format the response strictly as a valid JSON array. Do not wrap the JSON output in markdown backticks or explanation text.`
-              },
-              {
-                role: "user",
-                content: `Generate questions for a ${roundType} round targeting ${difficulty} difficulty. ${focusText ? `${focusText}. ` : ''}Target seniority level: ${experienceLevel}. Focus style matching this company profile: ${companyType}.`
-              }
-            ],
-            temperature: 0.7,
-            max_completion_tokens: 800
-          })
+        const systemPrompt = `${localPersonaPrompt}
+        
+Strict formatting requirements:
+You must return a JSON array containing exactly 3 objects. Each object must have these fields:
+- "id": a unique string ID (e.g. "ai-q1")
+- "question": the scenario-based question text
+- "expectedKeywords": an array of 5-8 lowercase strings representing key technical terms/concepts candidate should reference in their response
+- "idealConcept": a 3-4 sentence detailed ideal answer that represents an expert/mastered response
+
+Format the response strictly as a valid JSON array. Do not wrap the JSON output in markdown backticks or explanation text.`;
+
+        const userPrompt = `Generate questions for a ${roundType} round targeting ${difficulty} difficulty. ${focusText ? `${focusText}. ` : ''}Target seniority level: ${experienceLevel}. Focus style matching this company profile: ${companyType}.`;
+
+        const raw = await callAI({
+          systemPrompt,
+          userPrompt,
+          temperature: 0.7,
+          maxTokens: 800,
+          cerebrasApiKey,
+          geminiApiKey,
+          groqApiKey,
+          cerebrasModel,
+          geminiModel,
+          groqModel,
+          responseMimeType: "application/json"
         });
 
-        if (response.ok) {
-          const resData = await response.json();
-          const text = resData.choices[0].message.content.trim();
-          const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-          list = JSON.parse(cleaned);
-        } else {
-          throw new Error("Failed to contact Cerebras AI");
-        }
+        const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+        list = JSON.parse(cleaned);
       } catch (err) {
-        console.warn("Cerebras question generation failed, falling back to presets:", err);
+        console.warn("AI question generation failed, falling back to presets:", err);
         const dbPresets = mockPresetQuestions.filter(q => q.roundType === roundType);
         if (dbPresets.length > 0) {
           list = dbPresets.map(q => ({
@@ -658,61 +642,52 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
       depth: Math.round(score)
     };
 
-    // Attempt AI evaluation via Cerebras Llama 3.3 70b
+    // Attempt AI evaluation
     try {
-      const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${cerebrasApiKey || 'csk-42tvmeyxc9mkpjdwm2hp556whrhvme63hh9wnypctt82vtj2'}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert technical interviewer evaluating a candidate's answer for a mock interview question.
-              You must return a JSON object with these exact fields:
-              - "score": a number from 0 to 100 representing overall answer accuracy and quality.
-              - "evaluation": a 3-4 sentence detailed review explaining what they did well, what concepts they missed, and how to improve.
-              - "accuracy": a number 0-100 evaluating conceptual and technical accuracy.
-              - "modeling": a number 0-100 evaluating structural and systems thinking logic.
-              - "clarity": a number 0-100 evaluating explanation structure and communication clarity.
-              - "depth": a number 0-100 evaluating comprehensive detail level.
-              
-              Strictly output valid JSON only. Do not wrap in markdown or markdown code blocks.`
-            },
-            {
-              role: "user",
-              content: `Question: ${currentQ.question}
-              Expected Key Concepts/Keywords: ${currentQ.expectedKeywords.join(', ')}
-              Ideal/Better Answer Reference: ${currentQ.idealConcept}
-              Candidate Answer: ${answerText}`
-            }
-          ],
-          temperature: 0.1,
-          max_completion_tokens: 220
-        })
+      const systemPrompt = `You are an expert technical interviewer evaluating a candidate's answer for a mock interview question.
+You must return a JSON object with these exact fields:
+- "score": a number from 0 to 100 representing overall answer accuracy and quality.
+- "evaluation": a 3-4 sentence detailed review explaining what they did well, what concepts they missed, and how to improve.
+- "accuracy": a number 0-100 evaluating conceptual and technical accuracy.
+- "modeling": a number 0-100 evaluating structural and systems thinking logic.
+- "clarity": a number 0-100 evaluating explanation structure and communication clarity.
+- "depth": a number 0-100 evaluating comprehensive detail level.
+
+Strictly output valid JSON only. Do not wrap in markdown or markdown code blocks.`;
+
+      const userPrompt = `Question: ${currentQ.question}
+Expected Key Concepts/Keywords: ${currentQ.expectedKeywords.join(', ')}
+Ideal/Better Answer Reference: ${currentQ.idealConcept}
+Candidate Answer: ${answerText}`;
+
+      const raw = await callAI({
+        systemPrompt,
+        userPrompt,
+        temperature: 0.1,
+        maxTokens: 220,
+        cerebrasApiKey,
+        geminiApiKey,
+        groqApiKey,
+        cerebrasModel,
+        geminiModel,
+        groqModel,
+        responseMimeType: "application/json"
       });
 
-      if (response.ok) {
-        const resData = await response.json();
-        const text = resData.choices[0].message.content.trim();
-        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const aiEval = JSON.parse(cleaned);
-        if (typeof aiEval.score === 'number' && aiEval.evaluation) {
-          score = Math.min(100, Math.max(0, aiEval.score));
-          evaluation = aiEval.evaluation;
-          dynamicScores = {
-            accuracy: typeof aiEval.accuracy === 'number' ? aiEval.accuracy : score,
-            modeling: typeof aiEval.modeling === 'number' ? aiEval.modeling : score,
-            clarity: typeof aiEval.clarity === 'number' ? aiEval.clarity : score,
-            depth: typeof aiEval.depth === 'number' ? aiEval.depth : score
-          };
-        }
+      const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+      const aiEval = JSON.parse(cleaned);
+      if (typeof aiEval.score === 'number' && aiEval.evaluation) {
+        score = Math.min(100, Math.max(0, aiEval.score));
+        evaluation = aiEval.evaluation;
+        dynamicScores = {
+          accuracy: typeof aiEval.accuracy === 'number' ? aiEval.accuracy : score,
+          modeling: typeof aiEval.modeling === 'number' ? aiEval.modeling : score,
+          clarity: typeof aiEval.clarity === 'number' ? aiEval.clarity : score,
+          depth: typeof aiEval.depth === 'number' ? aiEval.depth : score
+        };
       }
     } catch (err) {
-      console.warn("Cerebras evaluation failed, falling back to keyword heuristic evaluation", err);
+      console.warn("AI evaluation failed, falling back to keyword heuristic evaluation", err);
     }
 
     setIsEvaluating(false);
@@ -877,25 +852,41 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
               <h3 className="font-bold text-white text-sm border-b border-white/5 pb-2 uppercase tracking-wide">Configure Simulation Round</h3>
 
               {/* AI Status Indicator */}
-              <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${
-                cerebrasApiKey 
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' 
-                  : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
-              }`}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${cerebrasApiKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                  <div className="text-left font-sans">
-                    <span className="font-bold block">
-                      {cerebrasApiKey ? 'AI Engine: Connected' : 'AI Engine: Local Fallback Mode'}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {cerebrasApiKey 
-                        ? 'Cerebras Llama-3.3-70b active for custom question generation and detailed grading.' 
-                        : 'Using keyword matcher and local presets. Add your Cerebras API key in Backup & Data Settings to enable AI.'}
-                    </span>
+              {(() => {
+                const hasCerebras = !!cerebrasApiKey;
+                const hasGemini = !!geminiApiKey || !!import.meta.env.VITE_GEMINI_API_KEY || !!import.meta.env.GEMINI_API_KEY;
+                const hasGroq = !!groqApiKey || !!import.meta.env.VITE_GROQ_API_KEY || !!import.meta.env.GROQ_API_KEY;
+                const hasAiKey = hasCerebras || hasGemini || hasGroq;
+                
+                let title = 'AI Engine: Local Fallback Mode';
+                let desc = 'Using keyword matcher and local presets. Add Cerebras, Gemini, or Groq API keys in Backup & Data Settings to enable AI.';
+                
+                const activeProviders: string[] = [];
+                if (hasCerebras) activeProviders.push('Cerebras Llama');
+                if (hasGemini) activeProviders.push('Google Gemini');
+                if (hasGroq) activeProviders.push('Groq API');
+
+                if (activeProviders.length > 0) {
+                  title = `AI Engine: Connected (${activeProviders.join(' + ')})`;
+                  desc = `${activeProviders.join(' -> ')} active in prioritized fallback configuration.`;
+                }
+
+                return (
+                  <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+                    hasAiKey 
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' 
+                      : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${hasAiKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                      <div className="text-left font-sans">
+                        <span className="font-bold block">{title}</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">{desc}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Custom AI prompt editor */}
               <div className="border border-white/5 bg-white/5 rounded-xl overflow-hidden text-xs">
@@ -977,7 +968,7 @@ Generate scenario-based questions that test deep technical/conceptual knowledge,
                   <p className="text-[10px] text-slate-500">Select where the questions should be loaded from.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {['Presets', 'Question Bank', 'Intelligence DB', 'AI Generated']
-                      .filter(src => src !== 'AI Generated' || !!cerebrasApiKey)
+                      .filter(src => src !== 'AI Generated' || !!cerebrasApiKey || !!geminiApiKey || !!groqApiKey || !!import.meta.env.VITE_GEMINI_API_KEY || !!import.meta.env.GEMINI_API_KEY || !!import.meta.env.VITE_GROQ_API_KEY || !!import.meta.env.GROQ_API_KEY)
                       .map(src => (
                         <button
                           key={src}
