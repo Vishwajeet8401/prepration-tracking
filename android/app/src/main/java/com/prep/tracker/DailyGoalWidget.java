@@ -74,7 +74,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         // 4. Handle Layout state (Active Task Timer vs Task List)
         String activeTaskId = prefs.getString("active_task_id", null);
         
-        if (activeTaskId != null) {
+        if (activeTaskId != null && !activeTaskId.trim().isEmpty()) {
             // Task is actively running
             views.setViewVisibility(R.id.widget_tasks_list_layout, View.GONE);
             views.setViewVisibility(R.id.widget_active_task_dock, View.VISIBLE);
@@ -266,7 +266,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         } 
         else if (ACTION_PLAY_PAUSE.equals(action)) {
             String activeTaskId = prefs.getString("active_task_id", null);
-            if (activeTaskId != null) {
+            if (activeTaskId != null && !activeTaskId.trim().isEmpty()) {
                 boolean isPaused = true;
                 long elapsed = 0;
                 long startTime = 0;
@@ -304,7 +304,7 @@ public class DailyGoalWidget extends AppWidgetProvider {
         } 
         else if (ACTION_COMPLETE.equals(action)) {
             String activeTaskId = prefs.getString("active_task_id", null);
-            if (activeTaskId != null) {
+            if (activeTaskId != null && !activeTaskId.trim().isEmpty()) {
                 // Complete task (locally flag it)
                 editor.putString("complete_task_" + activeTaskId, "true");
 
