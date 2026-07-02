@@ -50,8 +50,8 @@ public class HydrationWidget extends AppWidgetProvider {
         }
 
         // 3. Setup quick add button PendingIntents
-        views.setOnClickPendingIntent(R.id.widget_btn_water_250, getPendingSelfIntent(context, ACTION_ADD_WATER_250));
-        views.setOnClickPendingIntent(R.id.widget_btn_water_500, getPendingSelfIntent(context, ACTION_ADD_WATER_500));
+        views.setOnClickPendingIntent(R.id.widget_btn_water_250, getPendingSelfIntent(context, ACTION_ADD_WATER_250, 201));
+        views.setOnClickPendingIntent(R.id.widget_btn_water_500, getPendingSelfIntent(context, ACTION_ADD_WATER_500, 202));
 
         appWidgetManager.updateAppWidget(appWidgetId, views);
     }
@@ -115,14 +115,14 @@ public class HydrationWidget extends AppWidgetProvider {
         }
     }
 
-    private PendingIntent getPendingSelfIntent(Context context, String action) {
+    private PendingIntent getPendingSelfIntent(Context context, String action, int requestCode) {
         Intent intent = new Intent(context, HydrationWidget.class);
         intent.setAction(action);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         }
-        return PendingIntent.getBroadcast(context, 0, intent, flags);
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags);
     }
 
     @Override
@@ -132,17 +132,20 @@ public class HydrationWidget extends AppWidgetProvider {
         SharedPreferences.Editor editor = prefs.edit();
 
         String action = intent.getAction();
-        int completed = prefs.getInt("water_completed_ml", 0);
-        int target = prefs.getInt("water_target_ml", 2000);
+        int completed = 0;
+        try {
+            Object completedObj = prefs.getAll().get("water_completed_ml");
+            completed = completedObj != null ? Integer.parseInt(String.valueOf(completedObj)) : 0;
+        } catch (Exception e) {}
 
         if (ACTION_ADD_WATER_250.equals(action)) {
-            editor.putInt("water_completed_ml", completed + 250);
-            editor.putBoolean("widget_sync_required", true);
+            editor.putString("water_completed_ml", String.valueOf(completed + 250));
+            editor.putString("widget_sync_required", "true");
             editor.apply();
         } 
         else if (ACTION_ADD_WATER_500.equals(action)) {
-            editor.putInt("water_completed_ml", completed + 500);
-            editor.putBoolean("widget_sync_required", true);
+            editor.putString("water_completed_ml", String.valueOf(completed + 500));
+            editor.putString("widget_sync_required", "true");
             editor.apply();
         }
 

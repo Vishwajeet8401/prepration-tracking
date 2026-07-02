@@ -57,8 +57,12 @@ public class DailyGoalWidget extends AppWidgetProvider {
             views.setBoolean(R.id.widget_reset_countdown, "setCountDown", true);
         }
 
-        // 2. Read Progress State
-        int percentage = prefs.getInt("goal_completion_percentage", 0);
+        // 2. Read Progress State safely as String
+        int percentage = 0;
+        try {
+            Object percentageObj = prefs.getAll().get("goal_completion_percentage");
+            percentage = percentageObj != null ? Integer.parseInt(String.valueOf(percentageObj)) : 0;
+        } catch (Exception e) {}
         views.setTextViewText(R.id.widget_percentage_text, percentage + "%");
 
         // 3. Render Neon Circular Progress Ring
@@ -78,9 +82,18 @@ public class DailyGoalWidget extends AppWidgetProvider {
             String activeTaskTitle = prefs.getString("active_task_title", "Active Task");
             views.setTextViewText(R.id.widget_active_task_title, activeTaskTitle);
 
-            long elapsed = prefs.getLong("active_task_elapsed", 0);
-            long startTime = prefs.getLong("active_task_start_time", 0);
-            boolean isPaused = prefs.getBoolean("active_task_is_paused", true);
+            long elapsed = 0;
+            long startTime = 0;
+            boolean isPaused = true;
+            try {
+                Object elapsedObj = prefs.getAll().get("active_task_elapsed");
+                Object startTimeObj = prefs.getAll().get("active_task_start_time");
+                Object isPausedObj = prefs.getAll().get("active_task_is_paused");
+
+                elapsed = elapsedObj != null ? Long.parseLong(String.valueOf(elapsedObj)) : 0;
+                startTime = startTimeObj != null ? Long.parseLong(String.valueOf(startTimeObj)) : 0;
+                isPaused = isPausedObj != null ? "true".equals(String.valueOf(isPausedObj)) : true;
+            } catch (Exception e) {}
 
             long chronometerBase;
             if (isPaused) {
@@ -95,9 +108,9 @@ public class DailyGoalWidget extends AppWidgetProvider {
             }
 
             // Set up Active Task dock buttons PendingIntents
-            views.setOnClickPendingIntent(R.id.widget_btn_play_pause, getPendingSelfIntent(context, ACTION_PLAY_PAUSE));
-            views.setOnClickPendingIntent(R.id.widget_btn_stop, getPendingSelfIntent(context, ACTION_STOP));
-            views.setOnClickPendingIntent(R.id.widget_btn_complete, getPendingSelfIntent(context, ACTION_COMPLETE));
+            views.setOnClickPendingIntent(R.id.widget_btn_play_pause, getPendingSelfIntent(context, ACTION_PLAY_PAUSE, 101));
+            views.setOnClickPendingIntent(R.id.widget_btn_stop, getPendingSelfIntent(context, ACTION_STOP, 102));
+            views.setOnClickPendingIntent(R.id.widget_btn_complete, getPendingSelfIntent(context, ACTION_COMPLETE, 103));
 
             // Set correct icon for play/pause
             views.setImageViewResource(R.id.widget_btn_play_pause, 
@@ -108,7 +121,11 @@ public class DailyGoalWidget extends AppWidgetProvider {
             views.setViewVisibility(R.id.widget_active_task_dock, View.GONE);
             views.setViewVisibility(R.id.widget_tasks_list_layout, View.VISIBLE);
 
-            int taskCount = prefs.getInt("task_count", 0);
+            int taskCount = 0;
+            try {
+                Object taskCountObj = prefs.getAll().get("task_count");
+                taskCount = taskCountObj != null ? Integer.parseInt(String.valueOf(taskCountObj)) : 0;
+            } catch (Exception e) {}
             if (taskCount == 0) {
                 views.setViewVisibility(R.id.widget_empty_tasks_text, View.VISIBLE);
                 views.setViewVisibility(R.id.widget_task_row_1, View.GONE);
@@ -202,14 +219,14 @@ public class DailyGoalWidget extends AppWidgetProvider {
         }
     }
 
-    private PendingIntent getPendingSelfIntent(Context context, String action) {
+    private PendingIntent getPendingSelfIntent(Context context, String action, int requestCode) {
         Intent intent = new Intent(context, DailyGoalWidget.class);
         intent.setAction(action);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         }
-        return PendingIntent.getBroadcast(context, 0, intent, flags);
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags);
     }
 
     private PendingIntent getPlayTaskPendingIntent(Context context, int index) {
@@ -240,31 +257,39 @@ public class DailyGoalWidget extends AppWidgetProvider {
             if (taskId != null) {
                 editor.putString("active_task_id", taskId);
                 editor.putString("active_task_title", taskTitle);
-                editor.putLong("active_task_elapsed", 0);
-                editor.putLong("active_task_start_time", System.currentTimeMillis());
-                editor.putBoolean("active_task_is_paused", false);
-                editor.putBoolean("widget_sync_required", true);
+                editor.putString("active_task_elapsed", "0");
+                editor.putString("active_task_start_time", String.valueOf(System.currentTimeMillis()));
+                editor.putString("active_task_is_paused", "false");
+                editor.putString("widget_sync_required", "true");
                 editor.apply();
             }
         } 
         else if (ACTION_PLAY_PAUSE.equals(action)) {
             String activeTaskId = prefs.getString("active_task_id", null);
             if (activeTaskId != null) {
-                boolean isPaused = prefs.getBoolean("active_task_is_paused", true);
-                long elapsed = prefs.getLong("active_task_elapsed", 0);
-                long startTime = prefs.getLong("active_task_start_time", 0);
+                boolean isPaused = true;
+                long elapsed = 0;
+                long startTime = 0;
+                try {
+                    Object isPausedObj = prefs.getAll().get("active_task_is_paused");
+                    Object elapsedObj = prefs.getAll().get("active_task_elapsed");
+                    Object startTimeObj = prefs.getAll().get("active_task_start_time");
+                    isPaused = isPausedObj != null ? "true".equals(String.valueOf(isPausedObj)) : true;
+                    elapsed = elapsedObj != null ? Long.parseLong(String.valueOf(elapsedObj)) : 0;
+                    startTime = startTimeObj != null ? Long.parseLong(String.valueOf(startTimeObj)) : 0;
+                } catch (Exception e) {}
 
                 if (isPaused) {
                     // Resume
-                    editor.putBoolean("active_task_is_paused", false);
-                    editor.putLong("active_task_start_time", System.currentTimeMillis());
+                    editor.putString("active_task_is_paused", "false");
+                    editor.putString("active_task_start_time", String.valueOf(System.currentTimeMillis()));
                 } else {
                     // Pause
                     long wallSeconds = (System.currentTimeMillis() - startTime) / 1000;
-                    editor.putBoolean("active_task_is_paused", true);
-                    editor.putLong("active_task_elapsed", elapsed + wallSeconds);
+                    editor.putString("active_task_is_paused", "true");
+                    editor.putString("active_task_elapsed", String.valueOf(elapsed + wallSeconds));
                 }
-                editor.putBoolean("widget_sync_required", true);
+                editor.putString("widget_sync_required", "true");
                 editor.apply();
             }
         } 
@@ -274,14 +299,14 @@ public class DailyGoalWidget extends AppWidgetProvider {
             editor.remove("active_task_elapsed");
             editor.remove("active_task_start_time");
             editor.remove("active_task_is_paused");
-            editor.putBoolean("widget_sync_required", true);
+            editor.putString("widget_sync_required", "true");
             editor.apply();
         } 
         else if (ACTION_COMPLETE.equals(action)) {
             String activeTaskId = prefs.getString("active_task_id", null);
             if (activeTaskId != null) {
                 // Complete task (locally flag it)
-                editor.putBoolean("complete_task_" + activeTaskId, true);
+                editor.putString("complete_task_" + activeTaskId, "true");
 
                 // Discard active timer state
                 editor.remove("active_task_id");
@@ -291,20 +316,27 @@ public class DailyGoalWidget extends AppWidgetProvider {
                 editor.remove("active_task_is_paused");
 
                 // Update completion percentage locally if we can calculate it
-                int taskCount = prefs.getInt("task_count", 0);
+                int taskCount = 0;
+                try {
+                    Object taskCountObj = prefs.getAll().get("task_count");
+                    taskCount = taskCountObj != null ? Integer.parseInt(String.valueOf(taskCountObj)) : 0;
+                } catch (Exception e) {}
+
                 if (taskCount > 0) {
                     int completed = 0;
                     for (int i = 1; i <= taskCount; i++) {
                         String id = prefs.getString("task_" + i + "_id", null);
-                        if (id != null && (id.equals(activeTaskId) || prefs.getBoolean("complete_task_" + id, false))) {
+                        Object isCompleteObj = prefs.getAll().get("complete_task_" + id);
+                        boolean isComplete = isCompleteObj != null && "true".equals(String.valueOf(isCompleteObj));
+                        if (id != null && (id.equals(activeTaskId) || isComplete)) {
                             completed++;
                         }
                     }
                     int percentage = (int) Math.round((completed * 100.0) / taskCount);
-                    editor.putInt("goal_completion_percentage", percentage);
+                    editor.putString("goal_completion_percentage", String.valueOf(percentage));
                 }
 
-                editor.putBoolean("widget_sync_required", true);
+                editor.putString("widget_sync_required", "true");
                 editor.apply();
             }
         }
