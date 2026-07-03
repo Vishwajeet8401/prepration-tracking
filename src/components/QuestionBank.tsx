@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useRef, useEffect, forwardRef } from 'react';
-import { VirtuosoGrid } from 'react-virtuoso';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Question, Topic, VoiceRecording } from '../types';
 import { createLocalObjectUrl, parseLocalFileRef } from '../localFileStore';
@@ -17,6 +16,7 @@ import {
 import { useScrollGesture } from '../hooks/useScrollGesture';
 import { useGestureContext } from '../context/GestureContext';
 import { useGestureController } from '../hooks/useGestureController';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 interface QuestionBankProps {
   questions: Question[];
@@ -30,12 +30,8 @@ interface QuestionBankProps {
   onDeleteVoiceRecording: (id: string) => void;
   onLoadMore?: () => void;
   onNavigate?: (tab: string) => void;
+  questionLimit?: number;
 }
-
-const GridContainer = forwardRef<HTMLDivElement, any>((props, ref) => (
-  <div {...props} ref={ref} className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2" />
-));
-GridContainer.displayName = 'GridContainer';
 
 const QB_TABS: Array<'bank' | 'practice' | 'voice'> = ['bank', 'practice', 'voice'];
 
@@ -51,11 +47,14 @@ const QuestionBank = React.memo(function QuestionBank({
   onAddVoiceRecording,
   onDeleteVoiceRecording,
   onLoadMore,
-  onNavigate
+  onNavigate,
+  questionLimit = 50
 }: QuestionBankProps) {
 
   // Nested navigation: 'bank' | 'practice' | 'voice'
   const [activeTab, setActiveTab] = useState<'bank' | 'practice' | 'voice'>('bank');
+
+
 
   const { state: gestureState } = useGestureContext();
   const isGestureOn = gestureState.camera.active && gestureState.settings.enabled;
@@ -143,6 +142,16 @@ const QuestionBank = React.memo(function QuestionBank({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recordingSecondsRef = useRef(0);
   const [localAudioUrls, setLocalAudioUrls] = useState<Record<string, string>>({});
+
+  // Infinite scroll observer setup
+  const sentinelRef = useIntersectionObserver({
+    onIntersect: () => {
+      if (onLoadMore) {
+        onLoadMore();
+      }
+    },
+    enabled: !isEditing && activeTab === 'bank' && questions.length >= questionLimit
+  });
 
   // Computed Topics switcher lists
   const filteredQuestions = useMemo(() => {
@@ -629,146 +638,151 @@ const QuestionBank = React.memo(function QuestionBank({
             </div>
           )}
 
-          {/* Question Cards Stack */}
+          {/* Question Cards Grid */}
           {!isEditing && filteredQuestions.length > 0 && (
-            <VirtuosoGrid
-              useWindowScroll
-              data={filteredQuestions}
-              components={{
-                List: GridContainer
-              }}
-              endReached={() => {
-                if (questions.length >= 50 && onLoadMore) onLoadMore();
-              }}
-              itemContent={(index, q) => {
-                const topicObj = topics.find(t => t.id === q.topicId);
-                return (
-                  <div key={q.id} className={`glass-card p-5 flex flex-col justify-between relative overflow-hidden h-full border-l-2 ${
-                    q.difficulty === 'Hard' ? 'border-l-rose-500/60' :
-                    q.difficulty === 'Medium' ? 'border-l-amber-500/60' : 'border-l-emerald-500/60'
-                  }`}>
-                    <div>
-                      {/* Top flags */}
-                      <div className="flex items-center justify-between gap-1 mb-2.5">
-                        <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full ${
-                          q.difficulty === 'Hard' ? 'bg-rose-500/15 text-rose-350 border border-rose-500/10' :
-                          q.difficulty === 'Medium' ? 'bg-amber-500/15 text-amber-300 border border-amber-500/10' :
-                          'bg-emerald-500/15 text-emerald-300 border border-emerald-500/10'
-                        }`}>
-                          {q.difficulty}
-                        </span>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                {filteredQuestions.map(q => {
+                  const topicObj = topics.find(t => t.id === q.topicId);
+                  return (
+                    <div key={q.id} className={`glass-card p-5 flex flex-col justify-between relative overflow-hidden h-full border-l-2 ${
+                      q.difficulty === 'Hard' ? 'border-l-rose-500/60' :
+                      q.difficulty === 'Medium' ? 'border-l-amber-500/60' : 'border-l-emerald-500/60'
+                    }`}>
+                      <div>
+                        {/* Top flags */}
+                        <div className="flex items-center justify-between gap-1 mb-2.5">
+                          <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                            q.difficulty === 'Hard' ? 'bg-rose-500/15 text-rose-350 border border-rose-500/10' :
+                            q.difficulty === 'Medium' ? 'bg-amber-500/15 text-amber-300 border border-amber-500/10' :
+                            'bg-emerald-500/15 text-emerald-300 border border-emerald-500/10'
+                          }`}>
+                            {q.difficulty}
+                          </span>
 
-                        <span className="text-[10px] text-slate-400 font-sans truncate max-w-[120px] text-right">
-                          <strong className="text-slate-200 bg-white/5 px-2 py-0.5 rounded-md">{q.source}</strong>
-                        </span>
-                      </div>
-
-                      {/* Question Text */}
-                      <h4 className="font-extrabold text-white text-sm mb-2.5 leading-snug">
-                        {q.question}
-                      </h4>
-
-                      {/* Inline key metrics / dates (Last Asked Tracker!) */}
-                      <div className="border-t border-dashed border-white/10 pt-2.5 my-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-slate-400">
-                        <div>
-                          <span className="block text-slate-450 uppercase text-[9px]">Asked Count</span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <button onClick={() => onUpdateQuestion({...q, askedCount: Math.max(0, q.askedCount - 1)})} className="w-4 h-4 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer">-</button>
-                            <span className="font-bold text-slate-205">{q.askedCount}</span>
-                            <button onClick={() => onUpdateQuestion({...q, askedCount: q.askedCount + 1, lastAskedDate: new Date().toISOString()})} className="w-4 h-4 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer">+</button>
-                          </div>
-                        </div>
-                        <div>
-                          <span className="block text-slate-450 uppercase text-[9px]">Last Asked</span>
-                          <span className="font-bold text-slate-205">
-                            {q.lastAskedDate ? new Date(q.lastAskedDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Never'}
+                          <span className="text-[10px] text-slate-400 font-sans truncate max-w-[120px] text-right">
+                            <strong className="text-slate-200 bg-white/5 px-2 py-0.5 rounded-md">{q.source}</strong>
                           </span>
                         </div>
-                        <div>
-                          <span className="block text-slate-450 uppercase text-[9px]">Last Revised</span>
-                          <span className="font-bold text-slate-205">
-                            {q.lastRevisedDate ? new Date(q.lastRevisedDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Never'}
-                          </span>
-                        </div>
-                      </div>
 
-                      {/* Answer Snippet Toggle Preview */}
-                      <details className="text-xs group border border-white/5 bg-white/2 rounded-xl p-3 leading-relaxed">
-                        <summary className="font-bold font-sans text-indigo-400 select-none cursor-pointer flex items-center justify-between">
-                          <span>Toggle Correct Answer Preview</span>
-                          <span className="text-slate-400 group-open:rotate-180 transition-transform">&darr;</span>
-                        </summary>
-                        <div className="mt-2 border-t border-white/5 pt-2 relative group/answer">
-                          <div className="absolute right-0 top-2 opacity-0 group-hover/answer:opacity-100 transition-opacity">
-                            <AudioPlayButton text={q.answer} tooltip="Read answer aloud" className="p-1 bg-white/5" />
-                          </div>
-                          <p className="text-slate-300 font-mono whitespace-pre-line leading-relaxed pr-8">
-                            {q.answer}
-                          </p>
-                        </div>
-                      </details>
-                    </div>
+                        {/* Question Text */}
+                        <h4 className="font-extrabold text-white text-sm mb-2.5 leading-snug">
+                          {q.question}
+                        </h4>
 
-                    {/* Tag chips on card */}
-                    {q.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-3">
-                        {q.tags.map(tag => (
-                          <button
-                            key={tag}
-                            onClick={() => setTagFilter(tag)}
-                            className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-305 border border-indigo-500/10 rounded text-[9px] font-mono font-bold cursor-pointer hover:bg-indigo-500/20 transition"
-                          >
-                            #{tag}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Footer Actions */}
-                    <div className="flex items-center justify-between border-t border-white/5 pt-3.5 mt-3">
-                      {topicObj ? (
-                        <div className="space-y-1 min-w-0 flex-1 mr-2">
-                          <span className="text-[10px] font-bold text-slate-450 font-mono block">
-                            Topic: <button onClick={() => onNavigate?.('Study Topics & Revisions')} className="text-indigo-305 font-sans font-semibold hover:underline cursor-pointer">{topicObj.name}</button>
-                          </span>
-                          {/* Topic confidence mini-bar */}
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden max-w-20">
-                              <div
-                                className={`h-full rounded-full ${
-                                  topicObj.confidenceScore > 75 ? 'bg-emerald-400' :
-                                  topicObj.confidenceScore > 50 ? 'bg-amber-400' : 'bg-rose-400'
-                                }`}
-                                style={{ width: `${topicObj.confidenceScore}%` }}
-                              />
+                        {/* Inline key metrics / dates (Last Asked Tracker!) */}
+                        <div className="border-t border-dashed border-white/10 pt-2.5 my-3 grid grid-cols-3 gap-2 text-[10px] font-mono text-slate-400">
+                          <div>
+                            <span className="block text-slate-450 uppercase text-[9px]">Asked Count</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <button type="button" onClick={() => onUpdateQuestion({...q, askedCount: Math.max(0, q.askedCount - 1)})} className="w-4 h-4 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer">-</button>
+                              <span className="font-bold text-slate-205">{q.askedCount}</span>
+                              <button type="button" onClick={() => onUpdateQuestion({...q, askedCount: q.askedCount + 1, lastAskedDate: new Date().toISOString()})} className="w-4 h-4 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer">+</button>
                             </div>
-                            <span className={`text-[9px] font-mono font-bold ${
-                              topicObj.confidenceScore > 75 ? 'text-emerald-400' :
-                              topicObj.confidenceScore > 50 ? 'text-amber-400' : 'text-rose-400'
-                            }`}>{topicObj.confidenceScore}%</span>
+                          </div>
+                          <div>
+                            <span className="block text-slate-455 uppercase text-[9px]">Last Asked</span>
+                            <span className="font-bold text-slate-205">
+                              {q.lastAskedDate ? new Date(q.lastAskedDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Never'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block text-slate-455 uppercase text-[9px]">Last Revised</span>
+                            <span className="font-bold text-slate-205">
+                              {q.lastRevisedDate ? new Date(q.lastRevisedDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Never'}
+                            </span>
                           </div>
                         </div>
-                      ) : <div />}
 
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => handleOpenEdit(q)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-white/5 cursor-pointer"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => onDeleteQuestion(q.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-white/5 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {/* Answer Snippet Toggle Preview */}
+                        <details className="text-xs group border border-white/5 bg-white/2 rounded-xl p-3 leading-relaxed">
+                          <summary className="font-bold font-sans text-indigo-400 select-none cursor-pointer flex items-center justify-between">
+                            <span>Toggle Correct Answer Preview</span>
+                            <span className="text-slate-400 group-open:rotate-180 transition-transform">&darr;</span>
+                          </summary>
+                          <div className="mt-2 border-t border-white/5 pt-2 relative group/answer">
+                            <div className="absolute right-0 top-2 opacity-0 group-hover/answer:opacity-100 transition-opacity">
+                              <AudioPlayButton text={q.answer} tooltip="Read answer aloud" className="p-1 bg-white/5" />
+                            </div>
+                            <p className="text-slate-300 font-mono whitespace-pre-line leading-relaxed pr-8">
+                              {q.answer}
+                            </p>
+                          </div>
+                        </details>
+                      </div>
+
+                      {/* Tag chips on card */}
+                      {q.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-3">
+                          {q.tags.map(tag => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setTagFilter(tag)}
+                              className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-305 border border-indigo-500/10 rounded text-[9px] font-mono font-bold cursor-pointer hover:bg-indigo-500/20 transition"
+                            >
+                              #{tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Footer Actions */}
+                      <div className="flex items-center justify-between border-t border-white/5 pt-3.5 mt-3">
+                        {topicObj ? (
+                          <div className="space-y-1 min-w-0 flex-1 mr-2">
+                            <span className="text-[10px] font-bold text-slate-455 font-mono block">
+                              Topic: <button type="button" onClick={() => onNavigate?.('Study Topics & Revisions')} className="text-indigo-305 font-sans font-semibold hover:underline cursor-pointer">{topicObj.name}</button>
+                            </span>
+                            {/* Topic confidence mini-bar */}
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden max-w-20">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    topicObj.confidenceScore > 75 ? 'bg-emerald-400' :
+                                    topicObj.confidenceScore > 50 ? 'bg-amber-400' : 'bg-rose-400'
+                                  }`}
+                                  style={{ width: `${topicObj.confidenceScore}%` }}
+                                />
+                              </div>
+                              <span className={`text-[9px] font-mono font-bold ${
+                                topicObj.confidenceScore > 75 ? 'text-emerald-400' :
+                                topicObj.confidenceScore > 50 ? 'text-amber-400' : 'text-rose-400'
+                              }`}>{topicObj.confidenceScore}%</span>
+                            </div>
+                          </div>
+                        ) : <div />}
+
+                        <div className="flex items-center gap-1">
+                          <button 
+                            type="button"
+                            onClick={() => handleOpenEdit(q)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-white/5 cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => onDeleteQuestion(q.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-white/5 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              }}
-            />
+                  );
+                })}
+              </div>
+
+              {/* Scroll Observer Sentinel at the bottom of the list */}
+              {questions.length >= questionLimit && (
+                <div ref={sentinelRef} className="py-10 flex flex-col items-center justify-center gap-2">
+                  <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs text-slate-400 font-mono tracking-wider">Loading more questions...</span>
+                </div>
+              )}
+            </div>
           )}
 
           {!isEditing && filteredQuestions.length === 0 && (

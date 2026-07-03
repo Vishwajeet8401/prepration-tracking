@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useRef, useEffect, forwardRef } from 'react';
-import { VirtuosoGrid } from 'react-virtuoso';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Topic, Subject, Question } from '../types';
 import { useStackedPanelHistory } from '../hooks/useStackedPanelHistory';
 import { useAllTopics } from '../hooks/useAllTopics';
@@ -15,6 +14,7 @@ import {
 } from 'lucide-react';
 import AudioPlayButton from './AudioPlayButton';
 import { useScrollGesture } from '../hooks/useScrollGesture';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 interface TopicManagementProps {
   subjects: Subject[];
@@ -31,26 +31,8 @@ interface TopicManagementProps {
   onLoadMore?: () => void;
   onNavigate?: (tab: string) => void;
   userId?: string;
+  topicLimit?: number;
 }
-
-type FlatItem = 
-  | { type: 'header', subjectId: string, subject: Subject | undefined }
-  | { type: 'topic', topic: Topic };
-
-const GridContainer = forwardRef<HTMLDivElement, any>((props, ref) => (
-  <div {...props} ref={ref} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2" />
-));
-GridContainer.displayName = 'GridContainer';
-
-const ItemContainer = forwardRef<HTMLDivElement, any>(({ 'data-index': index, context, children, ...props }, ref) => {
-  const isHeader = context?.flatItems?.[index]?.type === 'header';
-  return (
-    <div {...props} ref={ref} className={isHeader ? 'col-span-full mb-2 mt-4' : 'col-span-1 h-full'}>
-      {children}
-    </div>
-  );
-});
-ItemContainer.displayName = 'ItemContainer';
 
 const TopicManagement = React.memo(function TopicManagement({
   subjects,
@@ -66,7 +48,8 @@ const TopicManagement = React.memo(function TopicManagement({
   onRecallResponse,
   onLoadMore,
   onNavigate,
-  userId
+  userId,
+  topicLimit = 50
 }: TopicManagementProps) {
 
   // Fetch full lightweight topic list for dependency mapping to bypass pagination limit
@@ -78,8 +61,7 @@ const TopicManagement = React.memo(function TopicManagement({
   // Tabs: 'subjects' | 'all' | 'scheduler' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'
   const [activeSubTab, setActiveSubTab] = useState<'subjects' | 'all' | 'scheduler' | 'dependencies' | 'quick-revision' | 'teach-me' | 'merge'>('all');
   
-  // removed unused infinite scroll observer reference
-  
+
   // Subject Form State
   const [isEditingSubject, setIsEditingSubject] = useState(false);
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
@@ -119,6 +101,16 @@ const TopicManagement = React.memo(function TopicManagement({
   const [sessionFinished, setSessionFinished] = useState(false);
   const [sessionTopics, setSessionTopics] = useState<Topic[]>([]);
   const [sessionResponseTracker, setSessionResponseTracker] = useState<{name: string, status: string}[]>([]);
+
+  // Infinite scroll observer setup
+  const sentinelRef = useIntersectionObserver({
+    onIntersect: () => {
+      if (onLoadMore) {
+        onLoadMore();
+      }
+    },
+    enabled: !isEditing && topics.length >= topicLimit
+  });
   
   // Smart auto-suggestion effect
   React.useEffect(() => {
@@ -257,22 +249,23 @@ const TopicManagement = React.memo(function TopicManagement({
     });
   }, [topics, searchQuery, categoryFilter, statusFilter]);
 
-  // Flattened grid structure for virtualization
-  const flatItems: FlatItem[] = useMemo(() => {
-    const items: FlatItem[] = [];
+  // Grouped topics for visual rendering
+  const groupedTopics = useMemo(() => {
+    const groups: { subjectId: string; subject: Subject | undefined; topics: Topic[] }[] = [];
     const subjectIds = Array.from(new Set<string>(filteredTopics.map(t => t.subjectId || '')));
     
     subjectIds.forEach(subjId => {
       const subject = subjects.find(s => s.id === subjId);
       const subjTopics = filteredTopics.filter(t => (t.subjectId || '') === subjId);
       if (subjTopics.length > 0) {
-        items.push({ type: 'header', subjectId: subjId || 'uncategorized', subject });
-        subjTopics.forEach(topic => {
-          items.push({ type: 'topic', topic });
+        groups.push({
+          subjectId: subjId || 'uncategorized',
+          subject,
+          topics: subjTopics
         });
       }
     });
-    return items;
+    return groups;
   }, [filteredTopics, subjects]);
 
   // Topic selected in active teach me tab
@@ -680,161 +673,159 @@ const TopicManagement = React.memo(function TopicManagement({
             </div>
           )}
 
-          {/* Grid Layout of Registered Topics */}
-          {!isEditing && flatItems.length > 0 && (
-            <VirtuosoGrid
-              useWindowScroll
-              data={flatItems}
-              context={{ flatItems }}
-              components={{
-                List: GridContainer,
-                Item: ItemContainer
-              }}
-              endReached={() => {
-                if (topics.length >= 50 && onLoadMore) onLoadMore();
-              }}
-              itemContent={(index, item) => {
-                if (item.type === 'header') {
-                  const subject = item.subject;
-                  return (
-                    <h3 className="text-lg font-bold text-white border-b border-white/10 pb-2 flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${subject ? subject.color : 'bg-slate-500'}`} />
-                      {subject ? subject.name : 'Uncategorized Topics'}
-                    </h3>
-                  );
-                }
+          {/* Grouped Layout of Registered Topics */}
+          {!isEditing && groupedTopics.length > 0 && (
+            <div className="space-y-8">
+              {groupedTopics.map(group => (
+                <div key={group.subjectId} className="space-y-4">
+                  <h3 className="text-lg font-bold text-white border-b border-white/10 pb-2 flex items-center gap-2 mt-6 first:mt-0">
+                    <div className={`w-3 h-3 rounded-full ${group.subject ? group.subject.color : 'bg-slate-500'}`} />
+                    {group.subject ? group.subject.name : 'Uncategorized Topics'}
+                  </h3>
 
-                const topic = item.topic;
-                const warnings = getDependencyWarnings(topic);
-                const isOverdue = topic.nextRevisionDate && new Date(topic.nextRevisionDate) < new Date();
-                
-                return (
-                  <div 
-                    key={topic.id} 
-                    className={`glass-card glass-card-hover p-5 flex flex-col justify-between relative overflow-hidden h-full ${isOverdue ? 'border-amber-500/30' : ''}`}
-                  >
-                    <div>
-                      {/* Category Tag & Actions */}
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-305 border border-indigo-500/10">
-                          {topic.category}
-                        </span>
-                        
-                        <div className="flex items-center gap-1.5">
-                          <button 
-                            onClick={() => handleOpenEdit(topic)}
-                            className="p-1 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-white/5 transition cursor-pointer"
-                            title="Edit details"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => onDeleteTopic(topic.id)}
-                            className="p-1 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-white/5 transition cursor-pointer"
-                            title="Delete Topic"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                    {group.topics.map(topic => {
+                      const warnings = getDependencyWarnings(topic);
+                      const isOverdue = topic.nextRevisionDate && new Date(topic.nextRevisionDate) < new Date();
 
-                      {/* Header and status info */}
-                      <div className="space-y-1 mb-2">
-                        <h4 className="font-extrabold text-white text-[15px] leading-tight">
-                          {topic.name}
-                        </h4>
-                      </div>
-
-                      {/* Warnings if dependencies weak */}
-                      {warnings.length > 0 && (
-                        <div className="mb-3 px-2 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-md flex items-start gap-1.5 text-rose-300">
-                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                          <div className="text-[9px] font-semibold leading-relaxed space-y-0.5">
-                            {warnings.map((w, idx) => <p key={idx}>{w}</p>)}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Description truncated */}
-                      <p className="text-xs text-slate-350 line-clamp-3 mb-4 leading-relaxed font-sans">
-                        {topic.description || <span className="italic text-slate-500">No core description supplied.</span>}
-                      </p>
-
-                      {/* Visual Health metrics layout */}
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                          <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1">Confidence</span>
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full ${
-                                topic.confidenceScore > 80 ? 'bg-emerald-400' :
-                                topic.confidenceScore > 50 ? 'bg-amber-400' : 'bg-rose-400'
-                              }`} style={{ width: `${topic.confidenceScore}%` }} />
-                            </div>
-                            <span className="text-[10px] font-black text-slate-200">{topic.confidenceScore}%</span>
-                          </div>
-                        </div>
-
-                        <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                          <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1">Next Revision</span>
-                          <span className={`text-[10px] font-bold ${isOverdue ? 'text-amber-400' : 'text-slate-200'}`}>
-                            {topic.nextRevisionDate ? new Date(topic.nextRevisionDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Unscheduled'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bottom stats and notes toggle */}
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pb-3">
-                        <span>Revisions: <strong className="text-slate-200 font-mono">{topic.revisionCount}</strong></span>
-                        <span>Forgot count: <strong className={`${topic.forgotCount > 0 ? 'text-red-400' : 'text-slate-200'} font-mono`}>{topic.forgotCount}</strong></span>
-                      </div>
-
-                      {/* Question count badge */}
-                      {questions.length > 0 && (() => {
-                        const qCount = questions.filter(q => q.topicId === topic.id).length;
-                        return qCount > 0 ? (
-                          <button
-                            onClick={() => onNavigate?.('Flashcards & Practice')}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-lg bg-indigo-500/10 border border-indigo-500/15 hover:bg-indigo-500/20 hover:border-indigo-500/30 text-[10px] font-mono font-bold text-indigo-305 transition cursor-pointer"
-                          >
-                            <span>📖 {qCount} question{qCount !== 1 ? 's' : ''} linked</span>
-                            <span className="text-indigo-400 text-[9px]">Drill →</span>
-                          </button>
-                        ) : null;
-                      })()}
-
-                      <div className="flex items-center justify-between gap-1 border-t border-white/5 pt-3">
-                        <span className={`text-[10px] font-sans px-2.5 py-0.5 rounded-full font-bold ${
-                          topic.status === 'Mastered' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/10' :
-                          topic.status === 'Interview Ready' ? 'bg-blue-500/15 text-blue-300 border border-blue-500/10' :
-                          topic.status === 'Revising' ? 'bg-indigo-500/15 text-indigo-305 border border-indigo-500/10' :
-                          topic.status === 'Practicing' ? 'bg-purple-500/15 text-purple-305 border border-purple-500/10' :
-                          topic.status === 'Learning' ? 'bg-amber-500/15 text-amber-300 border border-amber-500/10' : 'bg-white/5 text-slate-300 border border-white/10'
-                        }`}>
-                          {topic.status}
-                        </span>
-
-                        <button 
-                          onClick={() => {
-                            setTeachMeTopicId(topic.id);
-                            setActiveSubTab('teach-me');
-                          }}
-                          className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-0.5 cursor-pointer"
+                      return (
+                        <div 
+                          key={topic.id} 
+                          className={`glass-card glass-card-hover p-5 flex flex-col justify-between relative overflow-hidden h-full ${isOverdue ? 'border-amber-500/30' : ''}`}
                         >
-                          <span>Review Notes</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
+                          <div>
+                            {/* Category Tag & Actions */}
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-305 border border-indigo-500/10">
+                                {topic.category}
+                              </span>
+
+                              <div className="flex items-center gap-1.5">
+                                <button 
+                                  onClick={() => handleOpenEdit(topic)}
+                                  className="p-1 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-white/5 transition cursor-pointer"
+                                  title="Edit details"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={() => onDeleteTopic(topic.id)}
+                                  className="p-1 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-white/5 transition cursor-pointer"
+                                  title="Delete Topic"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Header and status info */}
+                            <div className="space-y-1 mb-2">
+                              <h4 className="font-extrabold text-white text-[15px] leading-tight">
+                                {topic.name}
+                              </h4>
+                            </div>
+
+                            {/* Warnings if dependencies weak */}
+                            {warnings.length > 0 && (
+                              <div className="mb-3 px-2 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-md flex items-start gap-1.5 text-rose-300">
+                                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                <div className="text-[9px] font-semibold leading-relaxed space-y-0.5">
+                                  {warnings.map((w, idx) => <p key={idx}>{w}</p>)}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Description truncated */}
+                            <p className="text-xs text-slate-350 line-clamp-3 mb-4 leading-relaxed font-sans">
+                              {topic.description || <span className="italic text-slate-500">No core description supplied.</span>}
+                            </p>
+
+                            {/* Visual Health metrics layout */}
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              <div className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1">Confidence</span>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full ${
+                                      topic.confidenceScore > 80 ? 'bg-emerald-400' :
+                                      topic.confidenceScore > 50 ? 'bg-amber-400' : 'bg-rose-400'
+                                    }`} style={{ width: `${topic.confidenceScore}%` }} />
+                                  </div>
+                                  <span className="text-[10px] font-black text-slate-200">{topic.confidenceScore}%</span>
+                                </div>
+                              </div>
+
+                              <div className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1">Next Revision</span>
+                                <span className={`text-[10px] font-bold ${isOverdue ? 'text-amber-400' : 'text-slate-200'}`}>
+                                  {topic.nextRevisionDate ? new Date(topic.nextRevisionDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Unscheduled'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom stats and notes toggle */}
+                          <div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 pb-3">
+                              <span>Revisions: <strong className="text-slate-200 font-mono">{topic.revisionCount}</strong></span>
+                              <span>Forgot count: <strong className={`${topic.forgotCount > 0 ? 'text-red-400' : 'text-slate-200'} font-mono`}>{topic.forgotCount}</strong></span>
+                            </div>
+
+                            {/* Question count badge */}
+                            {questions.length > 0 && (() => {
+                              const qCount = questions.filter(q => q.topicId === topic.id).length;
+                              return qCount > 0 ? (
+                                <button
+                                  onClick={() => onNavigate?.('Flashcards & Practice')}
+                                  className="w-full flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-lg bg-indigo-500/10 border border-indigo-500/15 hover:bg-indigo-500/20 hover:border-indigo-500/30 text-[10px] font-mono font-bold text-indigo-305 transition cursor-pointer"
+                                >
+                                  <span>📖 {qCount} question{qCount !== 1 ? 's' : ''} linked</span>
+                                  <span className="text-indigo-400 text-[9px]">Drill →</span>
+                                </button>
+                              ) : null;
+                            })()}
+
+                            <div className="flex items-center justify-between gap-1 border-t border-white/5 pt-3">
+                              <span className={`text-[10px] font-sans px-2.5 py-0.5 rounded-full font-bold ${
+                                topic.status === 'Mastered' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/10' :
+                                topic.status === 'Interview Ready' ? 'bg-blue-500/15 text-blue-300 border border-blue-500/10' :
+                                topic.status === 'Revising' ? 'bg-indigo-500/15 text-indigo-305 border border-indigo-500/10' :
+                                topic.status === 'Practicing' ? 'bg-purple-500/15 text-purple-305 border border-purple-500/10' :
+                                topic.status === 'Learning' ? 'bg-amber-500/15 text-amber-300 border border-amber-500/10' : 'bg-white/5 text-slate-300 border border-white/10'
+                              }`}>
+                                {topic.status}
+                              </span>
+
+                              <button 
+                                onClick={() => {
+                                  setTeachMeTopicId(topic.id);
+                                  setActiveSubTab('teach-me');
+                                }}
+                                className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-0.5 cursor-pointer"
+                              >
+                                <span>Review Notes</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              }}
-            />
+                </div>
+              ))}
+
+              {/* Scroll Observer Sentinel at the bottom of the list */}
+              {topics.length >= topicLimit && (
+                <div ref={sentinelRef} className="py-10 flex flex-col items-center justify-center gap-2">
+                  <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs text-slate-400 font-mono tracking-wider">Loading more topics...</span>
+                </div>
+              )}
+            </div>
           )}
 
-          {!isEditing && flatItems.length === 0 && (
+          {!isEditing && filteredTopics.length === 0 && (
             <div className="text-center py-12 glass-card">
               <HelpCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
               <p className="text-slate-300 text-sm font-semibold">No studied topics matched filters</p>

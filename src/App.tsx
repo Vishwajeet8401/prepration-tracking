@@ -508,6 +508,7 @@ export default function App() {
               onLoadMore={() => { if (topics.length >= topicLimit) setTopicLimit(prev => prev + 50); }}
               onNavigate={(dest) => setActiveTab(dest)}
               userId={user?.uid}
+              topicLimit={topicLimit}
             />
           )}
 
@@ -524,6 +525,7 @@ export default function App() {
               onDeleteVoiceRecording={handleDeleteVoice}
               onLoadMore={() => { if (questions.length >= questionLimit) setQuestionLimit(prev => prev + 50); }}
               onNavigate={(dest) => setActiveTab(dest)}
+              questionLimit={questionLimit}
             />
           )}
 
