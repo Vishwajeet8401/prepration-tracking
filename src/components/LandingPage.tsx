@@ -1057,7 +1057,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             {/* CTAs */}
             <div className="hidden md:flex items-center gap-3">
               <a
-                href="https://github.com"
+                href="https://github.com/Vishwajeet8401/prepration-tracking"
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-slate-300 hover:text-white border border-white/10 hover:border-white/20 transition lp-interactive"
               >
@@ -1242,7 +1242,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
           {/* Secondary CTA */}
           <a
-            href="https://github.com"
+            href="https://github.com/Vishwajeet8401/prepration-tracking"
             target="_blank" rel="noopener noreferrer"
             className="lp-btn-ghost !px-9 !py-4.5 !text-[16px] lp-interactive flex items-center gap-2.5 rounded-2xl hover:bg-white/10"
           >
@@ -1475,7 +1475,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               Start Preparing Now
             </button>
             <a
-              href="https://github.com"
+              href="https://github.com/Vishwajeet8401/prepration-tracking"
               target="_blank" rel="noopener noreferrer"
               className="lp-btn-ghost lp-interactive text-base"
             >
@@ -1504,7 +1504,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </span>
           </div>
           <div className="flex items-center gap-6 text-xs text-slate-600">
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">GitHub</a>
+            <a href="https://github.com/Vishwajeet8401/prepration-tracking" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">GitHub</a>
             <a href="https://tracking-prep.web.app" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">Live App</a>
             <a href="https://vishwajeetkalokhe-dev-portfolio.vercel.app/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">Portfolio</a>
             <span>Apache-2.0 License</span>
@@ -1513,7 +1513,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       </footer>
 
       {/* ─── FLOATING CREATOR BADGE ─────────────────────────────────────────── */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 left-6 z-50">
         <a
           href="https://vishwajeetkalokhe-dev-portfolio.vercel.app/"
           target="_blank"
