@@ -901,36 +901,84 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!user) return;
     setLoading(true);
     try {
+      const mapId = (id: string) => `${id}_${user.uid}`;
       const batch = writeBatch(db);
+      
       initialSubjects.forEach((s) => {
-        batch.set(doc(db, 'subjects', s.id), { ...s, userId: user.uid });
+        batch.set(doc(db, 'subjects', mapId(s.id)), { 
+          ...s, 
+          id: mapId(s.id), 
+          userId: user.uid 
+        });
       });
       initialTopics.forEach((t) => {
-        batch.set(doc(db, 'topics', t.id), { ...t, easeFactor: 2.5, intervalDays: 1, userId: user.uid });
+        batch.set(doc(db, 'topics', mapId(t.id)), { 
+          ...t, 
+          id: mapId(t.id),
+          subjectId: mapId(t.subjectId),
+          dependencyIds: t.dependencyIds.map(mapId),
+          easeFactor: 2.5, 
+          intervalDays: 1, 
+          userId: user.uid 
+        });
       });
       initialQuestions.forEach((q) => {
-        batch.set(doc(db, 'questions', q.id), { ...q, userId: user.uid });
+        batch.set(doc(db, 'questions', mapId(q.id)), { 
+          ...q, 
+          id: mapId(q.id),
+          topicId: mapId(q.topicId),
+          userId: user.uid 
+        });
       });
       initialJobApplications.forEach((ja) => {
-        batch.set(doc(db, 'jobApplications', ja.id), { ...ja, userId: user.uid });
+        batch.set(doc(db, 'jobApplications', mapId(ja.id)), { 
+          ...ja, 
+          id: mapId(ja.id), 
+          userId: user.uid 
+        });
       });
       initialInterviews.forEach((i) => {
-        batch.set(doc(db, 'interviews', i.id), { ...i, userId: user.uid });
+        batch.set(doc(db, 'interviews', mapId(i.id)), { 
+          ...i, 
+          id: mapId(i.id), 
+          userId: user.uid 
+        });
       });
       initialMistakes.forEach((m) => {
-        batch.set(doc(db, 'mistakes', m.id), { ...m, userId: user.uid });
+        batch.set(doc(db, 'mistakes', mapId(m.id)), { 
+          ...m, 
+          id: mapId(m.id), 
+          userId: user.uid 
+        });
       });
       initialStudySessions.forEach((s) => {
-        batch.set(doc(db, 'studySessions', s.id), { ...s, userId: user.uid });
+        batch.set(doc(db, 'studySessions', mapId(s.id)), { 
+          ...s, 
+          id: mapId(s.id),
+          topicId: mapId(s.topicId),
+          userId: user.uid 
+        });
       });
       initialNotifications.forEach((n) => {
-        batch.set(doc(db, 'notifications', n.id), { ...n, userId: user.uid });
+        batch.set(doc(db, 'notifications', mapId(n.id)), { 
+          ...n, 
+          id: mapId(n.id), 
+          userId: user.uid 
+        });
       });
       initialIntelliQuestions.forEach((iq) => {
-        batch.set(doc(db, 'intelliQuestions', iq.id), { ...iq, userId: user.uid });
+        batch.set(doc(db, 'intelliQuestions', mapId(iq.id)), { 
+          ...iq, 
+          id: mapId(iq.id), 
+          userId: user.uid 
+        });
       });
       initialMockPresetQuestions.forEach((mpq) => {
-        batch.set(doc(db, 'mockPresetQuestions', mpq.id), { ...mpq, userId: user.uid });
+        batch.set(doc(db, 'mockPresetQuestions', mapId(mpq.id)), { 
+          ...mpq, 
+          id: mapId(mpq.id), 
+          userId: user.uid 
+        });
       });
 
       await batch.commit();
