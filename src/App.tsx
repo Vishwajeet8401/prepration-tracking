@@ -32,6 +32,7 @@ import VocabularyBuilder from './components/VocabularyBuilder';
 import CameraGestureWidget from './components/CameraGestureWidget';
 import LandingPage from './components/LandingPage';
 import GestureInstructionBar from './components/GestureInstructionBar';
+import { BuyMeCoffeeModal } from './components/BuyMeCoffee';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
@@ -47,7 +48,7 @@ import {
   BookOpen, Sparkles, Award, ListTodo, Calendar, 
   Settings, Flame, Activity, Compass, HelpCircle as HelpIcon, Bell, 
   BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked,
-  ArrowUp, ArrowLeft
+  ArrowUp, ArrowLeft, Coffee
 } from 'lucide-react';
 import { AppNotification } from './types';
 
@@ -102,6 +103,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('Home Dashboard');
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
+  const [isCoffeeModalOpen, setIsCoffeeModalOpen] = useState(false);
 
   const isHandlingHistoryRef = useRef(false);
 
@@ -326,24 +328,32 @@ export default function App() {
                       { label: 'Daily Journal & Notes', icon: BookOpen },
                       { label: 'Practice Simulator', icon: Gamepad2 },
                       { label: 'Mobile Sync Hub', icon: Smartphone },
-                      { label: 'Backup & Data Settings', icon: Settings }
+                      { label: 'Backup & Data Settings', icon: Settings },
+                      { label: 'Support Creator ☕', icon: Coffee, action: () => setIsCoffeeModalOpen(true) }
                     ].map(tab => {
                       const Icon = tab.icon;
                       const isActive = activeTab === tab.label;
+                      const hasAction = 'action' in tab;
                       return (
                         <button
                           key={tab.label}
                           onClick={() => {
-                            setActiveTab(tab.label);
+                            if ('action' in tab && typeof tab.action === 'function') {
+                              tab.action();
+                            } else {
+                              setActiveTab(tab.label);
+                            }
                             setIsNavOpen(false);
                           }}
                           className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                             isActive 
                               ? 'bg-indigo-650 text-white shadow-md border border-indigo-500/30' 
-                              : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                              : hasAction 
+                                ? 'bg-indigo-950/20 text-indigo-300 hover:bg-indigo-950/40 hover:text-indigo-200 border border-indigo-500/10'
+                                : 'text-slate-300 hover:bg-white/10 hover:text-white'
                           }`}
                         >
-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : hasAction ? 'text-indigo-450' : 'text-slate-400'}`} />
                           <span>{tab.label}</span>
                         </button>
                       );
@@ -390,21 +400,31 @@ export default function App() {
                 { label: 'Daily Journal & Notes', icon: BookOpen },
                 { label: 'Practice Simulator', icon: Gamepad2 },
                 { label: 'Mobile Sync Hub', icon: Smartphone },
-                { label: 'Backup & Data Settings', icon: Settings }
+                { label: 'Backup & Data Settings', icon: Settings },
+                { label: 'Support Creator ☕', icon: Coffee, action: () => setIsCoffeeModalOpen(true) }
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.label;
+                const hasAction = 'action' in tab;
                 return (
                   <button
                     key={tab.label}
-                    onClick={() => setActiveTab(tab.label)}
+                    onClick={() => {
+                      if ('action' in tab && typeof tab.action === 'function') {
+                        tab.action();
+                      } else {
+                        setActiveTab(tab.label);
+                      }
+                    }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold font-sans tracking-wide transition cursor-pointer ${
                       isActive 
                         ? 'bg-indigo-650 text-white shadow-md border border-indigo-500/30 font-bold' 
-                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        : hasAction 
+                          ? 'bg-indigo-950/20 text-indigo-300 hover:bg-indigo-950/40 hover:text-indigo-200 border border-indigo-500/10'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : hasAction ? 'text-indigo-450' : 'text-slate-400'}`} />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -759,6 +779,11 @@ export default function App() {
         toasts={activeToasts}
         onDismiss={(id) => setActiveToasts(prev => prev.filter(t => t.id !== id))}
         onExecuteAction={handleExecuteToastAction}
+      />
+
+      <BuyMeCoffeeModal 
+        isOpen={isCoffeeModalOpen} 
+        onClose={() => setIsCoffeeModalOpen(false)} 
       />
 
       {/* Floating Scroll to Top button */}

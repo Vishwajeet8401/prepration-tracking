@@ -24,6 +24,8 @@ import {
   Bell, Briefcase, Cpu, Database
 } from 'lucide-react';
 
+import { BuyMeCoffeeSection } from './BuyMeCoffee';
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    TYPES
    ═══════════════════════════════════════════════════════════════════════════════ */
@@ -1485,6 +1487,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
         </div>
       </section>
+
+      {/* ─── SUPPORT THE CREATOR ───────────────────────────────────────────── */}
+      <BuyMeCoffeeSection />
 
       {/* ─── FOOTER ─────────────────────────────────────────────────────────── */}
       <footer className="relative z-10 border-t border-white/5 py-8 px-6 md:px-8">
