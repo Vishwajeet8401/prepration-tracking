@@ -680,7 +680,7 @@ const ActivityPlanner = React.memo(function ActivityPlanner({
                     <Info className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
                     <p className="text-sm font-semibold text-white">No tasks generated for today yet.</p>
                     <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1 leading-relaxed">
-                      Go to "Activity Plans" tab and define some habits! PrepMaster will then auto-generate checklists here.
+                      Go to "Activity Plans" tab and define some habits! PrepFlow will then auto-generate checklists here.
                     </p>
                   </div>
                 )}
@@ -749,7 +749,7 @@ const ActivityPlanner = React.memo(function ActivityPlanner({
                 <span>Planner Discipline Rules</span>
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                PrepMaster features auto-generation filters for consistency auditing. 
+                PrepFlow features auto-generation filters for consistency auditing. 
               </p>
               <ul className="space-y-2.5 text-xs text-slate-400">
                 <li className="flex gap-2">

@@ -30,6 +30,7 @@ import PersonalReminders from './components/PersonalReminders';
 import StarStoryBuilder from './components/StarStoryBuilder';
 import VocabularyBuilder from './components/VocabularyBuilder';
 import CameraGestureWidget from './components/CameraGestureWidget';
+import LandingPage from './components/LandingPage';
 import GestureInstructionBar from './components/GestureInstructionBar';
 
 // Firebase core integrations for logout
@@ -46,7 +47,7 @@ import {
   BookOpen, Sparkles, Award, ListTodo, Calendar, 
   Settings, Flame, Activity, Compass, HelpCircle as HelpIcon, Bell, 
   BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked,
-  ArrowUp
+  ArrowUp, ArrowLeft
 } from 'lucide-react';
 import { AppNotification } from './types';
 
@@ -94,12 +95,27 @@ export default function App() {
     handleMarkWordReviewed, handleSearchWordDefinition
   } = useDatabase();
 
+  // Landing page state — show by default for unauthenticated visitors
+  const [showLandingPage, setShowLandingPage] = useState(true);
+
   // Navigation tabs state
   const [activeTab, setActiveTab] = useState<string>('Home Dashboard');
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
 
   const isHandlingHistoryRef = useRef(false);
+
+  // Tab navigation stack for back button support
+  const [historyStack, setHistoryStack] = useState<string[]>(['Home Dashboard']);
+
+  const handleGoBack = () => {
+    if (historyStack.length > 1) {
+      const prevTab = historyStack[historyStack.length - 2];
+      setActiveTab(prevTab);
+    } else {
+      setActiveTab('Home Dashboard');
+    }
+  };
 
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -169,6 +185,17 @@ export default function App() {
     );
   }, [activeTab]);
 
+  // Synchronize historyStack with activeTab changes
+  useEffect(() => {
+    setHistoryStack(prev => {
+      if (prev[prev.length - 1] === activeTab) return prev;
+      if (prev.length > 1 && prev[prev.length - 2] === activeTab) {
+        return prev.slice(0, -1);
+      }
+      return [...prev, activeTab];
+    });
+  }, [activeTab]);
+
   if (authLoading) {
     return (
       <div data-theme="cyber-midnight" className="min-h-screen text-slate-100 flex flex-col items-center justify-center font-sans antialiased relative">
@@ -188,12 +215,22 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           
           <div className="flex items-center gap-2.5">
+            {activeTab !== 'Home Dashboard' && (
+              <button
+                onClick={handleGoBack}
+                id="header-back-btn"
+                className="group p-1.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/50 rounded-lg text-slate-300 hover:text-white cursor-pointer flex items-center justify-center transition-all duration-200 hover:shadow-md"
+                title="Go Back"
+              >
+                <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+              </button>
+            )}
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-xs border border-indigo-400/30">
               <BookOpen className="w-5 h-5 text-indigo-50" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 leading-none">
-                <span className="font-black text-base tracking-tight text-white font-sans">PrepMaster Hub</span>
+                <span className="font-black text-base tracking-tight text-white font-sans">PrepFlow</span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono block mt-0.5 leading-none">
                 Your Smart Learning & Goal Companion
@@ -243,7 +280,11 @@ export default function App() {
       )}
 
       {!user ? (
-        <AuthScreen />
+        showLandingPage ? (
+          <LandingPage onGetStarted={() => setShowLandingPage(false)} />
+        ) : (
+          <AuthScreen onBackToLanding={() => setShowLandingPage(true)} />
+        )
       ) : (
         <>
           <AnimatePresence>
@@ -710,7 +751,7 @@ export default function App() {
 
       <footer className="border-t border-white/5 mt-auto py-5 select-none text-center bg-black/10">
         <div className="max-w-7xl mx-auto px-4 text-xs text-slate-400 font-sans">
-          &copy; 2026 PrepMaster Hub. Accelerate learning, track tasks, and achieve your goals with smart companion tools.
+          &copy; 2026 PrepFlow. Accelerate learning, track tasks, and achieve your goals with smart companion tools.
         </div>
       </footer>
 

@@ -1,6 +1,6 @@
 {
-  "name": "PrepMaster — Intelligent Interview Tracker",
-  "short_name": "PrepMaster",
+  "name": "PrepFlow — Intelligent Interview Tracker",
+  "short_name": "PrepFlow",
   "description": "Your intelligent interview preparation command center. Track topics, practice questions, manage interviews, build habits, and get AI-powered coaching — all in one workspace.",
   "start_url": "/",
   "scope": "/",
@@ -12,14 +12,14 @@
   "categories": ["education", "productivity", "utilities"],
   "lang": "en-US",
   "dir": "ltr",
-  "id": "prepmaster-app",
+  "id": "prepflow-app",
   "prefer_related_applications": false,
   "screenshots": [
     {
       "src": "/og-preview.png",
       "sizes": "1200x630",
       "type": "image/png",
-      "label": "PrepMaster Dashboard — Interview Preparation Command Center"
+      "label": "PrepFlow Dashboard — Interview Preparation Command Center"
     }
   ],
   "icons": [

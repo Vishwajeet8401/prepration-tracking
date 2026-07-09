@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;650;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;650;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Theme Dynamic Accent mapping */
@@ -709,4 +709,230 @@
   box-shadow: 0 0 10px rgba(139, 92, 246, 0.25) !important;
   transition: outline 0.1s ease, background-color 0.1s ease, box-shadow 0.1s ease !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LANDING PAGE — Premium CSS Utilities
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Aurora Background ──────────────────────────────────────────────────────── */
+.lp-aurora {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.lp-aurora__orb {
+  position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.35;
+  will-change: transform;
+}
+.lp-aurora__orb--1 {
+  width: 600px; height: 600px; top: -10%; left: -8%;
+  background: radial-gradient(circle, rgba(99,102,241,0.6), transparent 70%);
+  animation: lp-drift-1 18s ease-in-out infinite alternate;
+}
+.lp-aurora__orb--2 {
+  width: 500px; height: 500px; top: 30%; right: -12%;
+  background: radial-gradient(circle, rgba(168,85,247,0.5), transparent 70%);
+  animation: lp-drift-2 22s ease-in-out infinite alternate;
+}
+.lp-aurora__orb--3 {
+  width: 450px; height: 450px; bottom: -5%; left: 30%;
+  background: radial-gradient(circle, rgba(14,165,233,0.4), transparent 70%);
+  animation: lp-drift-3 20s ease-in-out infinite alternate;
+}
+@keyframes lp-drift-1 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(80px,60px) scale(1.15)} }
+@keyframes lp-drift-2 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-60px,80px) scale(1.1)} }
+@keyframes lp-drift-3 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(50px,-70px) scale(1.2)} }
+
+/* ── Noise Overlay ──────────────────────────────────────────────────────────── */
+.lp-noise {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat; background-size: 200px;
+}
+
+/* ── Gradient Text ──────────────────────────────────────────────────────────── */
+.lp-gradient-text {
+  background: linear-gradient(135deg, #a5b4fc 0%, #818cf8 25%, #c084fc 50%, #f0abfc 75%, #67e8f9 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.lp-gradient-text-cyan {
+  background: linear-gradient(135deg, #67e8f9, #06b6d4, #818cf8);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.lp-gradient-text-warm {
+  background: linear-gradient(135deg, #fbbf24, #f97316, #ef4444);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+/* ── Glass Card ─────────────────────────────────────────────────────────────── */
+.lp-glass {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-radius: 20px;
+}
+.lp-glass:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+}
+.lp-glass-strong {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-radius: 24px;
+}
+
+/* ── Interactive Grid & Floating Panel Animations ───────────────────────────── */
+.lp-grid-bg {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center center;
+  mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, #000 40%, transparent 100%);
+}
+
+@keyframes float-y-1 {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(1.5deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+@keyframes float-y-2 {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(15px) rotate(-1.5deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+.lp-float-1 { animation: float-y-1 6s ease-in-out infinite; }
+.lp-float-2 { animation: float-y-2 7s ease-in-out infinite; }
+
+/* ── Glow Border Animation ──────────────────────────────────────────────────── */
+.lp-glow-border {
+  position: relative; overflow: hidden;
+}
+.lp-glow-border::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1;
+  background: conic-gradient(from 0deg, transparent 0%, rgba(99,102,241,0.4) 25%, transparent 50%, rgba(168,85,247,0.4) 75%, transparent 100%);
+  border-radius: inherit; animation: lp-glow-spin 6s linear infinite;
+}
+@keyframes lp-glow-spin { to { transform: rotate(360deg); } }
+
+/* ── Gradient Flow Animation ────────────────────────────────────────────────── */
+@keyframes gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-gradient {
+  animation: gradient-flow 6s ease infinite;
+}
+
+/* ── Marquee ────────────────────────────────────────────────────────────────── */
+.lp-marquee { display: flex; overflow: hidden; width: 100%; }
+.lp-marquee__track {
+  display: flex; gap: 24px; animation: lp-marquee-scroll 35s linear infinite; flex-shrink: 0;
+}
+.lp-marquee:hover .lp-marquee__track { animation-play-state: paused; }
+@keyframes lp-marquee-scroll { to { transform: translateX(-50%); } }
+
+/* ── Section Reveal ─────────────────────────────────────────────────────────── */
+.lp-reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1); }
+.lp-reveal.is-visible { opacity: 1; transform: translateY(0); }
+
+/* ── Custom Cursor ──────────────────────────────────────────────────────────── */
+.lp-cursor {
+  position: fixed; top: 0; left: 0; width: 20px; height: 20px;
+  border: 1.5px solid rgba(165,180,252,0.5); border-radius: 50%;
+  pointer-events: none; z-index: 99999; mix-blend-mode: difference;
+  transition: width 0.25s cubic-bezier(0.16,1,0.3,1), height 0.25s cubic-bezier(0.16,1,0.3,1), background 0.25s, border-color 0.25s;
+  will-change: transform;
+}
+.lp-cursor.is-hovering {
+  width: 52px; height: 52px; background: rgba(165,180,252,0.12); border-color: rgba(165,180,252,0.7);
+}
+
+.lp-cursor-dot {
+  position: fixed; top: 0; left: 0; width: 5px; height: 5px;
+  background: #a5b4fc; border-radius: 50%;
+  pointer-events: none; z-index: 99999; mix-blend-mode: difference;
+  will-change: transform;
+}
+
+/* Hide on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .lp-cursor, .lp-cursor-dot { display: none !important; }
+}
+
+/* ── Magnetic Button ────────────────────────────────────────────────────────── */
+.lp-btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 32px; border-radius: 14px; font-weight: 700; font-size: 15px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff; border: none; cursor: pointer; position: relative; overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s;
+  box-shadow: 0 4px 24px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.lp-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 40px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.lp-btn-primary::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+  transform: translateX(-100%); transition: transform 0.6s;
+}
+.lp-btn-primary:hover::after { transform: translateX(100%); }
+
+.lp-btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 32px; border-radius: 14px; font-weight: 700; font-size: 15px;
+  background: rgba(255,255,255,0.04); color: #e2e8f0;
+  border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), background 0.3s, border-color 0.3s;
+}
+.lp-btn-ghost:hover {
+  transform: translateY(-2px); background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2);
+}
+
+/* ── Stat Pill ──────────────────────────────────────────────────────────────── */
+.lp-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 20px; border-radius: 14px; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Feature Icon Container ─────────────────────────────────────────────────── */
+.lp-icon-box {
+  width: 52px; height: 52px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
+  flex-shrink: 0;
+}
+
+/* ── Progress Ring ──────────────────────────────────────────────────────────── */
+.lp-ring { transform: rotate(-90deg); }
+.lp-ring__track { fill: none; stroke: rgba(255,255,255,0.06); }
+.lp-ring__fill { fill: none; stroke-linecap: round; transition: stroke-dashoffset 1.5s cubic-bezier(0.16,1,0.3,1); }
+
+/* ── FAQ ────────────────────────────────────────────────────────────────────── */
+.lp-faq-item { border-bottom: 1px solid rgba(255,255,255,0.06); }
+.lp-faq-btn {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 0; background: none; border: none; cursor: pointer; color: #e2e8f0;
+  font-size: 16px; font-weight: 600; text-align: left;
+}
+.lp-faq-btn svg { transition: transform 0.3s; flex-shrink: 0; }
+.lp-faq-btn[aria-expanded="true"] svg { transform: rotate(45deg); }
+.lp-faq-content { overflow: hidden; transition: max-height 0.4s cubic-bezier(0.16,1,0.3,1); max-height: 0; }
+.lp-faq-content.is-open { max-height: 300px; }
+
+/* ── Scroll indicator ───────────────────────────────────────────────────────── */
+@keyframes lp-scroll-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+.lp-scroll-indicator { animation: lp-scroll-bounce 2s ease-in-out infinite; }
 

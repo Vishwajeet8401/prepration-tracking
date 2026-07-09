@@ -709,7 +709,11 @@ const TopicManagement = React.memo(function TopicManagement({
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
                                 <button 
-                                  onClick={() => onDeleteTopic(topic.id)}
+                                  onClick={() => {
+                                    if (confirm("Are you sure you want to delete this topic? All linked questions will be deleted as well.")) {
+                                      onDeleteTopic(topic.id);
+                                    }
+                                  }}
                                   className="p-1 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-white/5 transition cursor-pointer"
                                   title="Delete Topic"
                                 >

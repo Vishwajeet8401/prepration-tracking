@@ -763,8 +763,13 @@ const QuestionBank = React.memo(function QuestionBank({
                           </button>
                           <button 
                             type="button"
-                            onClick={() => onDeleteQuestion(q.id)}
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this question? This action cannot be undone.")) {
+                                onDeleteQuestion(q.id);
+                              }
+                            }}
                             className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-white/5 cursor-pointer"
+                            title="Delete Question"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

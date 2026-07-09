@@ -17,9 +17,10 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface AuthScreenProps {
   onSuccess?: () => void;
+  onBackToLanding?: () => void;
 }
 
-export default function AuthScreen({ onSuccess }: AuthScreenProps) {
+export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenProps) {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'link'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -223,312 +224,378 @@ export default function AuthScreen({ onSuccess }: AuthScreenProps) {
   };
 
   return (
-    <div id="auth-screen-container" className="flex items-center justify-center min-h-[85vh] p-4 z-10">
+    <div id="auth-screen-container" className="fixed inset-0 flex items-center justify-center p-4 z-50 overflow-y-auto min-h-0 bg-[#060918]/40">
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-8 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-4xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/60 rounded-3xl shadow-[0_30px_100px_rgba(0,0,0,0.8)] relative overflow-hidden"
       >
+        {/* Back Button */}
+        {onBackToLanding && (
+          <button
+            onClick={onBackToLanding}
+            className="absolute right-6 top-6 p-2 text-slate-500 hover:text-white rounded-xl hover:bg-white/5 transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer z-20"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
+        )}
+
         {/* Glow effect */}
-        <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/15 rounded-full blur-2xl" />
-        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-emerald-500/15 rounded-full blur-2xl" />
+        <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="text-center mb-8 relative">
-          <div className="inline-flex p-3 bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 rounded-xl mb-4 border border-indigo-500/30">
-            <Sparkles className="w-8 h-8 text-indigo-400 animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
+          {/* Left Column: Brand & Info (Desktop only) */}
+          <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-10 bg-indigo-950/10 border-r border-slate-800/60 relative">
+            {/* Interactive Grid Background */}
+            <div className="absolute inset-0 lp-grid-bg pointer-events-none opacity-40 z-0" />
+            
+            <div className="relative z-10 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <Sparkles size={16} className="text-white" />
+              </div>
+              <span className="font-bold text-[16px] text-white font-display">PrepFlow</span>
+            </div>
+
+            <div className="relative z-10 my-auto py-8 space-y-6">
+              <h3 className="text-xl font-bold font-display text-white leading-tight">
+                Accelerate your <span className="text-[#00F0FF]">learning loop</span> with smart companion tools.
+              </h3>
+              <ul className="space-y-4 text-xs text-slate-300">
+                {[
+                  { title: 'AI Mock Simulator', desc: 'Real-time spoken responses scored by LLM engines.' },
+                  { title: 'Spaced Repetition', desc: 'Retain tech concepts right before you forget them.' },
+                  { title: 'Goals & Applications', desc: 'Track companies, offer pipelines, and schedules.' }
+                ].map((item) => (
+                  <li key={item.title} className="flex gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
+                    <div>
+                      <strong className="text-white block mb-0.5">{item.title}</strong>
+                      <span className="text-slate-400 leading-normal">{item.desc}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="relative z-10 border-t border-slate-800/60 pt-4 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+              <span>v1.0.0 released</span>
+              <span>Free & Open Source</span>
+            </div>
           </div>
-          <h2 className="text-3xl font-bold font-sans tracking-tight text-white mb-1">
-            Preparation Tracker
-          </h2>
-          <p className="text-sm text-slate-300 font-medium mb-1">
-            Master interviews with focused, AI-powered preparation
-          </p>
-          <p className="text-xs text-slate-400">
-            Secure, intelligent preparation workspace
-          </p>
-        </div>
 
-        <AnimatePresence mode="wait">
-          {error && (
-            <motion.div 
-              key="error-msg"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-5 bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-start gap-2 text-rose-300 text-xs"
-            >
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </motion.div>
-          )}
-          {successMessage && (
-            <motion.div 
-              key="success-msg"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-start gap-2 text-emerald-300 text-xs"
-            >
-              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{successMessage}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {mode === 'forgot' ? (
-          <form onSubmit={handleForgotPassword} className="space-y-4 relative">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                <input 
-                  type="email"
-                  placeholder="work@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
-                  required
-                />
+          {/* Right Column: Auth Form */}
+          <div className="lg:col-span-7 p-10 flex flex-col justify-center relative">
+            {/* Form Header (Mobile/Tablet only) */}
+            <div className="text-center mb-6 relative lg:hidden mt-4">
+              <div className="inline-flex p-3 bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 rounded-2xl mb-4 border border-indigo-500/30">
+                <Sparkles className="w-8 h-8 text-indigo-400 animate-pulse" />
               </div>
+              <h2 className="text-3xl font-bold font-display tracking-tight text-white mb-1.5">
+                PrepFlow
+              </h2>
+              <p className="text-sm text-slate-300 font-medium mb-1">
+                Master interviews with focused, AI-powered preparation
+              </p>
+              <p className="text-xs text-slate-500">
+                Secure, intelligent preparation workspace
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <Loader className="w-4 h-4 animate-spin text-white" />
-              ) : (
-                <>
-                  <KeyRound className="w-4 h-4" />
-                  Send Password Reset Link
-                </>
+            {/* Form Header (Desktop only) */}
+            <div className="hidden lg:block mb-6 relative">
+              <h2 className="text-2xl font-bold font-display tracking-tight text-white mb-1">
+                {mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : mode === 'link' ? 'Link Account' : 'Welcome Back'}
+              </h2>
+              <p className="text-xs text-slate-450">
+                {mode === 'signup' ? 'Set up your smart preparation workspace' : mode === 'forgot' ? 'Get back into your account' : mode === 'link' ? 'Verify your password to link Google' : 'Enter details to access your dashboard'}
+              </p>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div 
+                  key="error-msg"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-5 bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-start gap-2 text-rose-300 text-xs"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </motion.div>
               )}
-            </button>
-          </form>
-        ) : mode === 'link' ? (
-          <form onSubmit={handleLinkCredential} className="space-y-4 relative">
-            <div className="text-xs text-slate-300 bg-slate-800/40 border border-slate-700/40 p-3 rounded-lg leading-relaxed mb-4">
-              An account with email <strong className="text-indigo-300">{email}</strong> already exists. 
-              Please enter the password for this account to link Google sign-in.
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                <input 
-                  type="password"
-                  placeholder="Enter your account password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <Loader className="w-4 h-4 animate-spin text-white" />
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4" />
-                  Verify & Link Account
-                </>
+              {successMessage && (
+                <motion.div 
+                  key="success-msg"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-start gap-2 text-emerald-300 text-xs"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{successMessage}</span>
+                </motion.div>
               )}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleEmailAuth} className="space-y-4 relative">
-            {mode === 'signup' && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                  <input 
-                    type="text"
-                    placeholder="Your full name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
-                  />
+            </AnimatePresence>
+
+            {mode === 'forgot' ? (
+              <form onSubmit={handleForgotPassword} className="space-y-4 relative">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="email"
+                      placeholder="work@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-slate-700/50 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/25 transition-all"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 mt-6 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] hover:from-[#5659ed] hover:to-[#7f51f3] text-white font-bold text-sm rounded-xl cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <Loader className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <>
+                      <KeyRound className="w-4 h-4" />
+                      Send Password Reset Link
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : mode === 'link' ? (
+              <form onSubmit={handleLinkCredential} className="space-y-4 relative">
+                <div className="text-xs text-slate-300 bg-slate-800/40 border border-slate-700/40 p-3 rounded-lg leading-relaxed mb-4">
+                  An account with email <strong className="text-indigo-300">{email}</strong> already exists. 
+                  Please enter the password for this account to link Google sign-in.
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="password"
+                      placeholder="Enter your account password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-slate-700/50 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/25 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 mt-6 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] hover:from-[#5659ed] hover:to-[#7f51f3] text-white font-bold text-sm rounded-xl cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <Loader className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      Verify & Link Account
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleEmailAuth} className="space-y-4 relative">
+                {mode === 'signup' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Full Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                      <input 
+                        type="text"
+                        placeholder="Your full name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-slate-700/50 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/25 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="email"
+                      placeholder="work@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-slate-700/50 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/25 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Password</label>
+                    {mode === 'signin' && (
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          setSuccessMessage(null);
+                          setMode('forgot');
+                        }}
+                        className="text-xs text-indigo-400 hover:text-indigo-300 transition hover:underline cursor-pointer"
+                      >
+                        Forgot Password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="password"
+                      placeholder="Min. 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-slate-700/50 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/25 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  id="auth-submit-btn"
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 mt-6 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] hover:from-[#5659ed] hover:to-[#7f51f3] text-white font-bold text-sm rounded-xl cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <Loader className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      {mode === 'signup' ? 'Create Account' : 'Sign In Secure'}
+                    </>
+                  )}
+                </button>
+              </form>
             )}
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                <input 
-                  type="email"
-                  placeholder="work@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
-                  required
-                />
-              </div>
-            </div>
+            {(mode === 'signin' || mode === 'signup') && (
+              <>
+                <div className="relative flex py-4 items-center">
+                  <div className="flex-grow border-t border-slate-800/50"></div>
+                  <span className="flex-shrink mx-4 text-slate-500 text-[10px] tracking-widest uppercase font-mono font-semibold">Or Connect</span>
+                  <div className="flex-grow border-t border-slate-800/50"></div>
+                </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-semibold text-slate-300 block uppercase tracking-wider">Password</label>
-                {mode === 'signin' && (
-                  <button 
+                <div className={`grid gap-3 mb-6 ${isDemoAvailable ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <button
                     type="button"
+                    id="google-auth-btn"
+                    onClick={handleGoogleAuth}
+                    disabled={loading}
+                    className="py-2.5 px-4 cursor-pointer bg-white/5 border border-white/10 rounded-xl text-xs text-slate-200 hover:bg-white/10 hover:border-white/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-bold"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.63 15.03 1 12 1 7.24 1 3.21 3.73 1.25 7.72l3.86 3C6.03 7.72 8.78 5.04 12 5.04z" />
+                      <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.45h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.99 3.74-4.91 3.74-8.53z" />
+                      <path fill="#FBBC05" d="M5.11 14.78c-.24-.72-.38-1.5-.38-2.28 0-.78.14-1.56.38-2.28l-3.86-3C.46 8.78 0 10.33 0 12c0 1.67.46 3.22 1.25 4.72l3.86-2.94z" />
+                      <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.1.74-2.5 1.18-4.28 1.18-3.22 0-5.97-2.68-6.89-5.68l-3.86 3C3.21 20.27 7.24 23 12 23z" />
+                    </svg>
+                    Google
+                  </button>
+
+                  {isDemoAvailable && (
+                    <button
+                      type="button"
+                      id="demo-sandbox-btn"
+                      onClick={handleQuickDemoLoc}
+                      disabled={loading}
+                      className="py-2.5 px-4 cursor-pointer bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-bold"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Try Demo
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="text-center text-xs text-slate-400 space-y-1.5">
+              <p>
+                {mode === 'signup' && (
+                  <span>
+                    Already have an account?{' '}
+                    <button 
+                      onClick={() => {
+                        setError(null);
+                        setSuccessMessage(null);
+                        setMode('signin');
+                      }} 
+                      className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline cursor-pointer"
+                    >
+                      Sign In
+                    </button>
+                  </span>
+                )}
+                {mode === 'signin' && (
+                  <span>
+                    New here?{' '}
+                    <button 
+                      onClick={() => {
+                        setError(null);
+                        setSuccessMessage(null);
+                        setMode('signup');
+                      }} 
+                      className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline cursor-pointer"
+                    >
+                      Create Account
+                    </button>
+                  </span>
+                )}
+                {mode === 'forgot' && (
+                  <button 
                     onClick={() => {
                       setError(null);
                       setSuccessMessage(null);
-                      setMode('forgot');
-                    }}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 transition hover:underline"
+                      setMode('signin');
+                    }} 
+                    className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
                   >
-                    Forgot Password?
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Back to Sign In
                   </button>
                 )}
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500" />
-                <input 
-                  type="password"
-                  placeholder="Min. 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition-all"
-                  required
-                />
-              </div>
+                {mode === 'link' && (
+                  <button 
+                    onClick={() => {
+                      setError(null);
+                      setSuccessMessage(null);
+                      setMode('signin');
+                      setPendingGoogleCred(null);
+                    }} 
+                    className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Cancel & Sign In
+                  </button>
+                )}
+              </p>
+              <p className="text-[11px] text-slate-500 pt-1">
+                By continuing, you agree to our Terms of Service & Privacy Policy
+              </p>
             </div>
-
-            <button
-              type="submit"
-              id="auth-submit-btn"
-              disabled={loading}
-              className="w-full py-3 px-4 mt-6 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-lg cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <Loader className="w-4 h-4 animate-spin text-white" />
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4" />
-                  {mode === 'signup' ? 'Create Account' : 'Sign In Secure'}
-                </>
-              )}
-            </button>
-          </form>
-        )}
-
-        {(mode === 'signin' || mode === 'signup') && (
-          <>
-            <div className="relative flex py-5 items-center">
-              <div className="flex-grow border-t border-slate-800/50"></div>
-              <span className="flex-shrink mx-4 text-slate-500 text-[11px] tracking-widest uppercase font-mono font-semibold">Or Connect</span>
-              <div className="flex-grow border-t border-slate-800/50"></div>
-            </div>
-
-            <div className={`grid gap-3 mb-6 ${isDemoAvailable ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              <button
-                type="button"
-                id="google-auth-btn"
-                onClick={handleGoogleAuth}
-                disabled={loading}
-                className="py-2.5 px-4 cursor-pointer bg-slate-900/40 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:bg-slate-800/60 hover:border-slate-600/50 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-medium"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.63 15.03 1 12 1 7.24 1 3.21 3.73 1.25 7.72l3.86 3C6.03 7.72 8.78 5.04 12 5.04z" />
-                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.45h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.99 3.74-4.91 3.74-8.53z" />
-                  <path fill="#FBBC05" d="M5.11 14.78c-.24-.72-.38-1.5-.38-2.28 0-.78.14-1.56.38-2.28l-3.86-3C.46 8.78 0 10.33 0 12c0 1.67.46 3.22 1.25 4.72l3.86-2.94z" />
-                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.1.74-2.5 1.18-4.28 1.18-3.22 0-5.97-2.68-6.89-5.68l-3.86 3C3.21 20.27 7.24 23 12 23z" />
-                </svg>
-                Google
-              </button>
-
-              {isDemoAvailable && (
-                <button
-                  type="button"
-                  id="demo-sandbox-btn"
-                  onClick={handleQuickDemoLoc}
-                  disabled={loading}
-                  className="py-2.5 px-4 cursor-pointer bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 hover:bg-emerald-950/50 hover:border-emerald-500/40 flex items-center justify-center gap-2 transition-all disabled:opacity-50 font-medium"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Try Demo
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        <div className="text-center text-xs text-slate-400 space-y-1.5">
-          <p>
-            {mode === 'signup' && (
-              <span>
-                Already have an account?{' '}
-                <button 
-                  onClick={() => {
-                    setError(null);
-                    setSuccessMessage(null);
-                    setMode('signin');
-                  }} 
-                  className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline"
-                >
-                  Sign In
-                </button>
-              </span>
-            )}
-            {mode === 'signin' && (
-              <span>
-                New here?{' '}
-                <button 
-                  onClick={() => {
-                    setError(null);
-                    setSuccessMessage(null);
-                    setMode('signup');
-                  }} 
-                  className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline"
-                >
-                  Create Account
-                </button>
-              </span>
-            )}
-            {mode === 'forgot' && (
-              <button 
-                onClick={() => {
-                  setError(null);
-                  setSuccessMessage(null);
-                  setMode('signin');
-                }} 
-                className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline flex items-center justify-center gap-1.5 mx-auto"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back to Sign In
-              </button>
-            )}
-            {mode === 'link' && (
-              <button 
-                onClick={() => {
-                  setError(null);
-                  setSuccessMessage(null);
-                  setMode('signin');
-                  setPendingGoogleCred(null);
-                }} 
-                className="text-indigo-400 hover:text-indigo-300 font-semibold transition hover:underline flex items-center justify-center gap-1.5 mx-auto"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Cancel & Sign In
-              </button>
-            )}
-          </p>
-          <p className="text-[11px] text-slate-500 pt-1">
-            By continuing, you agree to our Terms of Service & Privacy Policy
-          </p>
+          </div>
         </div>
       </motion.div>
     </div>

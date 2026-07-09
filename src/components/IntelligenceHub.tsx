@@ -89,7 +89,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
     }
   }>(() => {
     try {
-      const saved = localStorage.getItem('prepmaster_custom_revision_decks');
+      const saved = localStorage.getItem('prepflow_custom_revision_decks');
       return saved ? JSON.parse(saved) : {};
     } catch (e) {
       console.error("Failed to parse custom revision decks:", e);
@@ -126,7 +126,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
 
         const updated = { ...customRevisionDecks, ...json };
         setCustomRevisionDecks(updated);
-        localStorage.setItem('prepmaster_custom_revision_decks', JSON.stringify(updated));
+        localStorage.setItem('prepflow_custom_revision_decks', JSON.stringify(updated));
         alert('Custom revision decks imported successfully!');
         
         // Auto-select the first imported deck if available
@@ -146,7 +146,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(customRevisionDecks, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href",     dataStr);
-    downloadAnchor.setAttribute("download", "prepmaster_custom_revision_decks.json");
+    downloadAnchor.setAttribute("download", "prepflow_custom_revision_decks.json");
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -172,7 +172,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(template, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href",     dataStr);
-    downloadAnchor.setAttribute("download", "prepmaster_revision_deck_template.json");
+    downloadAnchor.setAttribute("download", "prepflow_revision_deck_template.json");
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -183,7 +183,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
       const updated = { ...customRevisionDecks };
       delete updated[deckName];
       setCustomRevisionDecks(updated);
-      localStorage.setItem('prepmaster_custom_revision_decks', JSON.stringify(updated));
+      localStorage.setItem('prepflow_custom_revision_decks', JSON.stringify(updated));
       setSelectedRevisionDeck('Java Core'); // Fallback
     }
   };
@@ -618,7 +618,7 @@ const IntelligenceHub = React.memo(function IntelligenceHub({
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(reportData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href",     dataStr);
-    downloadAnchor.setAttribute("download", `prepmaster_intelligence_report_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute("download", `prepflow_intelligence_report_${new Date().toISOString().split('T')[0]}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

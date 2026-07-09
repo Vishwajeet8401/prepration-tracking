@@ -115,7 +115,7 @@ export default function FuturisticToaster({
             <span className="text-[10px] font-mono font-bold text-slate-200 uppercase tracking-wider">Telemetry Desktop Sync</span>
           </div>
           <p className="text-[10px] text-slate-400 leading-normal">
-            Enable native operating system notifications to receive critical interview alerts when PrepMaster is in the background.
+            Enable native operating system notifications to receive critical interview alerts when PrepFlow is in the background.
           </p>
           <div className="flex gap-2 justify-end mt-1">
             <button

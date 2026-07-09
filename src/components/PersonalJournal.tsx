@@ -801,7 +801,7 @@ const PersonalJournal = React.memo(function PersonalJournal({
 
             {/* Quick coaching tips on reflective learning */}
             <div className="glass-card p-4 space-y-2 bg-indigo-950/15 border-indigo-500/15">
-              <span className="text-[10px] font-mono text-indigo-400 font-black uppercase tracking-wider block">PrepMaster Coaching Insight</span>
+              <span className="text-[10px] font-mono text-indigo-400 font-black uppercase tracking-wider block">PrepFlow Coaching Insight</span>
               <p className="text-[10px] text-slate-400 leading-normal">
                 Reflective learning doubles retention. Reviewing mock errors or whiteboard struggles before bed allows deep motor skills synthesis. Add tags like <strong className="text-indigo-300">#failedconcept</strong> to pull up checklists in seconds next time panels ask.
               </p>

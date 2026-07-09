@@ -1047,25 +1047,23 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const handleDeleteTopic = useCallback(async (id: string) => {
     if (!user) return;
-    if (confirm("Confirm deleting this studied topic? Linked dependencies could trigger warning shifts.")) {
-      try {
-        await deleteDoc(doc(db, 'topics', id));
-        
-        const orphans = questionsRef.current.filter(q => q.topicId === id);
-        const batch = writeBatch(db);
-        orphans.forEach(q => {
-          batch.delete(doc(db, 'questions', q.id));
-        });
-        await batch.commit();
+    try {
+      await deleteDoc(doc(db, 'topics', id));
+      
+      const orphans = questionsRef.current.filter(q => q.topicId === id);
+      const batch = writeBatch(db);
+      orphans.forEach(q => {
+        batch.delete(doc(db, 'questions', q.id));
+      });
+      await batch.commit();
 
-        await pushNotification({
-          title: 'Topic Deleted',
-          message: 'Topic card destroyed, orphan question bank nodes resolved.',
-          type: 'daily'
-        });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `topics/${id}`);
-      }
+      await pushNotification({
+        title: 'Topic Deleted',
+        message: 'Topic card destroyed, orphan question bank nodes resolved.',
+        type: 'daily'
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `topics/${id}`);
     }
   }, [user]);
 

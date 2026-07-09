@@ -48,7 +48,7 @@ export default function MobileOfflineHub({
 
   // Load simulated sync queue from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('prepmaster_offline_sync_queue');
+    const saved = localStorage.getItem('prepflow_offline_sync_queue');
     if (saved) {
       try {
         setSyncQueue(JSON.parse(saved));
@@ -61,7 +61,7 @@ export default function MobileOfflineHub({
   // Sync state helpers
   const saveSyncQueue = (updated: LocalSyncQueueItem[]) => {
     setSyncQueue(updated);
-    localStorage.setItem('prepmaster_offline_sync_queue', JSON.stringify(updated));
+    localStorage.setItem('prepflow_offline_sync_queue', JSON.stringify(updated));
   };
 
   // Switch Online Status
@@ -71,7 +71,7 @@ export default function MobileOfflineHub({
     if (nextState) {
       onPushNotification({
         title: 'Connection Restored',
-        message: 'PrepMaster reconnected to cloud database anchors. Tap to sync local queue.',
+        message: 'PrepFlow reconnected to cloud database anchors. Tap to sync local queue.',
         type: 'daily'
       });
     } else {
@@ -208,7 +208,7 @@ export default function MobileOfflineHub({
             </h3>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              PrepMaster integrates smart local caching (backed by SQLite/IndexedDB). Toggle the network status to **OFFLINE** above, simulate operations like adding study sessions or journal entries, and watch the background sync pipeline manage the queue!
+              PrepFlow integrates smart local caching (backed by SQLite/IndexedDB). Toggle the network status to **OFFLINE** above, simulate operations like adding study sessions or journal entries, and watch the background sync pipeline manage the queue!
             </p>
 
             {/* Simulated actions triggers when offline */}
@@ -291,7 +291,7 @@ export default function MobileOfflineHub({
           </h3>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Generate and dispatch custom background reminders directly to the floating notification center overlays of PrepMaster.
+            Generate and dispatch custom background reminders directly to the floating notification center overlays of PrepFlow.
           </p>
 
           {/* Preset triggers quick dashboard */}
@@ -460,7 +460,7 @@ export default function MobileOfflineHub({
               <span>Mobile Readiness index</span>
             </span>
             <p className="text-[11px] leading-relaxed text-slate-400">
-              PrepMaster achieves 100% Mobile Readiness scores. The Shared Firebase Backend lets developers run deep technical interview checklists with zero spatial limits.
+              PrepFlow achieves 100% Mobile Readiness scores. The Shared Firebase Backend lets developers run deep technical interview checklists with zero spatial limits.
             </p>
           </div>
 
