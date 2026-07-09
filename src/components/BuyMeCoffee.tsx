@@ -15,7 +15,7 @@ interface BuyMeCoffeeModalProps {
 }
 
 // Global configuration
-const DEFAULT_UPI_ID = 'vishwajeetkalokhe8401-1@okaxis';
+const DEFAULT_UPI_ID = '9762638267@ybl';
 const PORTFOLIO_URL = 'https://vishwajeetkalokhe-dev-portfolio.vercel.app/';
 
 /**
