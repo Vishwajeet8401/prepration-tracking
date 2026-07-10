@@ -33,6 +33,7 @@ import CameraGestureWidget from './components/CameraGestureWidget';
 import LandingPage from './components/LandingPage';
 import GestureInstructionBar from './components/GestureInstructionBar';
 import { BuyMeCoffeeModal } from './components/BuyMeCoffee';
+import CodeEditorPage from './pages/CodeEditorPage';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
@@ -48,7 +49,7 @@ import {
   BookOpen, Sparkles, Award, ListTodo, Calendar, 
   Settings, Flame, Activity, Compass, HelpCircle as HelpIcon, Bell, 
   BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked,
-  ArrowUp, ArrowLeft, Coffee
+  ArrowUp, ArrowLeft, Coffee, Code2
 } from 'lucide-react';
 import { AppNotification } from './types';
 
@@ -68,6 +69,7 @@ const ALL_TABS = [
   'My Achievements',
   'Daily Journal & Notes',
   'Practice Simulator',
+  'Code Playground',
   'Mobile Sync Hub',
   'Backup & Data Settings',
 ];
@@ -93,7 +95,7 @@ export default function App() {
     handleClearAll, handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan,
     handleUpdateTaskInApp, handleDeleteTaskInApp, handleUpdateCustomPrompt, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion,
     vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
-    handleMarkWordReviewed, handleSearchWordDefinition
+    handleMarkWordReviewed, handleSearchWordDefinition, codingQuestions
   } = useDatabase();
 
   // Landing page state — show by default for unauthenticated visitors
@@ -101,6 +103,7 @@ export default function App() {
 
   // Navigation tabs state
   const [activeTab, setActiveTab] = useState<string>('Home Dashboard');
+  const [settingsSubTab, setSettingsSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>('import');
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
   const [isCoffeeModalOpen, setIsCoffeeModalOpen] = useState(false);
@@ -327,37 +330,45 @@ export default function App() {
                       { label: 'My Achievements', icon: Award },
                       { label: 'Daily Journal & Notes', icon: BookOpen },
                       { label: 'Practice Simulator', icon: Gamepad2 },
+                      { label: 'Code Playground', icon: Code2 },
                       { label: 'Mobile Sync Hub', icon: Smartphone },
-                      { label: 'Backup & Data Settings', icon: Settings },
-                      { label: 'Support Creator ☕', icon: Coffee, action: () => setIsCoffeeModalOpen(true) }
-                    ].map(tab => {
-                      const Icon = tab.icon;
-                      const isActive = activeTab === tab.label;
-                      const hasAction = 'action' in tab;
-                      return (
-                        <button
-                          key={tab.label}
-                          onClick={() => {
-                            if ('action' in tab && typeof tab.action === 'function') {
-                              tab.action();
-                            } else {
-                              setActiveTab(tab.label);
-                            }
-                            setIsNavOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                            isActive 
-                              ? 'bg-indigo-650 text-white shadow-md border border-indigo-500/30' 
-                              : hasAction 
-                                ? 'bg-indigo-950/20 text-indigo-300 hover:bg-indigo-950/40 hover:text-indigo-200 border border-indigo-500/10'
-                                : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                          }`}
-                        >
-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : hasAction ? 'text-indigo-450' : 'text-slate-400'}`} />
-                          <span>{tab.label}</span>
-                        </button>
-                      );
-                    })}
+                       { label: 'Backup & Data Settings', icon: Settings },
+                       { label: 'Support Creator ☕', icon: Coffee, action: () => setIsCoffeeModalOpen(true) }
+                     ].map(tab => {
+                       const Icon = tab.icon;
+                       const isActive = activeTab === tab.label;
+                       const hasAction = 'action' in tab;
+                       const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey;
+                       return (
+                         <button
+                           key={tab.label}
+                           onClick={() => {
+                             if ('action' in tab && typeof tab.action === 'function') {
+                               tab.action();
+                             } else {
+                               if (tab.label === 'Backup & Data Settings') {
+                                 setSettingsSubTab('import');
+                               }
+                               setActiveTab(tab.label);
+                             }
+                             setIsNavOpen(false);
+                           }}
+                           className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                             isActive 
+                               ? 'bg-indigo-650 text-white shadow-md border border-indigo-500/30' 
+                               : hasAction 
+                                 ? 'bg-indigo-950/20 text-indigo-300 hover:bg-indigo-950/40 hover:text-indigo-200 border border-indigo-500/10'
+                                 : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                           }`}
+                         >
+                           <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : hasAction ? 'text-indigo-450' : 'text-slate-400'}`} />
+                           <span>{tab.label}</span>
+                           {hasWarning && (
+                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 ml-auto animate-pulse" title="Configure AI API Keys" />
+                           )}
+                         </button>
+                       );
+                     })}
 
                     <button
                       onClick={() => {
@@ -375,7 +386,10 @@ export default function App() {
             )}
           </AnimatePresence>
 
-        <main className="max-w-7xl w-full mx-auto px-4 py-6 flex-1 flex flex-col lg:flex-row gap-6">
+          {activeTab === 'Code Playground' ? (
+            <CodeEditorPage onBackToDashboard={handleGoBack} />
+          ) : (
+            <main className="max-w-7xl w-full mx-auto px-4 py-6 flex-1 flex flex-col lg:flex-row gap-6">
           
           <nav className="hidden lg:flex w-full lg:w-60 flex-col gap-4">
             
@@ -399,36 +413,44 @@ export default function App() {
                 { label: 'My Achievements', icon: Award },
                 { label: 'Daily Journal & Notes', icon: BookOpen },
                 { label: 'Practice Simulator', icon: Gamepad2 },
+                { label: 'Code Playground', icon: Code2 },
                 { label: 'Mobile Sync Hub', icon: Smartphone },
-                { label: 'Backup & Data Settings', icon: Settings },
-                { label: 'Support Creator ☕', icon: Coffee, action: () => setIsCoffeeModalOpen(true) }
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.label;
-                const hasAction = 'action' in tab;
-                return (
-                  <button
-                    key={tab.label}
-                    onClick={() => {
-                      if ('action' in tab && typeof tab.action === 'function') {
-                        tab.action();
-                      } else {
-                        setActiveTab(tab.label);
-                      }
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold font-sans tracking-wide transition cursor-pointer ${
-                      isActive 
-                        ? 'bg-indigo-650 text-white shadow-md border border-indigo-500/30 font-bold' 
-                        : hasAction 
-                          ? 'bg-indigo-950/20 text-indigo-300 hover:bg-indigo-950/40 hover:text-indigo-200 border border-indigo-500/10'
-                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : hasAction ? 'text-indigo-450' : 'text-slate-400'}`} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+                 { label: 'Backup & Data Settings', icon: Settings },
+                 { label: 'Support Creator ☕', icon: Coffee, action: () => setIsCoffeeModalOpen(true) }
+               ].map(tab => {
+                 const Icon = tab.icon;
+                 const isActive = activeTab === tab.label;
+                 const hasAction = 'action' in tab;
+                 const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey;
+                 return (
+                   <button
+                     key={tab.label}
+                     onClick={() => {
+                       if ('action' in tab && typeof tab.action === 'function') {
+                         tab.action();
+                       } else {
+                         if (tab.label === 'Backup & Data Settings') {
+                           setSettingsSubTab('import');
+                         }
+                         setActiveTab(tab.label);
+                       }
+                     }}
+                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold font-sans tracking-wide transition cursor-pointer ${
+                       isActive 
+                         ? 'bg-indigo-650 text-white shadow-md border border-indigo-500/30 font-bold' 
+                         : hasAction 
+                           ? 'bg-indigo-950/20 text-indigo-300 hover:bg-indigo-950/40 hover:text-indigo-200 border border-indigo-500/10'
+                           : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                     }`}
+                   >
+                     <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : hasAction ? 'text-indigo-450' : 'text-slate-400'}`} />
+                     <span>{tab.label}</span>
+                     {hasWarning && (
+                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 ml-auto animate-pulse" title="Configure AI API Keys" />
+                     )}
+                   </button>
+                 );
+               })}
             </div>
 
             <div className="hidden lg:block">
@@ -497,8 +519,11 @@ export default function App() {
                     setActiveSessionTopicId(id);
                     setActiveTab('Progress & Analytics');
                   }}
-                  onNavigate={(dest) => {
+                   onNavigate={(dest, subTab) => {
                     setActiveTab(dest);
+                    if (dest === 'Backup & Data Settings' && subTab) {
+                      setSettingsSubTab(subTab as any);
+                    }
                   }}
                   plans={plans}
                   tasks={tasks}
@@ -726,6 +751,10 @@ export default function App() {
             />
           )}
 
+            {activeTab === 'Code Playground' && (
+            <CodeEditorPage />
+          )}
+
           {activeTab === 'Mobile Sync Hub' && (
             <MobileOfflineHub 
               notifications={notifications}
@@ -748,6 +777,7 @@ export default function App() {
               mockPresetQuestions={mockPresetQuestions}
               userSettings={userSettings}
               vocabularyWords={vocabularyWords}
+              codingQuestions={codingQuestions}
               onUpdateCerebrasKey={handleUpdateCerebrasKey}
               onUpdateGeminiKey={handleUpdateGeminiKey}
               onUpdateGroqKey={handleUpdateGroqKey}
@@ -756,6 +786,7 @@ export default function App() {
               onUpdateGroqModel={handleUpdateGroqModel}
               onUpdateTheme={handleUpdateTheme}
               onBulkImport={handleBulkImport}
+              initialSubTab={settingsSubTab}
             />
           )}
 
@@ -765,7 +796,8 @@ export default function App() {
 
           </section>
 
-        </main>
+            </main>
+          )}
         </>
       )}
 

@@ -5,11 +5,11 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus } from '../types';
+import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus, UserSettings } from '../types';
 import { GlobalStats } from '../hooks/useGlobalStats';
 import {
   Zap, Calendar, AlertTriangle, Play, BookOpen, Clock,
-  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square, ListTodo
+  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square, ListTodo, Sparkles
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useScrollGesture } from '../hooks/useScrollGesture';
@@ -22,7 +22,7 @@ interface DashboardProps {
   sessions: StudySession[];
   notifications: AppNotification[];
   onStartSession: (topicId: string) => void;
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, subTab?: string) => void;
   plans: ActivityPlan[];
   tasks: DailyTask[];
   onUpdateTask: (task: DailyTask, actualHours?: number, notes?: string) => Promise<void>;
@@ -34,6 +34,7 @@ interface DashboardProps {
   globalStats?: GlobalStats;
   urgentTopics?: Topic[];
   pushNotification?: (params: Omit<AppNotification, 'id' | 'date' | 'read'>) => Promise<void>;
+  userSettings?: UserSettings | null;
 }
 
 // 1. Premium Animated Counter
@@ -172,7 +173,8 @@ const Dashboard = React.memo(function Dashboard({
   onActionReminder,
   globalStats,
   urgentTopics,
-  pushNotification
+  pushNotification,
+  userSettings
 }: DashboardProps) {
 
   // Accessibility tracking prefers-reduced-motion check
@@ -1160,6 +1162,39 @@ const Dashboard = React.memo(function Dashboard({
           <span>Active Learning Cadence</span>
         </div>
       </motion.div>
+
+      {/* Dynamic Alert Banner for missing Gemini API Key */}
+      {!userSettings?.geminiApiKey && (
+        <motion.div
+          variants={itemVariants}
+          className="relative overflow-hidden rounded-2xl p-5 border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg hover:shadow-amber-500/5 transition-all duration-300"
+        >
+          <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+            <Sparkles className="w-24 h-24 text-amber-400" />
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-amber-500/15 border border-amber-500/30 text-amber-400 rounded-xl shrink-0">
+              <AlertCircle className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="text-left">
+              <h3 className="font-bold text-amber-300 text-sm font-display flex items-center gap-1.5">
+                <span>Configure Your Private Gemini API Key</span>
+                <span className="text-[9px] uppercase font-bold tracking-wider bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-200">Recommended</span>
+              </h3>
+              <p className="text-xs text-slate-350 mt-1 leading-normal max-w-2xl font-sans">
+                Unlock the full power of PrepFlow's AI Learning Assistant, Practice Simulator, Code Playground, and STAR Story Builder. Enter your own private key so you can learn without sharing resource limits.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigate('Backup & Data Settings', 'settings')}
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
+          >
+            <span>Set Up Keys</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </motion.div>
+      )}
 
       {/* 2. TOP PRIORITY: TODAY'S DAILY TASKS CARD */}
       <motion.div variants={itemVariants}>

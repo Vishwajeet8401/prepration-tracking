@@ -10,7 +10,7 @@ import {
   AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, 
   DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, 
   PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject, UserSettings, StarStory, MockPresetQuestion,
-  VocabularyWord, VocabularyStatus, WordDefinition
+  VocabularyWord, VocabularyStatus, WordDefinition, CodeQuestion, CodingProgress
 } from '../types';
 import { 
   initialTopics, initialQuestions, initialJobApplications, 
@@ -122,6 +122,13 @@ export interface DatabaseContextType {
   handleDeleteVocabularyWord: (id: string) => Promise<void>;
   handleMarkWordReviewed: (id: string) => Promise<void>;
   handleSearchWordDefinition: (query: string) => Promise<WordDefinition | null>;
+  codingQuestions: CodeQuestion[];
+  codingProgress: CodingProgress[];
+  handleAddCodingQuestion: (newQ: Omit<CodeQuestion, 'id'>) => Promise<void>;
+  handleUpdateCodingQuestion: (updated: CodeQuestion) => Promise<void>;
+  handleDeleteCodingQuestion: (id: string) => Promise<void>;
+  handleRecordCodingRecall: (questionId: string, topicId: string, response: 'Remembered' | 'Partially' | 'Forgot') => Promise<void>;
+  handleLinkCodingQuestionToTopic: (questionId: string, topicId: string) => Promise<void>;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -154,6 +161,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [mockPresetQuestions, setMockPresetQuestions] = useState<MockPresetQuestion[]>([]);
   const [vocabularyWords, setVocabularyWords] = useState<VocabularyWord[]>([]);
+  const [codingQuestions, setCodingQuestions] = useState<CodeQuestion[]>([]);
+  const [codingProgress, setCodingProgress] = useState<CodingProgress[]>([]);
 
   const globalStats = useGlobalStats(user?.uid);
   const { urgentTopics } = useUrgentTopics(user?.uid);
@@ -184,7 +193,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const mockPresetQuestionsRef = useRef(mockPresetQuestions);
   const vocabularyWordsRef = useRef(vocabularyWords);
   const userSettingsRef = useRef(userSettings);
-
+  const codingQuestionsRef = useRef(codingQuestions);
+  const codingProgressRef = useRef(codingProgress);
+ 
   useEffect(() => { subjectsRef.current = subjects; }, [subjects]);
   useEffect(() => { topicsRef.current = topics; }, [topics]);
   useEffect(() => { questionsRef.current = questions; }, [questions]);
@@ -206,6 +217,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => { mockPresetQuestionsRef.current = mockPresetQuestions; }, [mockPresetQuestions]);
   useEffect(() => { vocabularyWordsRef.current = vocabularyWords; }, [vocabularyWords]);
   useEffect(() => { userSettingsRef.current = userSettings; }, [userSettings]);
+  useEffect(() => { codingQuestionsRef.current = codingQuestions; }, [codingQuestions]);
+  useEffect(() => { codingProgressRef.current = codingProgress; }, [codingProgress]);
 
   // Toast Notifications Syncer
   useEffect(() => {
@@ -371,6 +384,42 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setVocabularyWords(list);
     }, (error) => {
       console.error('VocabularyWords snapshot error:', error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setCodingQuestions([]);
+      return;
+    }
+    const q = query(collection(db, 'codingQuestions'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: CodeQuestion[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as CodeQuestion);
+      });
+      setCodingQuestions(list);
+    }, (error) => {
+      console.error("CodingQuestions snapshot error:", error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setCodingProgress([]);
+      return;
+    }
+    const q = query(collection(db, 'codingProgress'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: CodingProgress[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as CodingProgress);
+      });
+      setCodingProgress(list);
+    }, (error) => {
+      console.error("CodingProgress snapshot error:", error);
     });
     return () => unsubscribe();
   }, [user]);
@@ -1000,7 +1049,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!user) return;
     setLoading(true);
     try {
-      const collectionsToFlush = ['topics', 'questions', 'jobApplications', 'interviews', 'mistakes', 'studySessions', 'voiceRecordings', 'notifications', 'intelliQuestions'];
+      const collectionsToFlush = ['topics', 'questions', 'jobApplications', 'interviews', 'mistakes', 'studySessions', 'voiceRecordings', 'notifications', 'intelliQuestions', 'codingQuestions', 'codingProgress'];
       for (const colName of collectionsToFlush) {
         const q = query(collection(db, colName), where('userId', '==', user.uid));
         const snap = await getDocs(q);
@@ -1021,6 +1070,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       backupData.voiceRecordings?.forEach((item: any) => addBatch.set(doc(db, 'voiceRecordings', item.id), { ...item, userId: user.uid }));
       backupData.notifications?.forEach((item: any) => addBatch.set(doc(db, 'notifications', item.id), { ...item, userId: user.uid }));
       backupData.intelliQuestions?.forEach((item: any) => addBatch.set(doc(db, 'intelliQuestions', item.id), { ...item, userId: user.uid }));
+      backupData.codingQuestions?.forEach((item: any) => addBatch.set(doc(db, 'codingQuestions', item.id), { ...item, userId: user.uid }));
+      backupData.codingProgress?.forEach((item: any) => addBatch.set(doc(db, 'codingProgress', item.id), { ...item, userId: user.uid }));
       
       await addBatch.commit();
     } catch (err) {
@@ -2046,6 +2097,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           );
           break;
         }
+        case 'Coding Questions': {
+          colName = 'codingQuestions';
+          existing = codingQuestionsRef.current.find(cq => 
+            cq.title.toLowerCase().trim() === item.title.toLowerCase().trim() ||
+            (item.id && cq.id === item.id)
+          );
+          break;
+        }
         default:
           return;
       }
@@ -2293,6 +2352,49 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             lastReviewDate: item.lastReviewDate || new Date().toISOString(),
             createdDate: item.createdDate || new Date().toISOString(),
             isAiGenerated: !!item.isAiGenerated
+          };
+          break;
+        }
+        case 'Coding Questions': {
+          docId = existing ? existing.id : (item.id || 'coding-' + Date.now() + '-' + idx);
+          
+          let resolvedTopicId = '';
+          const targetTopicId = item.topicId || item.topicName;
+          if (targetTopicId) {
+            const matchedTopic = topicsRef.current.find(t => 
+              t.id === targetTopicId || 
+              t.name.toLowerCase().trim() === targetTopicId.toLowerCase().trim()
+            );
+            if (matchedTopic) {
+              resolvedTopicId = matchedTopic.id;
+            }
+          }
+          
+          docData = {
+            id: docId,
+            userId: user.uid,
+            title: item.title || 'Untitled Challenge',
+            difficulty: item.difficulty || 'Medium',
+            description: item.description || '',
+            topicId: resolvedTopicId || '',
+            isCustom: true,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            constraints: Array.isArray(item.constraints) ? item.constraints : [],
+            examples: Array.isArray(item.examples) ? item.examples.map((ex: any) => ({
+              input: ex.input || '',
+              output: ex.output || '',
+              explanation: ex.explanation || ''
+            })) : [],
+            testCases: Array.isArray(item.testCases) ? item.testCases.map((tc: any) => ({
+              input: tc.input || '',
+              expectedOutput: tc.expectedOutput || ''
+            })) : [],
+            starterCode: typeof item.starterCode === 'object' && item.starterCode !== null ? item.starterCode : {},
+            easeFactor: Number(item.easeFactor ?? 2.5),
+            intervalDays: Number(item.intervalDays ?? 1),
+            revisionCount: Number(item.revisionCount ?? 0),
+            lastRevisedDate: item.lastRevisedDate || '',
+            nextRevisionDate: item.nextRevisionDate || ''
           };
           break;
         }
@@ -2698,6 +2800,241 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user]);
 
+  const handleAddCodingQuestion = useCallback(async (newQ: Omit<CodeQuestion, 'id'>) => {
+    if (!user) return;
+    const questionId = 'code-q-' + Date.now();
+    const created: CodeQuestion = {
+      ...newQ,
+      id: questionId,
+      userId: user.uid,
+      isCustom: true,
+      revisionCount: 0,
+      easeFactor: 2.5,
+      intervalDays: 1,
+    };
+    try {
+      await setDoc(doc(db, 'codingQuestions', questionId), created);
+      await pushNotification({
+        title: 'Custom Coding Question Created',
+        message: `"${created.title}" successfully added. Link to workspace established.`,
+        type: 'daily'
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `codingQuestions/${questionId}`);
+    }
+  }, [user, pushNotification]);
+
+  const handleUpdateCodingQuestion = useCallback(async (updated: CodeQuestion) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'codingQuestions', updated.id), { ...updated, userId: user.uid });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `codingQuestions/${updated.id}`);
+    }
+  }, [user]);
+
+  const handleDeleteCodingQuestion = useCallback(async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'codingQuestions', id));
+      await pushNotification({
+        title: 'Coding Question Deleted',
+        message: 'Custom question removed from cloud index.',
+        type: 'daily'
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `codingQuestions/${id}`);
+    }
+  }, [user, pushNotification]);
+
+  const handleRecordCodingRecall = useCallback(async (
+    questionId: string,
+    topicId: string,
+    response: 'Remembered' | 'Partially' | 'Forgot'
+  ) => {
+    if (!user) return;
+
+    // Find custom question if it is custom
+    const customQ = codingQuestionsRef.current.find(q => q.id === questionId);
+    const targetT = topicsRef.current.find(t => t.id === topicId);
+
+    // Get current progress or default
+    const existingProgress = codingProgressRef.current.find(p => p.questionId === questionId);
+
+    // Base ease factor & interval for SM-2
+    const currentEF = existingProgress?.easeFactor ?? customQ?.easeFactor ?? 2.5;
+    const currentInterval = existingProgress?.intervalDays ?? customQ?.intervalDays ?? 1;
+    const currentRC = existingProgress?.revisionCount ?? customQ?.revisionCount ?? 0;
+
+    let nextEF = currentEF;
+    let nextIntervalDays = 1;
+    const rc = currentRC + 1;
+
+    if (response === 'Remembered') {
+      const q = 5;
+      nextEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+      if (rc === 1) nextIntervalDays = 1;
+      else if (rc === 2) nextIntervalDays = 3;
+      else nextIntervalDays = Math.max(1, Math.round(currentInterval * currentEF));
+    } else if (response === 'Partially') {
+      const q = 3;
+      nextEF = currentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+      if (rc === 1) nextIntervalDays = 1;
+      else nextIntervalDays = Math.max(1, Math.round(currentInterval * 0.5));
+    } else if (response === 'Forgot') {
+      nextEF = Math.max(1.3, currentEF - 0.2);
+      nextIntervalDays = 1;
+    }
+
+    nextEF = Math.max(1.3, nextEF);
+    const nextRc = response === 'Forgot' ? 0 : rc;
+    const nextDate = new Date();
+    nextDate.setDate(nextDate.getDate() + nextIntervalDays);
+
+    const batch = writeBatch(db);
+
+    // 1. Update coding question/progress
+    if (customQ) {
+      // It is a custom question, update custom question directly
+      const updatedQ: CodeQuestion = {
+        ...customQ,
+        topicId,
+        easeFactor: nextEF,
+        intervalDays: nextIntervalDays,
+        revisionCount: nextRc,
+        lastRevisedDate: new Date().toISOString(),
+        nextRevisionDate: nextDate.toISOString()
+      };
+      batch.set(doc(db, 'codingQuestions', questionId), { ...updatedQ, userId: user.uid });
+    } else {
+      // It is a built-in question, update or create its record in codingProgress
+      const progressId = `${user.uid}_${questionId}`;
+      const updatedProgress: CodingProgress = {
+        id: progressId,
+        userId: user.uid,
+        questionId,
+        topicId,
+        easeFactor: nextEF,
+        intervalDays: nextIntervalDays,
+        revisionCount: nextRc,
+        lastRevisedDate: new Date().toISOString(),
+        nextRevisionDate: nextDate.toISOString()
+      };
+      batch.set(doc(db, 'codingProgress', progressId), updatedProgress);
+    }
+
+    // 2. Update linked topic SM-2 values if it exists
+    if (targetT) {
+      const tRc = targetT.revisionCount + 1;
+      let tCScore = targetT.confidenceScore;
+      let tRScore = targetT.recallScore;
+      let tForg = targetT.forgotCount;
+
+      const tCurrentEF = targetT.easeFactor !== undefined ? targetT.easeFactor : 2.5;
+      const tCurrentInterval = targetT.intervalDays !== undefined ? targetT.intervalDays : 1;
+      
+      let tNextEF = tCurrentEF;
+      let tNextIntervalDays = 1;
+
+      if (response === 'Remembered') {
+        tCScore = Math.min(100, tCScore + 8);
+        tRScore = Math.min(100, tRScore + 10);
+        tForg = Math.max(0, tForg - 1);
+        
+        const q = 5;
+        tNextEF = tCurrentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+        if (tRc === 1) tNextIntervalDays = 1;
+        else if (tRc === 2) tNextIntervalDays = 3;
+        else tNextIntervalDays = Math.max(1, Math.round(tCurrentInterval * tCurrentEF));
+      } else if (response === 'Partially') {
+        tCScore = Math.min(100, tCScore + 2);
+        tRScore = Math.min(100, tRScore + 4);
+        
+        const q = 3;
+        tNextEF = tCurrentEF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+        if (tRc === 1) tNextIntervalDays = 1;
+        else tNextIntervalDays = Math.max(1, Math.round(tCurrentInterval * 0.5));
+      } else if (response === 'Forgot') {
+        tForg = tForg + 1;
+        tCScore = Math.max(5, tCScore - 15);
+        tRScore = Math.max(0, tRScore - 20);
+        
+        tNextEF = Math.max(1.3, tCurrentEF - 0.2);
+        tNextIntervalDays = 1;
+
+        await pushNotification({
+          title: `Retention Deficit: ${targetT.name}`,
+          message: `You marked coding question for "${targetT.name}" as Forgotten. Concept priority elevated.`,
+          type: 'weakness'
+        });
+      }
+
+      tNextEF = Math.max(1.3, tNextEF);
+      const tNextRc = response === 'Forgot' ? 0 : tRc;
+      const tNextDate = new Date();
+      tNextDate.setDate(tNextDate.getDate() + tNextIntervalDays);
+
+      const updatedT: Topic = {
+        ...targetT,
+        revisionCount: tNextRc,
+        confidenceScore: tCScore,
+        recallScore: tRScore,
+        forgotCount: tForg,
+        lastRevisionDate: new Date().toISOString(),
+        nextRevisionDate: tNextDate.toISOString(),
+        status: response === 'Forgot' ? 'Revising' : targetT.status,
+        easeFactor: tNextEF,
+        intervalDays: tNextIntervalDays
+      };
+
+      batch.set(doc(db, 'topics', topicId), { ...updatedT, userId: user.uid });
+    }
+
+    try {
+      await batch.commit();
+      await pushNotification({
+        title: 'Coding Revision Synced',
+        message: `Next revision in ${nextIntervalDays} day(s) for the coding question.`,
+        type: 'revision'
+      });
+    } catch (err) {
+      console.error("Error committing recall batch:", err);
+    }
+  }, [user, pushNotification]);
+
+  const handleLinkCodingQuestionToTopic = useCallback(async (questionId: string, topicId: string) => {
+    if (!user) return;
+    const customQ = codingQuestionsRef.current.find(q => q.id === questionId);
+    try {
+      if (customQ) {
+        const updated = { ...customQ, topicId };
+        await setDoc(doc(db, 'codingQuestions', questionId), updated);
+      } else {
+        const progressId = `${user.uid}_${questionId}`;
+        const existing = codingProgressRef.current.find(p => p.questionId === questionId);
+        const updatedProgress = {
+          id: progressId,
+          userId: user.uid,
+          questionId,
+          topicId,
+          easeFactor: existing?.easeFactor ?? 2.5,
+          intervalDays: existing?.intervalDays ?? 1,
+          revisionCount: existing?.revisionCount ?? 0,
+          lastRevisedDate: existing?.lastRevisedDate || '',
+          nextRevisionDate: existing?.nextRevisionDate || '',
+        };
+        await setDoc(doc(db, 'codingProgress', progressId), updatedProgress);
+      }
+      await pushNotification({
+        title: 'Question Mapped to Topic',
+        message: 'Spaced repetition revision chains linked successfully.',
+        type: 'daily'
+      });
+    } catch (err) {
+      console.error("Error linking question to topic:", err);
+    }
+  }, [user, pushNotification]);
+
   return (
     <DatabaseContext.Provider value={{
       subjects, topics, topicLimit, setTopicLimit, questions, questionLimit, setQuestionLimit,
@@ -2718,7 +3055,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan, handleUpdateTaskInApp,
       handleDeleteTaskInApp, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion, handleUpdateCustomPrompt,
       vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
-      handleMarkWordReviewed, handleSearchWordDefinition
+      handleMarkWordReviewed, handleSearchWordDefinition,
+      codingQuestions, codingProgress, handleAddCodingQuestion, handleUpdateCodingQuestion, handleDeleteCodingQuestion, handleRecordCodingRecall, handleLinkCodingQuestionToTopic
     }}>
       {children}
     </DatabaseContext.Provider>

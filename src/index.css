@@ -936,3 +936,54 @@ html {
 }
 .lp-scroll-indicator { animation: lp-scroll-bounce 2s ease-in-out infinite; }
 
+/* ── Floating Creator Badge Scroll-To-Bottom Highlight ──────────────────────── */
+@keyframes bottomGlowPulse {
+  0%, 100% {
+    transform: scale(1.05) translateY(0);
+    box-shadow: 0 0 25px 6px rgba(99, 102, 241, 0.7), 0 8px 32px rgba(0, 0, 0, 0.5);
+    border-color: rgba(99, 102, 241, 0.85);
+  }
+  50% {
+    transform: scale(1.12) translateY(-4px);
+    box-shadow: 0 0 35px 12px rgba(168, 85, 247, 0.9), 0 8px 32px rgba(0, 0, 0, 0.5);
+    border-color: rgba(168, 85, 247, 1);
+  }
+}
+
+.badge-bottom-highlight {
+  animation: bottomGlowPulse 1.6s infinite ease-in-out !important;
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border-width: 1.5px !important;
+}
+
+/* ── Compiler Showcase CSS ────────────────────────────────────────────────── */
+.lp-code-kw { color: #f472b6; font-weight: 600; } /* Keyword - pink */
+.lp-code-fn { color: #60a5fa; } /* Function name - blue */
+.lp-code-str { color: #34d399; } /* String - green */
+.lp-code-num { color: #fbbf24; } /* Number - amber */
+.lp-code-comment { color: #64748b; font-style: italic; } /* Comment - slate */
+.lp-code-var { color: #e2e8f0; } /* Variable/Normal - white-ish */
+
+.lp-code-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 15px;
+  background-color: #818cf8;
+  margin-left: 2px;
+  animation: lp-cursor-blink 1s step-end infinite;
+  vertical-align: middle;
+}
+
+@keyframes lp-cursor-blink {
+  from, to { background-color: transparent }
+  50% { background-color: #818cf8 }
+}
+
+.lp-terminal-line {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+
+

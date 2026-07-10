@@ -499,5 +499,19 @@ service cloud.firestore {
       allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId;
       allow delete: if isVerifiedUser() && isDocOwner(existing());
     }
+
+    // Code Playground: Submissions
+    match /codeSubmissions/{submissionId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser();
+      allow create: if isVerifiedUser()
+        && incoming().userId == request.auth.uid
+        && incoming().keys().hasAll(['userId', 'questionId', 'language', 'sourceCode', 'status'])
+        && incoming().questionId is string
+        && incoming().language is string
+        && incoming().sourceCode is string && incoming().sourceCode.size() <= 50000
+        && incoming().status is string;
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
   }
 }

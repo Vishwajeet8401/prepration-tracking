@@ -21,7 +21,7 @@ import {
   Layers, Flame, Award, Calendar, Gamepad2, BookMarked,
   MousePointer2, Volume2, Activity, Clock, Shield, Smartphone,
   Repeat, NotebookPen, Languages, Rocket, LineChart, Trophy, Flag,
-  Bell, Briefcase, Cpu, Database
+  Bell, Briefcase, Cpu, Database, Code2, Terminal, Send
 } from 'lucide-react';
 
 import { BuyMeCoffeeSection } from './BuyMeCoffee';
@@ -661,6 +661,426 @@ function MockInterviewShowcase() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   CODE PLAYGROUND SHOWCASE — Simulated typing, compile, run & feedback
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+const CODE_TEMPLATES = {
+  python: {
+    filename: 'two_sum.py',
+    lang: 'Python 3',
+    icon: '🐍',
+    accentColor: '#38bdf8',
+    code: `def twoSum(nums, target):
+    seen = {}
+    for i, num in enumerate(nums):
+        diff = target - num
+        if diff in seen:
+            return [seen[diff], i]
+        seen[num] = i
+    return []`,
+    testCases: [
+      { args: 'nums=[2,7,11,15], target=9', expected: '[0, 1]', result: '[0, 1]', time: '1ms' },
+      { args: 'nums=[3,2,4], target=6', expected: '[1, 2]', result: '[1, 2]', time: '2ms' }
+    ],
+    feedback: 'O(N) Time complexity • O(N) Space complexity. The linear lookup solution is optimal. Excellent usage of a hash dictionary.'
+  },
+  javascript: {
+    filename: 'reverse_list.js',
+    lang: 'JavaScript',
+    icon: '🟨',
+    accentColor: '#facc15',
+    code: `function reverseList(head) {
+    let prev = null;
+    let curr = head;
+    while (curr) {
+        let next = curr.next;
+        curr.next = prev;
+        prev = curr;
+        curr = next;
+    }
+    return prev;
+}`,
+    testCases: [
+      { args: 'head=[1,2,3,4,5]', expected: '[5,4,3,2,1]', result: '[5,4,3,2,1]', time: '1ms' },
+      { args: 'head=[]', expected: '[]', result: '[]', time: '1ms' }
+    ],
+    feedback: 'O(N) Time complexity • O(1) Space complexity. In-place list reversion is clean and avoids heap allocations.'
+  },
+  cpp: {
+    filename: 'valid_parentheses.cpp',
+    lang: 'C++',
+    icon: '🟦',
+    accentColor: '#60a5fa',
+    code: `bool isValid(string s) {
+    stack<char> st;
+    for (char c : s) {
+        if (c == '(' || c == '{' || c == '[') {
+            st.push(c);
+        } else {
+            if (st.empty()) return false;
+            if (c == ')' && st.top() != '(') return false;
+            if (c == '}' && st.top() != '{') return false;
+            if (c == ']' && st.top() != '[') return false;
+            st.pop();
+        }
+    }
+    return st.empty();
+}`,
+    testCases: [
+      { args: 's="()[]{}"', expected: 'true', result: 'true', time: '2ms' },
+      { args: 's="(]"', expected: 'false', result: 'false', time: '1ms' }
+    ],
+    feedback: 'O(N) Time complexity • O(N) Space complexity. Using stack satisfies matching constraints in LIFO order perfectly.'
+  }
+};
+
+type LangKey = 'python' | 'javascript' | 'cpp';
+
+function CodePlaygroundShowcase() {
+  const [activeLang, setActiveLang] = useState<LangKey>('python');
+  const [typedCode, setTypedCode] = useState('');
+  const [phase, setPhase] = useState<'typing' | 'running' | 'success' | 'coached'>('typing');
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'console' | 'coach'>('console');
+
+  const currentTemplate = CODE_TEMPLATES[activeLang];
+
+  // Typing effect
+  useEffect(() => {
+    let isMounted = true;
+    setTypedCode('');
+    setPhase('typing');
+    setConsoleLogs([]);
+    setActiveTab('console');
+
+    const targetCode = currentTemplate.code;
+    let index = 0;
+
+    const timer = setInterval(() => {
+      if (!isMounted) return;
+      index += 3; // type 3 chars at a time
+      if (index >= targetCode.length) {
+        setTypedCode(targetCode);
+        clearInterval(timer);
+        
+        // Wait then trigger compiler run
+        setTimeout(() => {
+          if (!isMounted) return;
+          triggerRun();
+        }, 800);
+      } else {
+        setTypedCode(targetCode.substring(0, index));
+      }
+    }, 25);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, [activeLang]);
+
+  const triggerRun = () => {
+    setPhase('running');
+    setConsoleLogs(['Compiling and linking files...', 'Running test suites...']);
+    
+    // Simulate first test case
+    setTimeout(() => {
+      setConsoleLogs(prev => [
+        ...prev,
+        `> Running TestCase 1: ${currentTemplate.testCases[0].args}`,
+        `  Expected: ${currentTemplate.testCases[0].expected} | Actual: ${currentTemplate.testCases[0].result}`,
+        `  ✔ Passed (${currentTemplate.testCases[0].time})`
+      ]);
+    }, 600);
+
+    // Simulate second test case
+    setTimeout(() => {
+      setConsoleLogs(prev => [
+        ...prev,
+        `> Running TestCase 2: ${currentTemplate.testCases[1].args}`,
+        `  Expected: ${currentTemplate.testCases[1].expected} | Actual: ${currentTemplate.testCases[1].result}`,
+        `  ✔ Passed (${currentTemplate.testCases[1].time})`,
+        `🎉 Compile success: All test cases passed!`
+      ]);
+      setPhase('success');
+
+      // Shift to AI Coach review phase after brief pause
+      setTimeout(() => {
+        setPhase('coached');
+        setActiveTab('coach');
+      }, 1200);
+
+    }, 1400);
+  };
+
+  // Cycle languages automatically every few seconds after coding review is finished
+  useEffect(() => {
+    if (phase !== 'coached') return;
+
+    const transitionTimer = setTimeout(() => {
+      const langs: LangKey[] = ['python', 'javascript', 'cpp'];
+      const nextIndex = (langs.indexOf(activeLang) + 1) % langs.length;
+      setActiveLang(langs[nextIndex]);
+    }, 4500);
+
+    return () => clearTimeout(transitionTimer);
+  }, [phase, activeLang]);
+
+  // Escape HTML helper for custom syntax highlighter
+  const renderHighlightedLine = (line: string, lineIndex: number) => {
+    // Escape standard tags
+    let safeLine = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    
+    if (safeLine.trim().startsWith('#') || safeLine.trim().startsWith('//')) {
+      return <span key={lineIndex} className="lp-code-comment">{line}</span>;
+    }
+
+    const tokens = safeLine.split(/(\b\w+\b|"[^"]*")/g);
+    const keywords = ['def', 'for', 'in', 'if', 'return', 'function', 'let', 'while', 'const', 'bool', 'char', 'stack', 'string', 'else', 'true', 'false'];
+    const functions = ['twoSum', 'enumerate', 'reverseList', 'isValid', 'push', 'empty', 'top', 'pop'];
+
+    return (
+      <span key={lineIndex} className="block min-h-[1.2rem]">
+        {tokens.map((tok, tokIdx) => {
+          if (tok.startsWith('"') && tok.endsWith('"')) {
+            return <span key={tokIdx} className="lp-code-str">{tok}</span>;
+          }
+          if (keywords.includes(tok)) {
+            return <span key={tokIdx} className="lp-code-kw">{tok}</span>;
+          }
+          if (functions.includes(tok)) {
+            return <span key={tokIdx} className="lp-code-fn">{tok}</span>;
+          }
+          if (/^\d+$/.test(tok)) {
+            return <span key={tokIdx} className="lp-code-num">{tok}</span>;
+          }
+          return <span key={tokIdx} className="lp-code-var">{tok}</span>;
+        })}
+      </span>
+    );
+  };
+
+  return (
+    <section id="compiler" className="relative z-10 mx-auto w-full max-w-7xl px-6 py-28 md:py-36 border-t border-white/[0.03]">
+      <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-12">
+        {/* Left column: Text descriptions and metrics */}
+        <div className="lp-reveal lg:col-span-5">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#7000FF]">Interactive Coding Playground</p>
+          <h2 className="mt-4 font-display text-4xl font-bold tracking-tight text-white md:text-6xl">
+            Compile and run code, <span className="lp-gradient-text-cyan">zero setup</span>.
+          </h2>
+          <p className="mt-5 text-base text-white/55 leading-relaxed">
+            Write solutions to core coding problems in our integrated playground. Execute test suites, view standard console output, and get instant performance insights powered by optimized compilers and our active AI Coach.
+          </p>
+
+          <div className="mt-8 space-y-4 font-sans">
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#7000FF]/15 text-[#7000FF] font-bold text-xs">✔</span>
+              <div>
+                <h4 className="text-sm font-semibold text-white">Multi-Language Compilers</h4>
+                <p className="text-xs text-white/45 mt-0.5">Full support for Python, JavaScript, TypeScript, Go, C++, and Java core environments.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#00F0FF]/15 text-[#00F0FF] font-bold text-xs">✔</span>
+              <div>
+                <h4 className="text-sm font-semibold text-white">Automated Test Suites</h4>
+                <p className="text-xs text-white/45 mt-0.5">Run default test cases or add custom input configurations to validate algorithm correctness.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#FF0055]/15 text-[#FF0055] font-bold text-xs">✔</span>
+              <div>
+                <h4 className="text-sm font-semibold text-white">AI Optimization Mentoring</h4>
+                <p className="text-xs text-white/45 mt-0.5">AI code coach parses space/time complexities and offers suggestions for cleaner code patterns.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right column: Code Editor Simulator */}
+        <div className="lp-reveal lg:col-span-7" style={{ transitionDelay: '150ms' }}>
+          <div className="relative rounded-3xl lp-glass-strong overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.8)] border border-white/10">
+            {/* Top Browser bar */}
+            <div className="flex items-center justify-between bg-slate-950/70 px-4 py-3 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-[#FF0055]/70" />
+                <span className="h-3 w-3 rounded-full bg-[#00F0FF]/70" />
+                <span className="h-3 w-3 rounded-full bg-[#7000FF]/70" />
+                <span className="ml-3 font-mono text-[11px] text-white/40">
+                  prepflow / compiler / {currentTemplate.filename}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => triggerRun()}
+                  disabled={phase === 'running'}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold border transition ${
+                    phase === 'running' 
+                      ? 'bg-slate-800/50 border-slate-700/30 text-slate-500 cursor-not-allowed'
+                      : 'bg-[#7000FF]/10 hover:bg-[#7000FF]/25 border-[#7000FF]/30 hover:border-[#7000FF]/50 text-indigo-200 cursor-pointer'
+                  }`}
+                >
+                  {phase === 'running' ? (
+                    <span className="h-3 w-3 border-2 border-indigo-400 border-t-transparent animate-spin rounded-full" />
+                  ) : (
+                    <Play className="h-3 w-3 fill-indigo-200" />
+                  )}
+                  <span>Run</span>
+                </button>
+                <button className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r from-[#00F0FF] to-[#7000FF] text-[#03040a] hover:opacity-90 transition cursor-pointer">
+                  <Send className="h-3 w-3" />
+                  <span>Submit</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Editor Workspace */}
+            <div className="grid grid-cols-1 md:grid-cols-4 min-h-[340px] bg-slate-950/90 font-mono text-sm leading-relaxed">
+              
+              {/* Question list / Sidebar */}
+              <div className="border-r border-white/5 bg-slate-900/30 p-4 space-y-3 hidden md:block">
+                <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 select-none">Coding Files</span>
+                {(Object.keys(CODE_TEMPLATES) as LangKey[]).map((langKey) => {
+                  const item = CODE_TEMPLATES[langKey];
+                  const isCurrent = activeLang === langKey;
+                  return (
+                    <button
+                      key={langKey}
+                      onClick={() => setActiveLang(langKey)}
+                      className={`w-full flex items-center justify-between p-2.5 rounded-lg text-[11px] text-left transition cursor-pointer ${
+                        isCurrent 
+                          ? 'bg-[#7000FF]/15 border border-[#7000FF]/30 text-white font-bold' 
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
+                      }`}
+                    >
+                      <span className="truncate">{item.filename}</span>
+                      <span className="text-[10px] opacity-75">{item.icon}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Code window */}
+              <div className="md:col-span-3 p-5 overflow-x-auto relative flex flex-col justify-between">
+                <div className="flex">
+                  {/* Line numbers */}
+                  <div className="text-slate-600 select-none text-right pr-4 border-r border-white/5 flex flex-col text-xs mt-1 w-6">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <span key={i} className="block">{i + 1}</span>
+                    ))}
+                  </div>
+
+                  {/* Code editor typed output */}
+                  <div className="pl-4 flex-1 text-[11px] text-slate-350 whitespace-pre">
+                    {typedCode.split('\n').map((line, idx) => renderHighlightedLine(line, idx))}
+                    {phase === 'typing' && <span className="lp-code-cursor" />}
+                  </div>
+                </div>
+
+                {/* Bottom tabs toggle for Console and Coach */}
+                <div className="mt-8 border-t border-white/5 pt-3 flex items-center gap-4 text-xs font-semibold">
+                  <button 
+                    onClick={() => setActiveTab('console')}
+                    className={`flex items-center gap-1.5 pb-2 border-b-2 transition cursor-pointer ${
+                      activeTab === 'console' 
+                        ? 'border-[#00F0FF] text-[#00F0FF]' 
+                        : 'border-transparent text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    <Terminal className="h-3.5 w-3.5" />
+                    <span>Compiler Console</span>
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('coach')}
+                    className={`flex items-center gap-1.5 pb-2 border-b-2 transition cursor-pointer ${
+                      activeTab === 'coach' 
+                        ? 'border-[#7000FF] text-[#7000FF]' 
+                        : 'border-transparent text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>AI Coach Review</span>
+                  </button>
+                </div>
+
+                {/* Tab content console / coach */}
+                <div className="mt-2 min-h-[110px] rounded-xl bg-slate-950/80 p-4 border border-white/5 text-[11px] font-mono leading-relaxed relative">
+                  <AnimatePresence mode="wait">
+                    {activeTab === 'console' && (
+                      <motion.div
+                        key="console"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-1.5 text-slate-450 text-[11px]"
+                      >
+                        {consoleLogs.length === 0 ? (
+                          <div className="text-slate-600 italic">No logs. Compiler ready to run...</div>
+                        ) : (
+                          consoleLogs.map((log, i) => {
+                            let colorClass = 'text-slate-400';
+                            if (log.includes('✔')) colorClass = 'text-emerald-400 font-semibold';
+                            if (log.includes('🎉')) colorClass = 'text-cyan-400 font-bold';
+                            if (log.includes('>')) colorClass = 'text-[#7000FF] font-semibold';
+                            return (
+                              <div key={i} className={`lp-terminal-line ${colorClass}`}>
+                                {log}
+                              </div>
+                            );
+                          })
+                        )}
+                        {phase === 'running' && (
+                          <div className="flex items-center gap-2 text-indigo-400 text-xs mt-1 animate-pulse">
+                            <span className="h-2 w-2 rounded-full bg-indigo-500 animate-ping" />
+                            <span>Executing runtime environment...</span>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {activeTab === 'coach' && (
+                      <motion.div
+                        key="coach"
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-slate-300 text-xs"
+                      >
+                        {phase === 'coached' ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-1.5 text-[#00F0FF] font-bold">
+                              <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                              <span>AI Code Analysis</span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-[#7000FF]/5 border border-[#7000FF]/25 text-slate-300 leading-relaxed font-sans">
+                              {currentTemplate.feedback}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-slate-600 italic flex items-center gap-2">
+                            <span className="h-2 w-2 bg-slate-500 rounded-full animate-pulse" />
+                            Waiting for compiler submission...
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+              </div>
+            </div>
+            
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    GLOW CARD — Hover-reactive border glow
    ═══════════════════════════════════════════════════════════════════════════════ */
 
@@ -705,8 +1125,9 @@ const FEATURES_GRID = [
   { icon: Sparkles, title: 'AI Coding Study Companion', desc: 'An active LLM tutor that recommends revision topics, generates custom practice questions, and clarifies complex topics.', span: 'md:col-span-4', accent: '#00F0FF' },
   { icon: BookMarked, title: 'Technical Subject & Topic Study Hub', desc: 'Organize your tech prep into core subjects and track recall confidence ratings across individual concepts.', span: 'md:col-span-4', accent: '#10B981' },
   { icon: Repeat, title: 'Spaced Repetition Practice Engine', desc: 'SM-2 algorithm calculates optimal intervals for cards, surface-drilling topics right before they slip your mind.', span: 'md:col-span-4', accent: '#7000FF' },
-  { icon: Briefcase, title: 'Interview Preparation & Application Tracker', desc: 'Track target companies, active job application stages, interview schedules, and post-interview key takeaways.', span: 'md:col-span-6', accent: '#10B981' },
-  { icon: BarChart3, title: 'AI Study Analytics & Telemetry', desc: 'Get feedback on verbal filler words, speaking pace telemetry, radar concept metrics, and diagnostic mock performance charts.', span: 'md:col-span-6', accent: '#FF0055' },
+  { icon: Code2, title: 'Integrated Coding Sandbox & Compiler', desc: 'Write, debug, and execute code solutions inside the workspace with support for TypeScript, Python, C++, Go, and Java.', span: 'md:col-span-4', accent: '#7000FF' },
+  { icon: Briefcase, title: 'Interview Preparation & Application Tracker', desc: 'Track target companies, active job application stages, interview schedules, and post-interview key takeaways.', span: 'md:col-span-4', accent: '#10B981' },
+  { icon: BarChart3, title: 'AI Study Analytics & Telemetry', desc: 'Get feedback on verbal filler words, speaking pace telemetry, radar concept metrics, and diagnostic mock performance charts.', span: 'md:col-span-4', accent: '#FF0055' },
   { icon: NotebookPen, title: 'STAR Behavioral Preparation Constructor', desc: 'Structure impact-driven behavioral stories using Situation-Task-Action-Result, refined dynamically by AI models.', span: 'md:col-span-4', accent: '#7000FF' },
   { icon: Languages, title: 'Tech Vocabulary Study & Practice Drills', desc: 'Master senior engineering vocabulary and tech jargon through targeted contextual drills and usage evaluations.', span: 'md:col-span-4', accent: '#00F0FF' },
   { icon: Trophy, title: 'Study Streaks & Milestones', desc: 'Stay motivated with gamified milestone badges, weekly targets, and persistent streak-tracking indicators.', span: 'md:col-span-4', accent: '#F59E0B' },
@@ -988,10 +1409,30 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [navVisible, setNavVisible] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(false);
   const lastScrollY = useRef(0);
 
   useParticleCanvas(canvasRef);
   useScrollReveal();
+
+  // Scroll to bottom detection for creator/contact badge highlight
+  useEffect(() => {
+    const handleScrollForBottom = () => {
+      const threshold = 120; // pixels from the bottom of the page
+      const reachedBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - threshold);
+      setIsAtBottom(reachedBottom);
+    };
+
+    window.addEventListener('scroll', handleScrollForBottom, { passive: true });
+    window.addEventListener('resize', handleScrollForBottom);
+    // Initial check
+    handleScrollForBottom();
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollForBottom);
+      window.removeEventListener('resize', handleScrollForBottom);
+    };
+  }, []);
 
   // Navbar auto-hide on scroll down, show on scroll up
   useEffect(() => {
@@ -1309,6 +1750,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* ─── AI MOCK INTERVIEW SHOWCASE ─────────────────────────────────────── */}
       <MockInterviewShowcase />
 
+      {/* ─── INTERACTIVE CODE PLAYGROUND SHOWCASE ────────────────────────────── */}
+      <CodePlaygroundShowcase />
+
       {/* ─── GESTURE CONTROL SHOWCASE ───────────────────────────────────────── */}
       <section className="relative z-10 py-28 px-6 md:px-8">
         <div className="max-w-6xl mx-auto">
@@ -1511,27 +1955,42 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           <div className="flex items-center gap-6 text-xs text-slate-600">
             <a href="https://github.com/Vishwajeet8401/prepration-tracking" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">GitHub</a>
             <a href="https://tracking-prep.web.app" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">Live App</a>
-            <a href="https://vishwajeetkalokhe-dev-portfolio.vercel.app/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">Portfolio</a>
+            <a
+              href="https://vishwajeetkalokhe-dev-portfolio.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`transition-all duration-300 lp-interactive ${
+                isAtBottom ? 'text-indigo-400 font-bold scale-110' : 'hover:text-white text-slate-650'
+              }`}
+            >
+              Portfolio
+            </a>
             <span>Apache-2.0 License</span>
           </div>
         </div>
       </footer>
 
       {/* ─── FLOATING CREATOR BADGE ─────────────────────────────────────────── */}
-      <div className="fixed bottom-6 left-6 z-50">
+      <div className="fixed bottom-6 left-6 z-50 transition-all duration-300">
         <a
           href="https://vishwajeetkalokhe-dev-portfolio.vercel.app/"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-indigo-500/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all duration-300 hover:shadow-[0_8px_32px_rgba(99,102,241,0.2)] group lp-interactive text-xs font-semibold text-slate-300 hover:text-white"
+          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-indigo-500/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all duration-350 hover:shadow-[0_8px_32px_rgba(99,102,241,0.2)] group lp-interactive text-xs font-semibold text-slate-300 hover:text-white ${
+            isAtBottom ? 'badge-bottom-highlight text-white' : ''
+          }`}
         >
           <span className="flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black text-[10px]">
             V
           </span>
-          <span className="max-w-0 overflow-hidden group-hover:max-w-[120px] transition-all duration-500 ease-in-out whitespace-nowrap">
-            Meet the Creator
+          <span className={`overflow-hidden transition-all duration-500 ease-in-out whitespace-nowrap ${
+            isAtBottom ? 'max-w-[165px] mr-1' : 'max-w-0 group-hover:max-w-[120px]'
+          }`}>
+            {isAtBottom ? 'Hire & Contact Vishwajeet' : 'Meet the Creator'}
           </span>
-          <span className="text-indigo-400 group-hover:translate-x-0.5 transition-transform duration-300">
+          <span className={`text-indigo-400 transition-all duration-300 ${
+            isAtBottom ? 'translate-x-0.5 scale-110 text-emerald-400 font-bold' : 'group-hover:translate-x-0.5'
+          }`}>
             ⚡ Portfolio
           </span>
         </a>

@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Topic, Question, InterviewIntelligenceQuestion, Mistake, 
-  ActivityPlan, Roadmap, Journal, Interview, Subject, UserSettings, MockPresetQuestion, VocabularyWord
+  ActivityPlan, Roadmap, Journal, Interview, Subject, UserSettings, MockPresetQuestion, VocabularyWord,
+  CodeQuestion
 } from '../types';
 import { 
   FileJson, FileSpreadsheet, Copy, Check, Trash2, HelpCircle, 
   Upload, Download, AlertTriangle, CheckCircle, Info, Clipboard, Play,
   PackageOpen, ShieldCheck, Zap, Database, Tag, BookOpen, ChevronRight,
-  RefreshCw, Loader, BookMarked, Hand
+  RefreshCw, Loader, BookMarked, Hand, Code2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase';
@@ -34,6 +35,7 @@ interface BulkImportExportCenterProps {
   mockPresetQuestions: MockPresetQuestion[];
   userSettings: UserSettings | null;
   vocabularyWords: VocabularyWord[];
+  codingQuestions: CodeQuestion[];
   onUpdateCerebrasKey: (key: string) => Promise<void>;
   onUpdateGeminiKey: (key: string) => Promise<void>;
   onUpdateGroqKey: (key: string) => Promise<void>;
@@ -42,6 +44,7 @@ interface BulkImportExportCenterProps {
   onUpdateGroqModel: (model: string) => Promise<void>;
   onUpdateTheme: (theme: string) => Promise<void>;
   onBulkImport: (dataType: string, records: any[], duplicatePolicy: 'skip' | 'replace' | 'keep') => Promise<{ imported: number; updated: number; skipped: number }>;
+  initialSubTab?: 'import' | 'templates' | 'export' | 'settings';
 }
 
 // ─── TEMPLATES ───────────────────────────────────────────────────────────────
@@ -410,6 +413,66 @@ STRICT RULES:
     - "status" must be "Learning"
     - "reviewCount" must be 0
     - "isAiGenerated" must be false`
+  },
+  'Coding Questions': {
+    format: 'JSON / CSV / Excel',
+    requiredFields: ['title', 'difficulty', 'description'],
+    optionalFields: ['topicId', 'examples', 'testCases', 'constraints', 'tags', 'starterCode'],
+    example: [
+      {
+        title: 'Two Sum',
+        difficulty: 'Easy',
+        description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
+        topicId: '',
+        tags: ['Array', 'Hash Table'],
+        constraints: ['2 <= nums.length <= 10^4'],
+        examples: [
+          { input: '4\n2 7 11 15\n9', output: '0 1', explanation: 'nums[0] + nums[1] == 9' }
+        ],
+        testCases: [
+          { input: '4\n2 7 11 15\n9', expectedOutput: '0 1' }
+        ],
+        starterCode: {
+          python: 'def twoSum(nums, target):\n    pass',
+          java: 'class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        return new int[0];\n    }\n}'
+        }
+      }
+    ],
+    prompt: `You are a principal software engineer and technical interviewer at a FAANG company.
+    
+Generate a JSON array of 10 high-quality coding questions suitable for software developer interviews.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- "title" must be a concise problem name.
+- "difficulty" must be exactly one of: Easy | Medium | Hard.
+- "description" must describe the problem, input format, and output format.
+- "topicId" should be left as "".
+- "tags" must be a JSON array of strings (e.g. ["Array", "Binary Search"]).
+- "constraints" must be an array of strings (e.g. ["1 <= nums.length <= 10^5"]).
+- "examples" must be an array of objects, each containing "input", "output", and optional "explanation".
+- "testCases" must be an array of objects, each containing "input" and "expectedOutput" (including hidden test cases).
+- "starterCode" must be an object mapping languages to their boilerplate templates (keys: java, python, cpp, javascript, typescript, go, c, kotlin).
+
+[
+  {
+    "title": "Two Sum",
+    "difficulty": "Easy",
+    "description": "Given an array of integers nums...",
+    "topicId": "",
+    "tags": ["Array"],
+    "constraints": ["2 <= nums.length <= 10^4"],
+    "examples": [
+      { "input": "...", "output": "..." }
+    ],
+    "testCases": [
+      { "input": "...", "expectedOutput": "..." }
+    ],
+    "starterCode": {
+      "python": "def twoSum..."
+    }
+  }
+]`
   }
 };
 
@@ -506,6 +569,51 @@ const sanitizeRecord = (type: string, rec: any): any => {
       r.lastReviewDate = r.lastReviewDate || new Date().toISOString();
       r.isAiGenerated = r.isAiGenerated ?? false;
       break;
+    case 'Coding Questions':
+      r.title = r.title || '';
+      r.difficulty = r.difficulty || 'Medium';
+      r.description = r.description || '';
+      r.topicId = r.topicId || '';
+      r.isCustom = true;
+      if (typeof r.tags === 'string') {
+        const clean = r.tags.replace(/[\[\]"]/g, '').trim();
+        r.tags = clean ? clean.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
+      } else if (!Array.isArray(r.tags)) {
+        r.tags = [];
+      }
+      if (typeof r.constraints === 'string') {
+        r.constraints = r.constraints.split('\n').map((c: string) => c.trim()).filter(Boolean);
+      } else if (!Array.isArray(r.constraints)) {
+        r.constraints = [];
+      }
+      if (typeof r.examples === 'string') {
+        try {
+          r.examples = JSON.parse(r.examples);
+        } catch {
+          r.examples = [];
+        }
+      } else if (!Array.isArray(r.examples)) {
+        r.examples = [];
+      }
+      if (typeof r.testCases === 'string') {
+        try {
+          r.testCases = JSON.parse(r.testCases);
+        } catch {
+          r.testCases = [];
+        }
+      } else if (!Array.isArray(r.testCases)) {
+        r.testCases = [];
+      }
+      if (typeof r.starterCode === 'string') {
+        try {
+          r.starterCode = JSON.parse(r.starterCode);
+        } catch {
+          r.starterCode = {};
+        }
+      } else if (typeof r.starterCode !== 'object' || r.starterCode === null) {
+        r.starterCode = {};
+      }
+      break;
   }
   return r;
 };
@@ -515,10 +623,19 @@ const sanitizeRecord = (type: string, rec: any): any => {
 export default function BulkImportExportCenter({
   userId, topics, questions, intelliQuestions, mistakes, plans, roadmaps, journals, interviews, subjects,
   mockPresetQuestions,
-  userSettings, vocabularyWords, onUpdateCerebrasKey, onUpdateGeminiKey, onUpdateGroqKey, onUpdateCerebrasModel, onUpdateGeminiModel, onUpdateGroqModel, onUpdateTheme, onBulkImport
+  userSettings, vocabularyWords, codingQuestions, onUpdateCerebrasKey, onUpdateGeminiKey, onUpdateGroqKey, onUpdateCerebrasModel, onUpdateGeminiModel, onUpdateGroqModel, onUpdateTheme, onBulkImport,
+  initialSubTab
 }: BulkImportExportCenterProps) {
 
-  const [activeSubTab, setActiveSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>('import');
+  const [activeSubTab, setActiveSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>(initialSubTab || 'import');
+  const [showInstructions, setShowInstructions] = useState(false);
+  const geminiInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   // ── Gesture context global controls ──
   const { state: gestureState, updateSettings } = useGestureContext();
@@ -567,6 +684,14 @@ export default function BulkImportExportCenter({
       setLocalGroqModel(userSettings.groqModel || 'llama-3.3-70b-versatile');
     }
   }, [userSettings]);
+
+  useEffect(() => {
+    if (activeSubTab === 'settings' && !localGeminiKey) {
+      setTimeout(() => {
+        geminiInputRef.current?.focus();
+      }, 150);
+    }
+  }, [activeSubTab, localGeminiKey]);
 
   const testCerebrasConnection = async () => {
     if (!localKey.trim()) {
@@ -667,19 +792,22 @@ export default function BulkImportExportCenter({
   const [realTopicCount, setRealTopicCount] = useState<number>(topics.length);
   const [realQuestionCount, setRealQuestionCount] = useState<number>(questions.length);
   const [realVocabularyCount, setRealVocabularyCount] = useState<number>(vocabularyWords.length);
+  const [realCodingQuestionCount, setRealCodingQuestionCount] = useState<number>(codingQuestions.length);
 
   useEffect(() => {
     if (!userId) return;
     const fetchRealCounts = async () => {
       try {
-        const [topicsSnap, questionsSnap, vocabSnap] = await Promise.all([
+        const [topicsSnap, questionsSnap, vocabSnap, codingSnap] = await Promise.all([
           getCountFromServer(query(collection(db, 'topics'), where('userId', '==', userId))),
           getCountFromServer(query(collection(db, 'questions'), where('userId', '==', userId))),
-          getCountFromServer(query(collection(db, 'vocabularyWords'), where('userId', '==', userId)))
+          getCountFromServer(query(collection(db, 'vocabularyWords'), where('userId', '==', userId))),
+          getCountFromServer(query(collection(db, 'codingQuestions'), where('userId', '==', userId)))
         ]);
         setRealTopicCount(topicsSnap.data().count);
         setRealQuestionCount(questionsSnap.data().count);
         setRealVocabularyCount(vocabSnap.data().count);
+        setRealCodingQuestionCount(codingSnap.data().count);
       } catch (err) {
         console.error('Failed to fetch real counts for export display:', err);
       }
@@ -901,17 +1029,19 @@ export default function BulkImportExportCenter({
 
   /**
    * Fetches ALL records for collections that may be paginated in the UI
-   * (topics, questions, vocabularyWords). Other collections are passed in as props directly.
+   * (topics, questions, vocabularyWords, codingQuestions). Other collections are passed in as props directly.
    */
   const fetchAllForExport = async (): Promise<{
     allTopics: any[];
     allQuestions: any[];
     allVocabulary: any[];
+    allCodingQuestions: any[];
   }> => {
-    const [topicsSnap, questionsSnap, vocabSnap] = await Promise.all([
+    const [topicsSnap, questionsSnap, vocabSnap, codingSnap] = await Promise.all([
       getDocs(query(collection(db, 'topics'), where('userId', '==', userId))),
       getDocs(query(collection(db, 'questions'), where('userId', '==', userId))),
-      getDocs(query(collection(db, 'vocabularyWords'), where('userId', '==', userId)))
+      getDocs(query(collection(db, 'vocabularyWords'), where('userId', '==', userId))),
+      getDocs(query(collection(db, 'codingQuestions'), where('userId', '==', userId)))
     ]);
     const allTopics: any[] = [];
     topicsSnap.forEach(doc => allTopics.push(doc.data()));
@@ -919,21 +1049,25 @@ export default function BulkImportExportCenter({
     questionsSnap.forEach(doc => allQuestions.push(doc.data()));
     const allVocabulary: any[] = [];
     vocabSnap.forEach(doc => allVocabulary.push(doc.data()));
-    return { allTopics, allQuestions, allVocabulary };
+    const allCodingQuestions: any[] = [];
+    codingSnap.forEach(doc => allCodingQuestions.push(doc.data()));
+    return { allTopics, allQuestions, allVocabulary, allCodingQuestions };
   };
 
   const triggerDataExport = async (type: string, format: 'json' | 'csv' | 'xlsx') => {
     setIsExporting(true);
     try {
-      // For Topics, Questions, and Vocabulary, fetch ALL records from Firestore (bypass UI scroll limit)
+      // For Topics, Questions, Vocabulary, and Coding Questions, fetch ALL records from Firestore (bypass UI scroll limit)
       let allTopics = topics;
       let allQuestions = questions;
       let allVocabulary = vocabularyWords;
-      if (type === 'Topics' || type === 'Questions' || type === 'Vocabulary') {
+      let allCodingQuestions = codingQuestions;
+      if (type === 'Topics' || type === 'Questions' || type === 'Vocabulary' || type === 'Coding Questions') {
         const fetched = await fetchAllForExport();
         allTopics = fetched.allTopics;
         allQuestions = fetched.allQuestions;
         allVocabulary = fetched.allVocabulary;
+        allCodingQuestions = fetched.allCodingQuestions;
       }
 
       const dataMap: Record<string, any[]> = {
@@ -946,7 +1080,8 @@ export default function BulkImportExportCenter({
         Journals: journals,
         Roadmaps: roadmaps,
         'Simulator Questions': mockPresetQuestions,
-        Vocabulary: allVocabulary
+        Vocabulary: allVocabulary,
+        'Coding Questions': allCodingQuestions
       };
 
       const sourceData = dataMap[type];
@@ -996,8 +1131,8 @@ export default function BulkImportExportCenter({
   const triggerFullBackup = async () => {
     setIsExporting(true);
     try {
-      // Always fetch ALL topics, questions, and vocabulary from Firestore for a complete backup
-      const { allTopics, allQuestions, allVocabulary } = await fetchAllForExport();
+      // Always fetch ALL topics, questions, vocabulary, and coding questions from Firestore for a complete backup
+      const { allTopics, allQuestions, allVocabulary, allCodingQuestions } = await fetchAllForExport();
 
       const backup = {
         exportedAt: new Date().toISOString(),
@@ -1012,7 +1147,8 @@ export default function BulkImportExportCenter({
           journals: journals.map(cleanExport),
           roadmaps: roadmaps.map(cleanExport),
           mockPresetQuestions: mockPresetQuestions.map(cleanExport),
-          vocabulary: allVocabulary.map(cleanExport)
+          vocabulary: allVocabulary.map(cleanExport),
+          codingQuestions: allCodingQuestions.map(cleanExport)
         }
       };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -1024,7 +1160,7 @@ export default function BulkImportExportCenter({
     }
   };
 
-  const totalExportRecords = subjects.length + realTopicCount + realQuestionCount + intelliQuestions.length + mistakes.length + plans.length + journals.length + roadmaps.length + mockPresetQuestions.length + realVocabularyCount;
+  const totalExportRecords = subjects.length + realTopicCount + realQuestionCount + intelliQuestions.length + mistakes.length + plans.length + journals.length + roadmaps.length + mockPresetQuestions.length + realVocabularyCount + realCodingQuestionCount;
 
   // ── Export cards config ──────────────────────────────────────────────────────
 
@@ -1038,7 +1174,8 @@ export default function BulkImportExportCenter({
     { type: 'Journals', count: journals.length, desc: 'Reflective learning summaries', icon: FileJson, color: 'teal' },
     { type: 'Roadmaps', count: roadmaps.length, desc: 'Hierarchical learning tracks & dependency links', icon: Database, color: 'pink' },
     { type: 'Simulator Questions', count: mockPresetQuestions.length, desc: 'Custom and seeded mock interview simulation pools', icon: RefreshCw, color: 'indigo' },
-    { type: 'Vocabulary', count: realVocabularyCount, desc: 'Your personal vocabulary builder library with Marathi definitions', icon: BookMarked, color: 'sky' }
+    { type: 'Vocabulary', count: realVocabularyCount, desc: 'Your personal vocabulary builder library with Marathi definitions', icon: BookMarked, color: 'sky' },
+    { type: 'Coding Questions', count: realCodingQuestionCount, desc: 'Interview-grade coding challenges and test cases', icon: Code2, color: 'indigo' }
   ];
 
   const colorMap: Record<string, string> = {
@@ -1637,6 +1774,7 @@ export default function BulkImportExportCenter({
                 <label className="text-slate-350 font-bold block">Gemini API Key</label>
                 <div className="relative flex items-center">
                   <input
+                    ref={geminiInputRef}
                     type={showGeminiKey ? 'text' : 'password'}
                     value={localGeminiKey}
                     onChange={e => setLocalGeminiKey(e.target.value)}
@@ -1651,9 +1789,58 @@ export default function BulkImportExportCenter({
                     {showGeminiKey ? 'HIDE' : 'SHOW'}
                   </button>
                 </div>
-                <p className="text-[9px] text-slate-500 leading-normal">
-                  No key? Get a free API key at <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline hover:text-indigo-305">aistudio.google.com</a>. Can also be set as <code>GEMINI_API_KEY</code> in <code>.env.local</code>.
-                </p>
+                <div className="flex flex-col gap-2 mt-1">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowInstructions(!showInstructions)}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-305 font-bold flex items-center gap-1 cursor-pointer select-none"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      <span>{showInstructions ? "Hide" : "Show"} step-by-step key generation guide</span>
+                    </button>
+                    <a
+                      href="https://aistudio.google.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-slate-400 hover:text-white font-bold underline cursor-pointer"
+                    >
+                      Get Key from AI Studio &rarr;
+                    </a>
+                  </div>
+
+                  {showInstructions && (
+                    <div className="mt-2 p-3.5 rounded-xl bg-slate-950/50 border border-white/5 space-y-2 text-[10.5px] text-slate-350 leading-relaxed text-left font-sans">
+                      <p className="font-bold text-white mb-1.5 flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>How to get your free Gemini Key:</span>
+                      </p>
+                      <ol className="list-decimal pl-4.5 space-y-1.5">
+                        <li>
+                          Open <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="text-indigo-400 font-bold hover:underline">Google AI Studio</a>.
+                        </li>
+                        <li>
+                          Sign in with your <strong>Google Account</strong> (Gmail).
+                        </li>
+                        <li>
+                          Click the blue <strong className="text-indigo-300">"Get API key"</strong> button in the upper-left navigation panel.
+                        </li>
+                        <li>
+                          Click the <strong className="text-indigo-300">"Create API key"</strong> button.
+                        </li>
+                        <li>
+                          Select a project (or create one), and copy your generated key (starts with <code className="bg-slate-900 px-1 py-0.5 rounded font-mono text-[10px] text-slate-300">AIzaSy...</code>).
+                        </li>
+                        <li>
+                          Paste it into the input field above, and click <strong className="text-emerald-450">"Save Gemini Settings"</strong> below.
+                        </li>
+                      </ol>
+                      <div className="pt-2 border-t border-white/5 text-[9px] text-slate-500 leading-normal">
+                        <strong>Note:</strong> API keys are free for developer testing with generous standard rate limits.
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-slate-350 font-bold block">Gemini Model Name</label>

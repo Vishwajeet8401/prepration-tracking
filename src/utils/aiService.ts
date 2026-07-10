@@ -25,7 +25,50 @@ export async function callAI(params: AICallParams): Promise<string> {
   const temp = params.temperature ?? 0.2;
   const tokens = params.maxTokens ?? 300;
 
-  // 1. Attempt Cerebras API call if key is provided
+  // 1. Attempt Gemini REST API call if key is provided (first priority)
+  if (params.geminiApiKey && params.geminiApiKey.trim() !== '') {
+    try {
+      console.log(`[aiService] Attempting Gemini with model ${gModel}...`);
+      
+      const payload: any = {
+        contents: [{ parts: [{ text: params.userPrompt }] }],
+        systemInstruction: { parts: [{ text: params.systemPrompt }] },
+        generationConfig: {
+          temperature: temp,
+          maxOutputTokens: tokens
+        }
+      };
+
+      if (params.responseMimeType) {
+        payload.generationConfig.responseMimeType = params.responseMimeType;
+      }
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${params.geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      if (geminiRes.ok) {
+        const geminiData = await geminiRes.json();
+        const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (content) {
+          console.log('[aiService] Gemini call succeeded.');
+          return content;
+        }
+      } else {
+        const errText = await geminiRes.text();
+        console.warn(`[aiService] Gemini API returned status ${geminiRes.status}: ${errText}`);
+      }
+    } catch (err) {
+      console.warn('[aiService] Gemini API call failed:', err);
+    }
+  }
+
+  // 2. Fallback to Cerebras API call if key is provided
   if (params.cerebrasApiKey && params.cerebrasApiKey.trim() !== '') {
     try {
       const isDev = import.meta.env.DEV;
@@ -72,49 +115,6 @@ export async function callAI(params: AICallParams): Promise<string> {
       }
     } catch (err) {
       console.warn('[aiService] Cerebras API fetch failed:', err);
-    }
-  }
-
-  // 2. Fallback to Gemini REST API if key is provided
-  if (params.geminiApiKey && params.geminiApiKey.trim() !== '') {
-    try {
-      console.log(`[aiService] Attempting Gemini fallback with model ${gModel}...`);
-      
-      const payload: any = {
-        contents: [{ parts: [{ text: params.userPrompt }] }],
-        systemInstruction: { parts: [{ text: params.systemPrompt }] },
-        generationConfig: {
-          temperature: temp,
-          maxOutputTokens: tokens
-        }
-      };
-
-      if (params.responseMimeType) {
-        payload.generationConfig.responseMimeType = params.responseMimeType;
-      }
-
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${params.geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      );
-
-      if (geminiRes.ok) {
-        const geminiData = await geminiRes.json();
-        const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (content) {
-          console.log('[aiService] Gemini call succeeded.');
-          return content;
-        }
-      } else {
-        const errText = await geminiRes.text();
-        console.warn(`[aiService] Gemini API returned status ${geminiRes.status}: ${errText}`);
-      }
-    } catch (err) {
-      console.warn('[aiService] Gemini API call failed:', err);
     }
   }
 
