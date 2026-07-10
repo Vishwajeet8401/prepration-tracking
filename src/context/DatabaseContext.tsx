@@ -96,6 +96,7 @@ export interface DatabaseContextType {
   handleUpdateGeminiModel: (model: string) => Promise<void>;
   handleUpdateGroqModel: (model: string) => Promise<void>;
   handleUpdateTheme: (theme: string) => Promise<void>;
+  handleDismissGeminiBanner: () => Promise<void>;
   handleAddStarStory: (story: Omit<StarStory, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   handleUpdateStarStory: (story: StarStory) => Promise<void>;
   handleDeleteStarStory: (id: string) => Promise<void>;
@@ -1973,6 +1974,19 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user]);
 
+  const handleDismissGeminiBanner = useCallback(async () => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'userSettings', user.uid), {
+        id: user.uid,
+        userId: user.uid,
+        geminiBannerDismissed: true
+      }, { merge: true });
+    } catch (err) {
+      console.error("Error updating banner dismiss settings:", err);
+    }
+  }, [user]);
+
   const handleAddMockPresetQuestion = useCallback(async (newQ: Omit<MockPresetQuestion, 'id' | 'userId'>) => {
     if (!user) return;
     const newId = 'mpq-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -3050,7 +3064,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       handleDeleteInterview, handleAddMockInterview, handleDeleteMockInterview, handleAddStarStory, handleUpdateStarStory,
       handleDeleteStarStory, handleAddPersonalReminder, handleUpdatePersonalReminder, handleDeletePersonalReminder,
       handleActionPersonalReminder, handleUpdateReminderSettings, handleUpdateCerebrasKey, handleUpdateGeminiKey, handleUpdateGroqKey, 
-      handleUpdateCerebrasModel, handleUpdateGeminiModel, handleUpdateGroqModel, handleUpdateTheme, handleBulkImport,
+      handleUpdateCerebrasModel, handleUpdateGeminiModel, handleUpdateGroqModel, handleUpdateTheme, handleDismissGeminiBanner, handleBulkImport,
       handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead, handleClearAll,
       handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan, handleUpdateTaskInApp,
       handleDeleteTaskInApp, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion, handleUpdateCustomPrompt,

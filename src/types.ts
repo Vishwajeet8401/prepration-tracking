@@ -346,6 +346,7 @@ export interface UserSettings {
   groqModel?: string;
   theme?: string;
   customInterviewPrompt?: string;
+  geminiBannerDismissed?: boolean;
 }
 
 export interface StarStory {

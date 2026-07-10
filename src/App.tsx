@@ -93,7 +93,7 @@ export default function App() {
     handleDeleteStarStory, handleAddPersonalReminder,
     handleUpdatePersonalReminder, handleDeletePersonalReminder, handleActionPersonalReminder, handleUpdateReminderSettings,
     handleUpdateCerebrasKey, handleUpdateGeminiKey, handleUpdateGroqKey, handleUpdateCerebrasModel, handleUpdateGeminiModel, handleUpdateGroqModel,
-    handleUpdateTheme, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
+    handleUpdateTheme, handleDismissGeminiBanner, handleBulkImport, handleAddMistake, handleDeleteMistake, handleAddSession, pushNotification, handleMarkRead,
     handleClearAll, handleAddIntelliQuestion, handleDeleteIntelliQuestion, handleAddPlan, handleDeletePlan,
     handleUpdateTaskInApp, handleDeleteTaskInApp, handleUpdateCustomPrompt, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion,
     vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
@@ -385,7 +385,7 @@ export default function App() {
                        const Icon = tab.icon;
                        const isActive = activeTab === tab.label;
                        const hasAction = 'action' in tab;
-                       const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY;
+                       const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY && !userSettings?.geminiBannerDismissed;
                        return (
                          <button
                            key={tab.label}
@@ -467,9 +467,9 @@ export default function App() {
                ].map(tab => {
                  const Icon = tab.icon;
                  const isActive = activeTab === tab.label;
-                 const hasAction = 'action' in tab;
-                 const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY;
-                 return (
+                  const hasAction = 'action' in tab;
+                  const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY && !userSettings?.geminiBannerDismissed;
+                  return (
                    <button
                      key={tab.label}
                      onClick={() => {
@@ -589,6 +589,7 @@ export default function App() {
                   mockInterviews={mockInterviews}
                   activeTab={activeTab}
                   onStartTour={() => setShowTour(true)}
+                  onDismissGeminiBanner={handleDismissGeminiBanner}
                 />
                 
                 <CloudBackupControls 

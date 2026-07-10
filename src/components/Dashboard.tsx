@@ -39,6 +39,7 @@ interface DashboardProps {
   mockInterviews?: MockInterview[];
   activeTab?: string;
   onStartTour?: () => void;
+  onDismissGeminiBanner?: () => Promise<void>;
 }
 
 // 1. Premium Animated Counter
@@ -183,7 +184,8 @@ const Dashboard = React.memo(function Dashboard({
   starStories = [],
   mockInterviews = [],
   activeTab,
-  onStartTour
+  onStartTour,
+  onDismissGeminiBanner
 }: DashboardProps) {
 
   // Accessibility tracking prefers-reduced-motion check
@@ -1210,7 +1212,7 @@ const Dashboard = React.memo(function Dashboard({
       </motion.div>
 
       {/* Dynamic Alert Banner for missing Gemini API Key */}
-      {!userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY && !geminiBannerDismissed && (
+      {!userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY && !userSettings?.geminiBannerDismissed && !geminiBannerDismissed && (
         <motion.div
           variants={itemVariants}
           className="relative overflow-hidden rounded-2xl p-5 pr-10 border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg hover:shadow-amber-500/5 transition-all duration-300"
@@ -1223,6 +1225,9 @@ const Dashboard = React.memo(function Dashboard({
               e.stopPropagation();
               setGeminiBannerDismissed(true);
               localStorage.setItem('prep_gemini_banner_dismissed', 'true');
+              if (onDismissGeminiBanner) {
+                await onDismissGeminiBanner();
+              }
               if (pushNotification) {
                 await pushNotification({
                   title: "Configure Private Gemini API Key",
