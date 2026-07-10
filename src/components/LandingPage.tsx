@@ -1508,7 +1508,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 onClick={onGetStarted}
                 className="lp-btn-primary !py-2.5 !px-5 !text-[13px] lp-interactive"
               >
-                Launch Dashboard
+                Get Started Free
                 <ArrowRight size={14} />
               </button>
             </div>
@@ -1538,7 +1538,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 <a href="#faq" className="text-sm text-slate-300 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
                 <hr className="border-white/10" />
                 <button onClick={onGetStarted} className="lp-btn-primary w-full justify-center !text-sm">
-                  Launch Dashboard <ArrowRight size={14} />
+                  Get Started Free <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
@@ -1658,7 +1658,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           transition={{ delay: 0.55, duration: 0.7 }}
           className="mt-8 text-base md:text-xl text-slate-400 max-w-3xl leading-relaxed font-sans"
         >
-          PrepFlow is the ultimate free study, practice, and preparation tracker for software engineering interviews. Build daily coding habits, track study topics with spaced repetition, and practice with our interactive AI mock interviewer.
+          PrepFlow is a <strong className="text-white font-semibold">free</strong> all-in-one interview prep platform. Sign up in seconds — no credit card needed. Track study topics with spaced repetition, practice with an AI mock interviewer, and build daily coding habits.
         </motion.p>
 
         {/* CTA Buttons */}
@@ -1675,8 +1675,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               onClick={onGetStarted}
               className="relative lp-btn-primary !px-9 !py-4.5 !text-[16px] lp-interactive flex items-center gap-2.5 rounded-2xl cursor-pointer"
             >
-              <Play size={18} fill="white" className="text-white" />
-              <span>Enter Workspace — Free</span>
+              <Rocket size={18} className="text-white" />
+              <span>Get Started</span>
             </button>
           </div>
 
@@ -1690,6 +1690,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <span>Star on GitHub</span>
           </a>
         </motion.div>
+
+        {/* Helper text below CTAs — guides first-time visitors */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.9, duration: 0.6 }}
+          className="mt-5 text-xs text-slate-500 font-mono"
+        >
+          ✓ No credit card &nbsp;·&nbsp; ✓ No installation &nbsp;·&nbsp; ✓ Works in your browser
+        </motion.p>
 
         {/* Stats row */}
         <motion.div
@@ -1915,7 +1925,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             <button onClick={onGetStarted} className="lp-btn-primary lp-interactive text-base px-8 py-4">
               <Sparkles size={18} />
-              Start Preparing Now
+              Get Started — It's Free
             </button>
             <a
               href="https://github.com/Vishwajeet8401/prepration-tracking"
