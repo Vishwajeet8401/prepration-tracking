@@ -1,15 +1,51 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
+
+# ── Build outputs ──────────────────────────────────────────────────────────────
 build/
 dist/
 coverage/
+
+# ── Firebase ──────────────────────────────────────────────────────────────────
 .firebase/
-.DS_Store
-*.log
-.env*
-!.env.example
-.idea/
-.idea_modules/
 firebase-debug.log
 firebase-applet-config.json
+.firebaserc.local
 
+# ── Environment / Secrets — NEVER commit real values ─────────────────────────
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.staging
+.env.test
+# Allow only the placeholder template
+!.env.example
 
+# ── OS / Editor artefacts ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+*.local
+
+# ── IDE / editor folders ──────────────────────────────────────────────────────
+.idea/
+.idea_modules/
+.vscode/
+# If you want to share specific VS Code settings, allowlist them explicitly:
+# !.vscode/extensions.json
+
+# ── Android / Capacitor ───────────────────────────────────────────────────────
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+# google-services.json contains OAuth/Firebase project credentials
+android/app/google-services.json
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
