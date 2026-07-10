@@ -263,7 +263,7 @@ export default function App() {
         />
       )}
 
-      {user && (
+      {user && activeTab !== 'Code Playground' && (
       <header className="app-header text-white sticky top-0 z-[60]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           
@@ -805,10 +805,6 @@ export default function App() {
             />
           )}
 
-            {activeTab === 'Code Playground' && (
-            <CodeEditorPage />
-          )}
-
           {activeTab === 'Mobile Sync Hub' && (
             <MobileOfflineHub 
               notifications={notifications}
@@ -855,11 +851,11 @@ export default function App() {
         </>
       )}
 
-      <footer className="border-t border-white/5 mt-auto py-5 select-none text-center bg-black/10">
+      {activeTab !== 'Code Playground' && <footer className="border-t border-white/5 mt-auto py-5 select-none text-center bg-black/10">
         <div className="max-w-7xl mx-auto px-4 text-xs text-slate-400 font-sans">
           &copy; 2026 PrepFlow. Accelerate learning, track tasks, and achieve your goals with smart companion tools.
         </div>
-      </footer>
+      </footer>}
 
       <FuturisticToaster 
         toasts={activeToasts}

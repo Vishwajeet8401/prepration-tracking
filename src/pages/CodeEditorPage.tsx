@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { AlertTriangle, X, KeyRound, ExternalLink } from 'lucide-react';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { CodeLanguage, CodeSubmission, EditorTheme } from '../types';
 import { CODE_QUESTIONS } from '../data/codeQuestions';
@@ -27,7 +28,7 @@ import {
   Code2, Play, Send, Loader, ChevronDown, RotateCcw,
   Timer, Moon, Sun, CheckCircle, Keyboard, ArrowLeft,
   FileText, MessageSquare, History, ListChecks, Sparkles,
-  Clock, Plus, Settings, Pencil, BarChart2, X
+  Clock, Plus, Settings, Pencil, BarChart2
 } from 'lucide-react';
 
 interface TestResult {
@@ -550,29 +551,104 @@ ${sourceCode}
   // ═════════════════════════════════════════════════════════════════════════
   const isStandalone = !!onBackToDashboard;
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // RENDER
-  // ═════════════════════════════════════════════════════════════════════════
+  // AI key check — at least one key must be present for code execution + AI Coach to work
+  const hasAiKey = !!(userSettings?.geminiApiKey || userSettings?.cerebrasApiKey || userSettings?.groqApiKey
+    || import.meta.env.VITE_GEMINI_API_KEY);
+  const [aiKeyBannerDismissed, setAiKeyBannerDismissed] = useState(
+    () => localStorage.getItem('code_playground_ai_banner_dismissed') === 'true'
+  );
+  const showAiKeyBanner = !hasAiKey && !aiKeyBannerDismissed;
+
+  const handleDismissAiBanner = () => {
+    setAiKeyBannerDismissed(true);
+    localStorage.setItem('code_playground_ai_banner_dismissed', 'true');
+  };
+
   return (
     <div
-      className={`flex flex-col select-none bg-[#070b13] ${isStandalone ? 'h-[calc(100vh-64px)] w-screen overflow-hidden' : 'h-[calc(100vh-140px)] min-h-[500px] -mx-4 -mt-6'
-        }`}
-      style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}
+      className={`select-none overflow-hidden ${isStandalone
+        ? 'h-screen w-screen flex items-center justify-center'
+        : 'h-[calc(100vh-140px)] min-h-[500px] -mx-4 -mt-6 flex items-center justify-center'
+      }`}
+      style={{
+        fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+        background: isStandalone
+          ? 'radial-gradient(ellipse at 30% 20%, #1e1b4b 0%, #0f0f1a 40%, #070b13 100%)'
+          : undefined,
+      }}
     >
-      {/* ── Top Navbar ─────────────────────────────────────────────────────── */}
-      <nav className="flex items-center justify-between px-2 sm:px-4 py-2 bg-[#111827] border-b border-slate-700/50 shrink-0 gap-2">
-        {/* Left: Logo + Problem Selector */}
-        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-          {onBackToDashboard && (
-            <button
-              onClick={onBackToDashboard}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/40 rounded-lg text-xs font-semibold text-slate-200 transition cursor-pointer"
-              title="Return to home dashboard"
+      {/* ─── macOS Window Frame ─────────────────────────────────────────── */}
+      <div
+        className={`flex flex-col bg-[#070b13] ${
+          isStandalone
+            ? 'w-[calc(100vw-32px)] h-[calc(100vh-32px)]'
+            : 'w-full h-full'
+        } rounded-2xl overflow-hidden`}
+        style={{
+          border: '1px solid rgba(148,163,184,0.18)',
+          boxShadow: isStandalone
+            ? '0 0 0 1px rgba(0,0,0,0.6), 0 32px 80px rgba(0,0,0,0.7), 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)'
+            : '0 8px 32px rgba(0,0,0,0.5)',
+        }}
+      >
+      {/* ── macOS Title Bar ─────────────────────────────────────────────── */}
+      <nav
+        className="relative flex items-center justify-between px-3 sm:px-4 py-2.5 shrink-0 gap-2"
+        style={{
+          background: 'linear-gradient(180deg, #232334 0%, #1a1a2a 100%)',
+          borderBottom: '1px solid rgba(100,116,139,0.25)',
+        }}
+      >
+        {/* Absolutely-centered window title — macOS style */}
+        <div className="absolute inset-x-0 top-0 h-full flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-1.5">
+            <Code2 className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-xs font-semibold text-slate-300 tracking-tight">{question.title}</span>
+            <span
+              className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                question.difficulty === 'Easy' ? 'bg-emerald-500/15 text-emerald-400'
+                : question.difficulty === 'Medium' ? 'bg-amber-500/15 text-amber-400'
+                : 'bg-rose-500/15 text-rose-400'
+              }`}
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
+              {question.difficulty}
+            </span>
+          </div>
+        </div>
+        {/* Left: Traffic Lights + Problem Selector */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {/* macOS Traffic Light Controls */}
+          <div className="flex items-center gap-[7px] shrink-0 group/tl" title="Window controls">
+            {/* Red — Close / Back */}
+            <button
+              onClick={onBackToDashboard || undefined}
+              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
+              style={{ background: 'radial-gradient(circle at 40% 35%, #ff8a7a, #ff5f57)', boxShadow: '0 1px 3px rgba(255,95,87,0.5), inset 0 1px 0 rgba(255,255,255,0.25)' }}
+              title={onBackToDashboard ? 'Close – Return to Dashboard' : 'Close'}
+            >
+              <span className="opacity-0 group-hover/tl:opacity-100 text-[8px] font-black text-red-900 leading-none select-none transition-opacity">✕</span>
             </button>
-          )}
+            {/* Yellow — Minimize (visual only) */}
+            <button
+              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-default flex items-center justify-center"
+              style={{ background: 'radial-gradient(circle at 40% 35%, #ffd86b, #febc2e)', boxShadow: '0 1px 3px rgba(254,188,46,0.5), inset 0 1px 0 rgba(255,255,255,0.25)' }}
+              title="Minimize"
+              onClick={() => {}}
+            >
+              <span className="opacity-0 group-hover/tl:opacity-100 text-[8px] font-black text-amber-900 leading-none select-none transition-opacity">−</span>
+            </button>
+            {/* Green — Maximize (visual only) */}
+            <button
+              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-default flex items-center justify-center"
+              style={{ background: 'radial-gradient(circle at 40% 35%, #5de576, #28c840)', boxShadow: '0 1px 3px rgba(40,200,64,0.5), inset 0 1px 0 rgba(255,255,255,0.25)' }}
+              title="Full Screen"
+              onClick={() => {}}
+            >
+              <span className="opacity-0 group-hover/tl:opacity-100 text-[8px] font-black text-green-900 leading-none select-none transition-opacity">+</span>
+            </button>
+          </div>
+          {/* Divider */}
+          <div className="w-px h-4 bg-slate-700/60 shrink-0 hidden sm:block" />
 
 
           {/* Problem Selector */}
@@ -746,6 +822,40 @@ ${sourceCode}
           <TimerDisplay />
         </div>
       </nav>
+      {/* End macOS Title Bar */}
+
+      {/* ── AI Key Missing Warning Banner ─────────────────────────────────── */}
+      {showAiKeyBanner && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-950/60 border-b border-amber-500/30 shrink-0 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-amber-400 shrink-0">
+            <AlertTriangle className="w-4 h-4 animate-pulse" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-amber-300 leading-snug">
+              No AI API Key Configured —{' '}
+              <span className="font-normal text-amber-400/90">
+                Code execution, test evaluation, and the AI Coach require a Gemini, Cerebras, or Groq API key to function.
+              </span>
+            </p>
+          </div>
+          <a
+            href="#settings"
+            onClick={(e) => { e.preventDefault(); onBackToDashboard?.(); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-lg text-[11px] font-bold text-amber-300 hover:text-amber-200 transition cursor-pointer whitespace-nowrap shrink-0"
+            title="Go to Settings to add your API key"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Add API Key</span>
+          </a>
+          <button
+            onClick={handleDismissAiBanner}
+            className="p-1 text-amber-500/60 hover:text-amber-300 hover:bg-amber-500/10 rounded-md transition cursor-pointer shrink-0"
+            title="Dismiss warning"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* ── Mobile Run/Submit sticky bar — visible on mobile when in 'code' or 'output' view ── */}
       {(mobileView === 'code' || mobileView === 'output') && (
@@ -1511,6 +1621,7 @@ ${sourceCode}
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
