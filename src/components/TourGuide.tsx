@@ -75,10 +75,10 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
       setCoords(null);
       setPopoverStyle({
         position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: `calc(100% - 32px)`,
+        top: '30%',
+        left: '12px',
+        right: '12px',
+        margin: '0 auto',
         maxWidth: `${getPopoverWidth()}px`,
         zIndex: 99999,
       });
@@ -103,10 +103,10 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
       setPopoverStyle({
         position: 'fixed',
         bottom: '16px',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        left: '12px',
+        right: '12px',
+        margin: '0 auto',
         zIndex: 99999,
-        width: 'calc(100% - 32px)',
         maxWidth: `${getPopoverWidth()}px`,
       });
       return;
@@ -136,9 +136,9 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
       const isTargetInLowerHalf = rect.top > (viewportH / 2);
       setPopoverStyle({
         position: 'fixed',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: 'calc(100% - 24px)',
+        left: '12px',
+        right: '12px',
+        margin: '0 auto',
         maxWidth: `${popoverW}px`,
         zIndex: 99999,
         ...(isTargetInLowerHalf ? { top: '16px' } : { bottom: '16px' })
