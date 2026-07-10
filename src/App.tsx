@@ -34,6 +34,7 @@ import LandingPage from './components/LandingPage';
 import GestureInstructionBar from './components/GestureInstructionBar';
 import { BuyMeCoffeeModal } from './components/BuyMeCoffee';
 import CodeEditorPage from './pages/CodeEditorPage';
+import OnboardingGuide from './components/OnboardingGuide';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
@@ -75,7 +76,7 @@ const ALL_TABS = [
 ];
 
 export default function App() {
-  const { user, userProfile, authLoading } = useAuth();
+  const { user, userProfile, authLoading, onboardingCompleted, markOnboardingComplete } = useAuth();
   const {
     subjects, topics, topicLimit, setTopicLimit, questions, questionLimit, setQuestionLimit,
     applications, interviews, mistakes, sessions, notifications, voiceRecordings, intelliQuestions,
@@ -211,10 +212,28 @@ export default function App() {
     );
   }
 
+  // Handler for completing the onboarding wizard
+  const handleOnboardingComplete = async (answers: Record<string, any>) => {
+    await markOnboardingComplete(answers);
+  };
+
+  const handleOnboardingSkip = async () => {
+    await markOnboardingComplete({});
+  };
+
   return (
     <div data-theme={userSettings?.theme || 'cyber-midnight'} className="min-h-screen text-slate-100 flex flex-col font-sans select-none antialiased relative">
       <div className="mesh-gradient" />
-      
+
+      {/* ── Onboarding Guide Overlay — shown once for new users ── */}
+      {user && !onboardingCompleted && (
+        <OnboardingGuide
+          userName={userProfile?.name}
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
+
       {user && (
       <header className="app-header text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">

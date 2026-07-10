@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, onAuthStateChanged, signOut } from 'firebase/auth';
+import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
   userProfile: any | null;
   authLoading: boolean;
+  isNewUser: boolean;
+  onboardingCompleted: boolean;
+  markOnboardingComplete: (answers?: Record<string, any>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -15,6 +18,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true); // default true to avoid flash
+
+  const markOnboardingComplete = async (answers?: Record<string, any>) => {
+    if (!user) return;
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        onboardingCompleted: true,
+        onboardingAnswers: answers || {},
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Could not persist onboarding answers:', err);
+    }
+    setOnboardingCompleted(true);
+    setIsNewUser(false);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -25,17 +46,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userDocRef = doc(db, 'users', currentUser.uid);
             const snap = await getDoc(userDocRef);
             if (snap.exists()) {
-              setUserProfile(snap.data());
+              const data = snap.data();
+              setUserProfile(data);
+              // If the doc exists but onboardingCompleted is explicitly false, show guide
+              const completed = data.onboardingCompleted !== false; // treat missing field as true for old users
+              setOnboardingCompleted(completed);
+              setIsNewUser(!completed);
             } else {
+              // Brand new user — create profile with onboardingCompleted: false
               const initialProfile = {
                 id: currentUser.uid,
                 email: currentUser.email || '',
                 name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Candidate',
                 createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                onboardingCompleted: false,
               };
               await setDoc(userDocRef, initialProfile);
               setUserProfile(initialProfile);
+              setOnboardingCompleted(false);
+              setIsNewUser(true);
             }
           } catch (err: any) {
             if (retries > 0 && (err.code === 'permission-denied' || err.message?.includes('permission'))) {
@@ -55,11 +85,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: currentUser.email || '',
             name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Active Candidate',
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
           });
+          // On fallback, don't show onboarding to avoid repeated prompts
+          setOnboardingCompleted(true);
+          setIsNewUser(false);
         });
       } else {
         setUserProfile(null);
+        setOnboardingCompleted(true);
+        setIsNewUser(false);
       }
       setAuthLoading(false);
     });
@@ -68,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, authLoading }}>
+    <AuthContext.Provider value={{ user, userProfile, authLoading, isNewUser, onboardingCompleted, markOnboardingComplete }}>
       {children}
     </AuthContext.Provider>
   );

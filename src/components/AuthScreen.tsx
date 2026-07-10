@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { LogIn, Sparkles, AlertCircle, Loader, Mail, Lock, User, ArrowLeft, CheckCircle2, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -61,7 +61,8 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
           email: user.email || email,
           name: name || user.email?.split('@')[0] || 'Candidate',
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          onboardingCompleted: false,
         });
       } else {
         // Sign In
@@ -157,13 +158,17 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
         user = userCredential.user;
       }
 
-      // Save user profile in Firestore
-      await setDoc(doc(db, 'users', user.uid), {
+      // Save user profile in Firestore (merge so existing data is preserved)
+      const userDocRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userDocRef);
+      const isFirstTimeGoogleUser = !snap.exists();
+      await setDoc(userDocRef, {
         id: user.uid,
         email: user.email || '',
         name: user.displayName || user.email?.split('@')[0] || 'Candidate',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        ...(isFirstTimeGoogleUser ? { onboardingCompleted: false } : {}),
       }, { merge: true });
       
       onSuccess?.();
