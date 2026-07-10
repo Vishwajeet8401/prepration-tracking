@@ -224,14 +224,15 @@ export default function App() {
   }
 
   // Handler for completing the onboarding wizard
+  // NOTE: setShowTour is NOT called here — the useEffect above fires automatically
+  // when onboardingCompleted becomes true after markOnboardingComplete resolves,
+  // preventing the tour from showing twice.
   const handleOnboardingComplete = async (answers: Record<string, any>) => {
     await markOnboardingComplete(answers);
-    setShowTour(true);
   };
 
   const handleOnboardingSkip = async () => {
     await markOnboardingComplete({});
-    setShowTour(true);
   };
 
   return (
