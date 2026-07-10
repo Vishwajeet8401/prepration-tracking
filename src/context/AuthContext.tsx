@@ -78,7 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         };
 
-        fetchUserProfileWithRetry().catch((err) => {
+        try {
+          await fetchUserProfileWithRetry();
+        } catch (err) {
           console.warn("Firestore user profile document is restricted (deploying firestore.rules is pending). Falling back to client-side auth profile details.");
           setUserProfile({
             id: currentUser.uid,
@@ -90,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // On fallback, don't show onboarding to avoid repeated prompts
           setOnboardingCompleted(true);
           setIsNewUser(false);
-        });
+        }
       } else {
         setUserProfile(null);
         setOnboardingCompleted(true);

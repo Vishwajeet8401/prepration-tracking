@@ -251,7 +251,7 @@ export default function App() {
       )}
 
       {/* ── Interactive Guided Tour Overlay ── */}
-      {showTour && (
+      {showTour && onboardingCompleted && (
         <TourGuide
           onComplete={(completed) => {
             localStorage.setItem('prep_tour_completed', completed ? 'true' : 'skipped');
