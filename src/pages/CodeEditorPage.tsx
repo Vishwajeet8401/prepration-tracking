@@ -365,7 +365,7 @@ ${sourceCode}
       const stdin = question.testCases[0]?.input || '';
       const result = await executeCodeWithAI(language, code, stdin);
       setExecutionResult(result);
-      localStorage.setItem('prep_quest_compile_code', 'true');
+      localStorage.setItem(`prep_quest_compile_code_${user?.uid}`, 'true');
     } catch (err) {
       setExecutionResult({
         stdout: '',
@@ -413,7 +413,7 @@ ${sourceCode}
 
       setTestResults(results);
       if (lastResult) setExecutionResult(lastResult);
-      localStorage.setItem('prep_quest_compile_code', 'true');
+      localStorage.setItem(`prep_quest_compile_code_${user?.uid}`, 'true');
 
       const allPassed = results.every((r) => r.passed);
       const status = lastResult?.status === 'compilation_error'

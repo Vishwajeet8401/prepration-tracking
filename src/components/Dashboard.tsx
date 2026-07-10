@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useScrollGesture } from '../hooks/useScrollGesture';
+import { useAuth } from '../context/AuthContext';
 
 interface DashboardProps {
   topics: Topic[];
@@ -187,18 +188,20 @@ const Dashboard = React.memo(function Dashboard({
   onStartTour,
   onDismissGeminiBanner
 }: DashboardProps) {
+  const { user } = useAuth();
+  const uid = user?.uid || '';
 
   // Accessibility tracking prefers-reduced-motion check
   const [reducedMotion, setReducedMotion] = useState(false);
 
   // Onboarding Quests widget state
   const [questsDismissed, setQuestsDismissed] = useState(() => {
-    return localStorage.getItem('prep_quests_dismissed') === 'true';
+    return localStorage.getItem(`prep_quests_dismissed_${uid}`) === 'true';
   });
 
-  const isQuest1Completed = localStorage.getItem('prep_quest_compile_code') === 'true';
-  const isQuest2Completed = (roadmaps && roadmaps.length > 0) || localStorage.getItem('prep_quest_create_roadmap') === 'true';
-  const isQuest3Completed = (mockInterviews && mockInterviews.length > 0) || localStorage.getItem('prep_quest_mock_interview') === 'true';
+  const isQuest1Completed = localStorage.getItem(`prep_quest_compile_code_${uid}`) === 'true';
+  const isQuest2Completed = (roadmaps && roadmaps.length > 0) || localStorage.getItem(`prep_quest_create_roadmap_${uid}`) === 'true';
+  const isQuest3Completed = (mockInterviews && mockInterviews.length > 0) || localStorage.getItem(`prep_quest_mock_interview_${uid}`) === 'true';
   const isQuest4Completed = topics && topics.length > 0;
 
   const completedCount = [isQuest1Completed, isQuest2Completed, isQuest3Completed, isQuest4Completed].filter(Boolean).length;
@@ -207,14 +210,14 @@ const Dashboard = React.memo(function Dashboard({
 
   // Track if Gemini API Key banner has been dismissed
   const [geminiBannerDismissed, setGeminiBannerDismissed] = useState(() => {
-    return localStorage.getItem('prep_gemini_banner_dismissed') === 'true';
+    return localStorage.getItem(`prep_gemini_banner_dismissed_${uid}`) === 'true';
   });
 
   useEffect(() => {
     if (isAllCompleted && completedCount === 4) {
-      const congratulated = localStorage.getItem('prep_quests_congratulated') === 'true';
+      const congratulated = localStorage.getItem(`prep_quests_congratulated_${uid}`) === 'true';
       if (!congratulated) {
-        localStorage.setItem('prep_quests_congratulated', 'true');
+        localStorage.setItem(`prep_quests_congratulated_${uid}`, 'true');
         playSuccessChime();
         if (pushNotification) {
           pushNotification({
@@ -1309,7 +1312,7 @@ const Dashboard = React.memo(function Dashboard({
               <button
                 onClick={() => {
                   setQuestsDismissed(true);
-                  localStorage.setItem('prep_quests_dismissed', 'true');
+                  localStorage.setItem(`prep_quests_dismissed_${uid}`, 'true');
                 }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all cursor-pointer"
                 title="Dismiss widget"
@@ -1428,7 +1431,7 @@ const Dashboard = React.memo(function Dashboard({
               <button
                 onClick={() => {
                   setQuestsDismissed(true);
-                  localStorage.setItem('prep_quests_dismissed', 'true');
+                  localStorage.setItem(`prep_quests_dismissed_${uid}`, 'true');
                 }}
                 className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold cursor-pointer transition"
               >

@@ -11,6 +11,7 @@ import { speakNativeText, stopNativeSpeech, startNativeSpeechToText, stopNativeS
 import AudioPlayButton from './AudioPlayButton';
 import { useScrollGesture } from '../hooks/useScrollGesture';
 import { callAI } from '../utils/aiService';
+import { useAuth } from '../context/AuthContext';
 
 interface MockInterviewWorkspaceProps {
   subjects: Subject[];
@@ -178,6 +179,7 @@ const MockInterviewWorkspace = React.memo(function MockInterviewWorkspace({
   onAddInterview,
   onDeleteInterview
 }: MockInterviewWorkspaceProps) {
+  const { user } = useAuth();
   const DEFAULT_PERSONA_PROMPT = `You are an expert technical interviewer at a top-tier tech company.
 Your task is to generate exactly 3 challenging, thinking-based, scenario-oriented interview questions for a candidate.
 Avoid simple definitions like "what is oops" or "what is a class". 
@@ -542,7 +544,7 @@ Format the response strictly as a valid JSON array. Do not wrap the JSON output 
     setTimerSeconds(limitSecondsPerQuestion);
     setTotalTimerSeconds(0);
     setIsSessionActive(true);
-    localStorage.setItem('prep_quest_mock_interview', 'true');
+    localStorage.setItem(`prep_quest_mock_interview_${user?.uid}`, 'true');
 
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
