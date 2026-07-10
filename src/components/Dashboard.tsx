@@ -1288,12 +1288,7 @@ const Dashboard = React.memo(function Dashboard({
             <div className="flex items-start gap-2">
               <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse mt-0.5" />
               <div>
-                <h3 className="font-bold text-white text-sm font-display flex items-center gap-2">
-                  <span>🚀 Onboarding Quests</span>
-                  <span className="text-[10px] font-mono font-bold bg-indigo-500/20 px-2 py-0.5 rounded text-indigo-355">
-                    {completedCount} / {totalCount} Completed
-                  </span>
-                </h3>
+                <h3 className="font-bold text-white text-sm font-display">🚀 Onboarding Quests</h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Complete these interactive quests to explore the capabilities of PrepFlow.
                 </p>
@@ -1323,7 +1318,13 @@ const Dashboard = React.memo(function Dashboard({
           </div>
 
           {/* Progress Bar */}
-          <div className="mb-6">
+          <div className="mb-6 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Quest Progress</span>
+              <span className="font-mono font-bold text-indigo-300">
+                {completedCount} / {totalCount} Completed
+              </span>
+            </div>
             <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
