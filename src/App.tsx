@@ -204,6 +204,15 @@ export default function App() {
     });
   }, [activeTab]);
 
+  useEffect(() => {
+    if (user && onboardingCompleted) {
+      const tourCompleted = localStorage.getItem('prep_tour_completed');
+      if (!tourCompleted) {
+        setShowTour(true);
+      }
+    }
+  }, [user, onboardingCompleted]);
+
   if (authLoading) {
     return (
       <div data-theme="cyber-midnight" className="min-h-screen text-slate-100 flex flex-col items-center justify-center font-sans antialiased relative">
@@ -224,15 +233,6 @@ export default function App() {
     await markOnboardingComplete({});
     setShowTour(true);
   };
-
-  useEffect(() => {
-    if (user && onboardingCompleted) {
-      const tourCompleted = localStorage.getItem('prep_tour_completed');
-      if (!tourCompleted) {
-        setShowTour(true);
-      }
-    }
-  }, [user, onboardingCompleted]);
 
   return (
     <div data-theme={userSettings?.theme || 'cyber-midnight'} className="min-h-screen text-slate-100 flex flex-col font-sans select-none antialiased relative">

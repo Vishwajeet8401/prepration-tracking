@@ -150,10 +150,38 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
   };
 
   useEffect(() => {
+    // Scroll target element into view immediately if off-screen
+    if (step.target) {
+      const selectors = step.target.split(',');
+      let targetEl: HTMLElement | null = null;
+      for (const selector of selectors) {
+        const el = document.querySelector(selector.trim()) as HTMLElement;
+        if (el && el.offsetWidth > 0 && el.offsetHeight > 0) {
+          targetEl = el;
+          break;
+        }
+      }
+      if (targetEl) {
+        targetEl.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+      }
+    }
+
+    // Calculate spotlight layout coordinates
     updateSpotlight();
+
+    // Recalculate once smooth scrolling settles
+    const timer = setTimeout(() => {
+      updateSpotlight();
+    }, 400);
+
     window.addEventListener('resize', updateSpotlight);
     window.addEventListener('scroll', updateSpotlight);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('resize', updateSpotlight);
       window.removeEventListener('scroll', updateSpotlight);
     };
