@@ -129,6 +129,23 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
 
+    // MOBILE DOCKED POSITIONING:
+    // If on a mobile/tablet screen, dock the popover card at a fixed top or bottom position
+    // so it is always fully visible, while still showing the spotlight cutout.
+    if (viewportW < 768) {
+      const isTargetInLowerHalf = rect.top > (viewportH / 2);
+      setPopoverStyle({
+        position: 'fixed',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'calc(100% - 24px)',
+        maxWidth: `${popoverW}px`,
+        zIndex: 99999,
+        ...(isTargetInLowerHalf ? { top: '16px' } : { bottom: '16px' })
+      });
+      return;
+    }
+
     let top = rect.bottom + padding + 10;
     let left = rect.left + rect.width / 2 - popoverW / 2;
 
