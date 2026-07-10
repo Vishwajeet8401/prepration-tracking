@@ -117,6 +117,7 @@ export default function StarStoryBuilder({
       }
     } else {
       await onAddStarStory(payload);
+      localStorage.setItem('prep_quest_create_star', 'true');
     }
     setIsEditing(false);
   };

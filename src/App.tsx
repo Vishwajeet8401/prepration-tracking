@@ -35,6 +35,7 @@ import GestureInstructionBar from './components/GestureInstructionBar';
 import { BuyMeCoffeeModal } from './components/BuyMeCoffee';
 import CodeEditorPage from './pages/CodeEditorPage';
 import OnboardingGuide from './components/OnboardingGuide';
+import TourGuide from './components/TourGuide';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
@@ -106,6 +107,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('Home Dashboard');
   const [settingsSubTab, setSettingsSubTab] = useState<'import' | 'templates' | 'export' | 'settings'>('import');
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [activeSessionTopicId, setActiveSessionTopicId] = useState<string | null>(null);
   const [isCoffeeModalOpen, setIsCoffeeModalOpen] = useState(false);
 
@@ -215,11 +217,22 @@ export default function App() {
   // Handler for completing the onboarding wizard
   const handleOnboardingComplete = async (answers: Record<string, any>) => {
     await markOnboardingComplete(answers);
+    setShowTour(true);
   };
 
   const handleOnboardingSkip = async () => {
     await markOnboardingComplete({});
+    setShowTour(true);
   };
+
+  useEffect(() => {
+    if (user && onboardingCompleted) {
+      const tourCompleted = localStorage.getItem('prep_tour_completed');
+      if (!tourCompleted) {
+        setShowTour(true);
+      }
+    }
+  }, [user, onboardingCompleted]);
 
   return (
     <div data-theme={userSettings?.theme || 'cyber-midnight'} className="min-h-screen text-slate-100 flex flex-col font-sans select-none antialiased relative">
@@ -234,11 +247,24 @@ export default function App() {
         />
       )}
 
+      {/* ── Interactive Guided Tour Overlay ── */}
+      {showTour && (
+        <TourGuide
+          onComplete={(completed) => {
+            localStorage.setItem('prep_tour_completed', completed ? 'true' : 'skipped');
+            setShowTour(false);
+          }}
+          onNavigateToTab={(tab) => {
+            setActiveTab(tab);
+          }}
+        />
+      )}
+
       {user && (
       <header className="app-header text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           
-          <div className="flex items-center gap-2.5">
+          <div id="app-header-brand" className="flex items-center gap-2.5">
             {activeTab !== 'Home Dashboard' && (
               <button
                 onClick={handleGoBack}
@@ -289,6 +315,7 @@ export default function App() {
             </button>
 
             <button
+              id="mobile-nav-toggle"
               onClick={() => setIsNavOpen(!isNavOpen)}
               className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition"
               aria-label="Toggle navigation"
@@ -408,7 +435,7 @@ export default function App() {
           ) : (
             <main className="max-w-7xl w-full mx-auto px-4 py-6 flex-1 flex flex-col lg:flex-row gap-6">
           
-          <nav className="hidden lg:flex w-full lg:w-60 flex-col gap-4">
+          <nav id="desktop-sidebar-nav" className="hidden lg:flex w-full lg:w-60 flex-col gap-4">
             
             <div className="glass-card p-4 space-y-1.5">
               <span className="block text-[10px] font-mono text-slate-400 uppercase tracking-widest px-2 mb-2 font-black select-none">
@@ -555,6 +582,10 @@ export default function App() {
                   urgentTopics={urgentTopics}
                   pushNotification={pushNotification}
                   userSettings={userSettings}
+                  starStories={starStories}
+                  mockInterviews={mockInterviews}
+                  activeTab={activeTab}
+                  onStartTour={() => setShowTour(true)}
                 />
                 
                 <CloudBackupControls 

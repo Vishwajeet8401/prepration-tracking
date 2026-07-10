@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus, UserSettings } from '../types';
+import { Topic, Question, Interview, Mistake, StudySession, AppNotification, ActivityPlan, DailyTask, Journal, Roadmap, PersonalReminder, ReminderLog, ReminderStatus, UserSettings, MockInterview, StarStory } from '../types';
 import { GlobalStats } from '../hooks/useGlobalStats';
 import {
   Zap, Calendar, AlertTriangle, Play, BookOpen, Clock,
@@ -35,6 +35,10 @@ interface DashboardProps {
   urgentTopics?: Topic[];
   pushNotification?: (params: Omit<AppNotification, 'id' | 'date' | 'read'>) => Promise<void>;
   userSettings?: UserSettings | null;
+  starStories?: StarStory[];
+  mockInterviews?: MockInterview[];
+  activeTab?: string;
+  onStartTour?: () => void;
 }
 
 // 1. Premium Animated Counter
@@ -67,7 +71,7 @@ function AnimatedCounter({ value, duration = 1000, suffix = '' }: { value: numbe
 }
 
 // 2. Hover Physics Interactive Bento Card
-function BentoCard({ children, className = '', reducedMotion = false }: { children: React.ReactNode; className?: string; reducedMotion?: boolean }) {
+function BentoCard({ children, className = '', reducedMotion = false, id }: { children: React.ReactNode; className?: string; reducedMotion?: boolean; id?: string }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
@@ -96,6 +100,7 @@ function BentoCard({ children, className = '', reducedMotion = false }: { childr
   return (
     <motion.div
       ref={cardRef}
+      id={id}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       animate={{
@@ -174,16 +179,52 @@ const Dashboard = React.memo(function Dashboard({
   globalStats,
   urgentTopics,
   pushNotification,
-  userSettings
+  userSettings,
+  starStories = [],
+  mockInterviews = [],
+  activeTab,
+  onStartTour
 }: DashboardProps) {
 
   // Accessibility tracking prefers-reduced-motion check
   const [reducedMotion, setReducedMotion] = useState(false);
 
+  // Onboarding Quests widget state
+  const [questsDismissed, setQuestsDismissed] = useState(() => {
+    return localStorage.getItem('prep_quests_dismissed') === 'true';
+  });
+
+  const isQuest1Completed = localStorage.getItem('prep_quest_compile_code') === 'true';
+  const isQuest2Completed = (roadmaps && roadmaps.length > 0) || localStorage.getItem('prep_quest_create_roadmap') === 'true';
+  const isQuest3Completed = (mockInterviews && mockInterviews.length > 0) || localStorage.getItem('prep_quest_mock_interview') === 'true';
+  const isQuest4Completed = topics && topics.length > 0;
+
+  const completedCount = [isQuest1Completed, isQuest2Completed, isQuest3Completed, isQuest4Completed].filter(Boolean).length;
+  const totalCount = 4;
+  const isAllCompleted = completedCount === totalCount;
+
   // Track if Gemini API Key banner has been dismissed
   const [geminiBannerDismissed, setGeminiBannerDismissed] = useState(() => {
     return localStorage.getItem('prep_gemini_banner_dismissed') === 'true';
   });
+
+  useEffect(() => {
+    if (isAllCompleted && completedCount === 4) {
+      const congratulated = localStorage.getItem('prep_quests_congratulated') === 'true';
+      if (!congratulated) {
+        localStorage.setItem('prep_quests_congratulated', 'true');
+        playSuccessChime();
+        if (pushNotification) {
+          pushNotification({
+            title: "Quick-Start Champion! 🏆",
+            message: "You've successfully completed all onboarding quests and are ready to optimize your preparation!",
+            type: 'daily',
+            priority: 'high'
+          }).catch(err => console.error(err));
+        }
+      }
+    }
+  }, [isAllCompleted, completedCount, pushNotification]);
 
   // ── Gesture scroll ──
   useScrollGesture({ activeTab: 'Home Dashboard', scrollAmount: 150 });
@@ -1223,9 +1264,179 @@ const Dashboard = React.memo(function Dashboard({
         </motion.div>
       )}
 
+      {/* Onboarding Quests Widget */}
+      {!questsDismissed && (
+        <motion.div
+          variants={itemVariants}
+          id="quests-widget"
+          className="relative overflow-hidden rounded-2xl p-6 border border-indigo-500/20 bg-gradient-to-br from-indigo-950/20 to-purple-950/10 backdrop-blur-xl shadow-xl"
+        >
+          {/* Decorative shapes */}
+          <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
+            <Trophy className="w-32 h-32 text-indigo-400" />
+          </div>
+
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+            <div className="flex items-start gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse mt-0.5" />
+              <div>
+                <h3 className="font-bold text-white text-sm font-display flex items-center gap-2">
+                  <span>🚀 Onboarding Quests</span>
+                  <span className="text-[10px] font-mono font-bold bg-indigo-500/20 px-2 py-0.5 rounded text-indigo-355">
+                    {completedCount} / {totalCount} Completed
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Complete these interactive quests to explore the capabilities of PrepFlow.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {onStartTour && (
+                <button
+                  onClick={onStartTour}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-305 hover:bg-indigo-500/20 border border-indigo-500/20 transition-all cursor-pointer"
+                >
+                  Restart Tour 🧭
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setQuestsDismissed(true);
+                  localStorage.setItem('prep_quests_dismissed', 'true');
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all cursor-pointer"
+                title="Dismiss widget"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                initial={{ width: '0%' }}
+                animate={{ width: `${(completedCount / totalCount) * 100}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
+          </div>
+
+          {/* Quests Checklist Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                id: 'compile_code',
+                title: 'Playground Compiler',
+                desc: 'Compile a code snippet in the playground.',
+                completed: isQuest1Completed,
+                tab: 'Code Playground'
+              },
+              {
+                id: 'create_roadmap',
+                title: 'AI Study Roadmap',
+                desc: 'Plan your topic studies with AI guides.',
+                completed: isQuest2Completed,
+                tab: 'Learning Roadmaps'
+              },
+              {
+                id: 'mock_interview',
+                title: 'AI Mock Interview',
+                desc: 'Test your answers with a voice simulation.',
+                completed: isQuest3Completed,
+                tab: 'Practice Simulator'
+              },
+              {
+                id: 'create_topic',
+                title: 'Map a Study Topic',
+                desc: 'Add your first technical topic to review.',
+                completed: isQuest4Completed,
+                tab: 'Study Topics & Revisions'
+              }
+            ].map((q) => (
+              <div
+                key={q.id}
+                className={`relative flex flex-col justify-between p-4 rounded-xl border transition-all ${
+                  q.completed
+                    ? 'border-emerald-500/20 bg-emerald-500/5 text-slate-500'
+                    : 'border-white/5 bg-slate-900/40 text-slate-350 hover:border-white/10 hover:bg-slate-900/60'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-xs font-bold ${q.completed ? 'text-emerald-450' : 'text-white'}`}>
+                      {q.title}
+                    </span>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center border text-[10px] shrink-0 font-bold ${
+                      q.completed 
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' 
+                        : 'border-slate-700 text-slate-500'
+                    }`}>
+                      {q.completed ? '✓' : '?'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-400">
+                    {q.desc}
+                  </p>
+                </div>
+                
+                {!q.completed && (
+                  <button
+                    onClick={() => onNavigate(q.tab)}
+                    className="mt-4 w-full py-1.5 rounded-lg bg-indigo-650 hover:bg-indigo-600 text-white text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>Try Now</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                )}
+                {q.completed && (
+                  <div className="mt-4 text-center text-[10px] font-bold text-emerald-400/80 bg-emerald-500/10 py-1.5 rounded-lg">
+                    Completed 🎉
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* All Quests Completed Congratulations */}
+          {isAllCompleted && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/25 flex flex-col sm:flex-row items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-xl shrink-0">
+                  🏆
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-350">Quick-Start Champion!</h4>
+                  <p className="text-xs text-slate-350">
+                    You've successfully completed all onboarding quests and are ready to optimize your preparation!
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setQuestsDismissed(true);
+                  localStorage.setItem('prep_quests_dismissed', 'true');
+                }}
+                className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold cursor-pointer transition"
+              >
+                Dismiss Checklist
+              </button>
+            </motion.div>
+          )}
+        </motion.div>
+      )}
+
       {/* 2. TOP PRIORITY: TODAY'S DAILY TASKS CARD */}
       <motion.div variants={itemVariants}>
-        <BentoCard className="space-y-4" reducedMotion={reducedMotion}>
+        <BentoCard id="dashboard-daily-goals" className="space-y-4" reducedMotion={reducedMotion}>
           <div className="flex items-center justify-between pb-2 border-b border-white/10">
             <div className="flex items-center gap-1.5">
               <CheckCircle className="w-5 h-5 text-indigo-400" />
@@ -1506,7 +1717,7 @@ const Dashboard = React.memo(function Dashboard({
       </motion.div>
 
       {/* 3. PREMIUM BENTO GRID (Bento Layout System for Dashboard) */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-5">
+      <motion.div variants={itemVariants} id="dashboard-stats-overview" className="grid grid-cols-1 md:grid-cols-4 gap-5">
 
         {/* Box A: Today's Mission & Action Banner (Col Span 2) */}
         <BentoCard className="md:col-span-2 flex flex-col justify-between min-h-[170px] bg-gradient-to-br from-indigo-950/20 to-purple-950/10 border-indigo-505/20 group" reducedMotion={reducedMotion}>

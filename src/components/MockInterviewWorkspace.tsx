@@ -535,7 +535,6 @@ Format the response strictly as a valid JSON array. Do not wrap the JSON output 
     // Shuffle the loaded questions so they aren't in the same order/duplicates
     list = shuffleArray(list);
 
-    // limit to max 4 questions for high-intensity timed simulator
     setQuestionsList(list.slice(0, 4));
     setCurrentQuestionIndex(0);
     setUserAnswer('');
@@ -543,6 +542,7 @@ Format the response strictly as a valid JSON array. Do not wrap the JSON output 
     setTimerSeconds(limitSecondsPerQuestion);
     setTotalTimerSeconds(0);
     setIsSessionActive(true);
+    localStorage.setItem('prep_quest_mock_interview', 'true');
 
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
