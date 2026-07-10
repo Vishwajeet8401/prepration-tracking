@@ -600,7 +600,7 @@ ${sourceCode}
         }}
       >
         {/* Absolutely-centered window title — macOS style */}
-        <div className="absolute inset-x-0 top-0 h-full flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 top-0 h-full hidden md:flex items-center justify-center pointer-events-none">
           <div className="flex items-center gap-1.5">
             <Code2 className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-xs font-semibold text-slate-300 tracking-tight">{question.title}</span>
@@ -615,10 +615,22 @@ ${sourceCode}
             </span>
           </div>
         </div>
-        {/* Left: Traffic Lights + Problem Selector */}
+        {/* Left: Traffic Lights / Mobile Back + Problem Selector */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {/* Back button on mobile */}
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              className="flex sm:hidden items-center gap-1 px-2.5 py-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-700/40 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
+              title="Return to home dashboard"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
+            </button>
+          )}
+
           {/* macOS Traffic Light Controls */}
-          <div className="flex items-center gap-[7px] shrink-0 group/tl" title="Window controls">
+          <div className="hidden sm:flex items-center gap-[7px] shrink-0 group/tl" title="Window controls">
             {/* Red — Close / Back */}
             <button
               onClick={onBackToDashboard || undefined}
@@ -658,17 +670,8 @@ ${sourceCode}
               className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/40 rounded-lg text-xs font-semibold text-slate-200 transition cursor-pointer min-w-0"
             >
               <ListChecks className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-              <span className="max-w-[90px] sm:max-w-[160px] truncate">{question.title}</span>
+              <span className="max-w-[120px] sm:max-w-[160px] truncate">{question.title}</span>
               <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
-            </button>
-
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-600 hover:bg-violet-500 border border-violet-500/30 rounded-lg text-xs font-bold text-white transition cursor-pointer"
-              title="Create Custom Problem"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden md:inline text-[11px]">Add Custom</span>
             </button>
 
             {showQuestionDropdown && (
@@ -686,6 +689,21 @@ ${sourceCode}
                       />
                       <span>Due Only</span>
                     </label>
+                  </div>
+
+                  {/* Create Custom Problem Button inside Dropdown */}
+                  <div className="p-2 border-b border-slate-700/40 bg-slate-900/25">
+                    <button
+                      onClick={() => {
+                        setIsAddModalOpen(true);
+                        setShowQuestionDropdown(false);
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-violet-600 hover:bg-violet-500 border border-violet-500/30 rounded-lg text-xs font-bold text-white transition cursor-pointer"
+                      title="Create Custom Problem"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Create Custom Problem</span>
+                    </button>
                   </div>
 
                   {/* Filters & Sorting Controls */}
