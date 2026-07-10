@@ -67,5 +67,17 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
   console.error('Firestore Error Details: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  // Determine a friendly, non-technical error message
+  let friendlyMsg = 'A database connection error occurred. Please check your network connection and try again.';
+  if (error instanceof Error) {
+    const rawMsg = error.message.toLowerCase();
+    if (rawMsg.includes('permission-denied') || rawMsg.includes('permission')) {
+      friendlyMsg = 'Database permission denied. Please check your account login status or connection details.';
+    } else if (rawMsg.includes('offline') || rawMsg.includes('network') || rawMsg.includes('failed-precondition')) {
+      friendlyMsg = 'Network connection issue. The database is currently unreachable.';
+    }
+  }
+
+  throw new Error(friendlyMsg);
 }

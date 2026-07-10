@@ -20,6 +20,53 @@ interface AuthScreenProps {
   onBackToLanding?: () => void;
 }
 
+function getFriendlyAuthErrorMessage(err: any): string {
+  if (!err) return 'An error occurred during authentication.';
+  
+  const code = err.code || (err.message && err.message.match(/\((auth\/[^)]+)\)/)?.[1]);
+  
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/user-disabled':
+      return 'This user account has been disabled. Please contact support.';
+    case 'auth/user-not-found':
+      return 'No account found with this email.';
+    case 'auth/wrong-password':
+      return 'Incorrect password. Please try again.';
+    case 'auth/email-already-in-use':
+      return 'This email is already registered. If you registered via Google, click the Google button to sign in, or click "Forgot Password" to set a password.';
+    case 'auth/weak-password':
+      return 'The password is too weak. Please use at least 6 characters.';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is currently disabled.';
+    case 'auth/too-many-requests':
+      return 'Too many failed sign-in attempts. Access to this account has been temporarily disabled. Please try again later or reset your password.';
+    case 'auth/popup-closed-by-user':
+      return 'Google sign-in was closed before completion. Please try again.';
+    case 'auth/cancelled-popup-request':
+      return 'Multiple sign-in popups opened. Please close other windows and try again.';
+    case 'auth/network-request-failed':
+      return 'Network connection failed. Please check your internet connection and try again.';
+    case 'auth/requires-recent-login':
+      return 'Please log in again before performing this action.';
+    case 'auth/internal-error':
+      return 'An internal error occurred. Please try again in a few moments.';
+    case 'auth/invalid-credential':
+      return 'Invalid email or password.';
+    default:
+      if (err.message) {
+        let msg = err.message;
+        if (msg.includes('Firebase:')) {
+          msg = msg.replace(/Firebase:\s*(?:Error\s*)?\(auth\/[^)]+\)\.?\s*/, '').trim();
+          msg = msg.replace(/Firebase:\s*/, '').trim();
+        }
+        return msg || 'Authentication failed. Please try again.';
+      }
+      return 'An unexpected authentication error occurred. Please try again.';
+  }
+}
+
 export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenProps) {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'link'>('signin');
   const [email, setEmail] = useState('');
@@ -71,13 +118,7 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
       onSuccess?.();
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('This email is already registered. If you registered via Google, click "Google" to sign in, or click "Forgot Password" to set a password.');
-      } else {
-        setError(err.message || 'An error occurred during authentication.');
-      }
+      setError(getFriendlyAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -100,11 +141,7 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
       setMode('signin');
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email.');
-      } else {
-        setError(err.message || 'Failed to send password reset email.');
-      }
+      setError(getFriendlyAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -130,11 +167,7 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
       onSuccess?.();
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Invalid password. Please try again.');
-      } else {
-        setError(err.message || 'Failed to link Google account.');
-      }
+      setError(getFriendlyAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -183,7 +216,7 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
         setMode('link');
         setError('An account already exists with this email address. Please verify your password to link your Google sign-in.');
       } else {
-        setError(err.message || 'Google Login was closed or failed.');
+        setError(getFriendlyAuthErrorMessage(err));
       }
     } finally {
       setLoading(false);
@@ -218,10 +251,10 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
           });
           onSuccess?.();
         } catch (innerErr: any) {
-          setError(innerErr.message || 'Unable to provision demo sandbox account.');
+          setError(getFriendlyAuthErrorMessage(innerErr));
         }
       } else {
-        setError(err.message || 'Demo Sandbox connection failed.');
+        setError(getFriendlyAuthErrorMessage(err));
       }
     } finally {
       setLoading(false);
