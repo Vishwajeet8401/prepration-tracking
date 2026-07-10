@@ -230,9 +230,7 @@ export default function App() {
                 <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
               </button>
             )}
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-xs border border-indigo-400/30">
-              <BookOpen className="w-5 h-5 text-indigo-50" />
-            </div>
+            <img src="/prepFlow.png" alt="PrepFlow Logo" className="w-9 h-9 rounded-xl object-contain border border-slate-700/50 shadow-sm" />
             <div>
               <div className="flex items-center gap-1.5 leading-none">
                 <span className="font-black text-base tracking-tight text-white font-sans">PrepFlow</span>
@@ -470,6 +468,7 @@ export default function App() {
                 setActiveTab={setActiveTab}
                 pushNotification={pushNotification}
                 personalReminders={personalReminders}
+                userSettings={userSettings}
               />
             </div>
 
@@ -536,6 +535,7 @@ export default function App() {
                   globalStats={globalStats}
                   urgentTopics={urgentTopics}
                   pushNotification={pushNotification}
+                  userSettings={userSettings}
                 />
                 
                 <CloudBackupControls 

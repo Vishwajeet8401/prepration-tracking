@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { AppNotification, Topic, Question, Interview, JobApplication, StudySession, DailyTask, Journal, MockInterview, PersonalReminder } from '../types';
+import { AppNotification, Topic, Question, Interview, JobApplication, StudySession, DailyTask, Journal, MockInterview, PersonalReminder, UserSettings } from '../types';
 import { 
   Bell, Check, Trash2, Calendar, AlertTriangle, Book, Clock, Star, Info,
   Settings, Award, Flame, Brain, Shield, Coffee, ChevronRight, CheckCircle2,
@@ -29,6 +29,7 @@ interface NotificationCenterProps {
   setActiveTab?: (tab: string) => void;
   pushNotification?: (params: Omit<AppNotification, 'id' | 'date' | 'read'>) => Promise<void>;
   personalReminders?: PersonalReminder[];
+  userSettings?: UserSettings | null;
 }
 
 const NotificationCenter = React.memo(function NotificationCenter({
@@ -46,7 +47,8 @@ const NotificationCenter = React.memo(function NotificationCenter({
   activeTab,
   setActiveTab,
   pushNotification,
-  personalReminders = []
+  personalReminders = [],
+  userSettings
 }: NotificationCenterProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -221,7 +223,12 @@ const NotificationCenter = React.memo(function NotificationCenter({
 
   // Dynamic coaching logic: Build or process notifications with priority indicator
   const enrichedNotifications = useMemo(() => {
-    return notifications.map(notif => {
+    // If the user configured their private geminiApiKey, filter out the setup notification
+    const baseList = userSettings?.geminiApiKey
+      ? notifications.filter(n => !n.title.toLowerCase().includes('gemini api key') && !n.title.toLowerCase().includes('gemini key'))
+      : notifications;
+
+    return baseList.map(notif => {
       // Determine priority level if missing (based on categories/deadlines)
       let priority: 'high' | 'medium' | 'low' = notif.priority || 'medium';
       let timingSlot: 'morning' | 'afternoon' | 'evening' | 'night' = 'morning';
@@ -230,6 +237,11 @@ const NotificationCenter = React.memo(function NotificationCenter({
         priority = 'high';
       } else if (notif.type === 'journal' || notif.type === 'weakness') {
         priority = notif.type === 'weakness' ? 'medium' : 'low';
+      }
+
+      // Ensure Gemini API key setup notifications always have high priority
+      if (notif.title.toLowerCase().includes('gemini api key') || notif.title.toLowerCase().includes('gemini key')) {
+        priority = 'high';
       }
 
       // Timing allocation mapping
@@ -250,18 +262,30 @@ const NotificationCenter = React.memo(function NotificationCenter({
         status: notif.status || (notif.read ? 'completed' : 'active')
       };
     });
-  }, [notifications]);
+  }, [notifications, userSettings?.geminiApiKey]);
 
   // Filtered lists for Today, Upcoming, Overdue, and Completed Tabs
   const filteredNotifications = useMemo(() => {
     const list = enrichedNotifications;
     const now = new Date();
 
+    const sortFn = (arr: typeof enrichedNotifications) => {
+      return [...arr].sort((a, b) => {
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        const scoreA = priorityOrder[a.priority] || 2;
+        const scoreB = priorityOrder[b.priority] || 2;
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+    };
+
     return {
-      today: list.filter(n => n.status === 'active' || n.status === 'snoozed'),
-      upcoming: list.filter(n => n.status === 'active' && new Date(n.date) > now),
-      overdue: list.filter(n => n.status === 'active' && new Date(n.date) < new Date(now.getTime() - 24 * 60 * 60 * 1000)),
-      completed: list.filter(n => n.status === 'completed' || n.read === true)
+      today: sortFn(list.filter(n => n.status === 'active' || n.status === 'snoozed')),
+      upcoming: sortFn(list.filter(n => n.status === 'active' && new Date(n.date) > now)),
+      overdue: sortFn(list.filter(n => n.status === 'active' && new Date(n.date) < new Date(now.getTime() - 24 * 60 * 60 * 1000))),
+      completed: sortFn(list.filter(n => n.status === 'completed' || n.read === true))
     };
   }, [enrichedNotifications]);
 

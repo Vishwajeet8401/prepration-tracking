@@ -9,7 +9,7 @@ import { Topic, Question, Interview, Mistake, StudySession, AppNotification, Act
 import { GlobalStats } from '../hooks/useGlobalStats';
 import {
   Zap, Calendar, AlertTriangle, Play, BookOpen, Clock,
-  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square, ListTodo, Sparkles
+  TrendingUp, Award, RefreshCw, Layers, CheckCircle, Flame, AlertCircle, Check, Map, Trophy, ArrowRight, Star, Bell, Pill, Droplet, Pause, Square, ListTodo, Sparkles, X
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useScrollGesture } from '../hooks/useScrollGesture';
@@ -179,6 +179,11 @@ const Dashboard = React.memo(function Dashboard({
 
   // Accessibility tracking prefers-reduced-motion check
   const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Track if Gemini API Key banner has been dismissed
+  const [geminiBannerDismissed, setGeminiBannerDismissed] = useState(() => {
+    return localStorage.getItem('prep_gemini_banner_dismissed') === 'true';
+  });
 
   // ── Gesture scroll ──
   useScrollGesture({ activeTab: 'Home Dashboard', scrollAmount: 150 });
@@ -1164,14 +1169,36 @@ const Dashboard = React.memo(function Dashboard({
       </motion.div>
 
       {/* Dynamic Alert Banner for missing Gemini API Key */}
-      {!userSettings?.geminiApiKey && (
+      {!userSettings?.geminiApiKey && !geminiBannerDismissed && (
         <motion.div
           variants={itemVariants}
-          className="relative overflow-hidden rounded-2xl p-5 border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg hover:shadow-amber-500/5 transition-all duration-300"
+          className="relative overflow-hidden rounded-2xl p-5 pr-10 border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg hover:shadow-amber-500/5 transition-all duration-300"
         >
           <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
             <Sparkles className="w-24 h-24 text-amber-400" />
           </div>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              setGeminiBannerDismissed(true);
+              localStorage.setItem('prep_gemini_banner_dismissed', 'true');
+              if (pushNotification) {
+                await pushNotification({
+                  title: "Configure Private Gemini API Key",
+                  message: "Unlock the full power of PrepFlow's AI Learning Assistant, Practice Simulator, Code Playground, and STAR Story Builder. Enter your own private key so you can learn without sharing resource limits.",
+                  type: 'daily',
+                  priority: 'high',
+                  status: 'active',
+                  actionText: "Configure Key",
+                  actionUrl: "Backup & Data Settings"
+                });
+              }
+            }}
+            className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-white/5 transition-all duration-200 cursor-pointer z-20"
+            title="Dismiss banner"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
           <div className="flex items-start gap-4">
             <div className="p-3 bg-amber-500/15 border border-amber-500/30 text-amber-400 rounded-xl shrink-0">
               <AlertCircle className="w-6 h-6 animate-pulse" />

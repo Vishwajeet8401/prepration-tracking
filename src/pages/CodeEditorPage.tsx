@@ -44,16 +44,14 @@ const getCodeStorageKey = (questionId: string, language: CodeLanguage) =>
 function ResizeHandle({ direction = 'horizontal' }: { direction?: 'horizontal' | 'vertical' }) {
   return (
     <Separator
-      className={`group relative flex items-center justify-center transition-colors ${
-        direction === 'horizontal'
+      className={`group relative flex items-center justify-center transition-colors ${direction === 'horizontal'
           ? 'w-[6px] hover:bg-violet-500/20 active:bg-violet-500/30'
           : 'h-[6px] hover:bg-violet-500/20 active:bg-violet-500/30'
-      }`}
+        }`}
     >
       <div
-        className={`rounded-full bg-slate-600 group-hover:bg-violet-400 group-active:bg-violet-300 transition-colors ${
-          direction === 'horizontal' ? 'w-[3px] h-8' : 'h-[3px] w-8'
-        }`}
+        className={`rounded-full bg-slate-600 group-hover:bg-violet-400 group-active:bg-violet-300 transition-colors ${direction === 'horizontal' ? 'w-[3px] h-8' : 'h-[3px] w-8'
+          }`}
       />
     </Separator>
   );
@@ -83,11 +81,10 @@ function TimerDisplay() {
   return (
     <button
       onClick={() => setIsRunning((r) => !r)}
-      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono transition cursor-pointer border ${
-        isRunning
+      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono transition cursor-pointer border ${isRunning
           ? 'bg-violet-500/10 border-violet-500/30 text-violet-300'
           : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:text-slate-200'
-      }`}
+        }`}
       title={isRunning ? 'Pause timer' : 'Start timer'}
     >
       <Timer className="w-3.5 h-3.5" />
@@ -420,12 +417,12 @@ ${sourceCode}
       const status = lastResult?.status === 'compilation_error'
         ? 'Compilation Error'
         : lastResult?.status === 'timeout'
-        ? 'Time Limit Exceeded'
-        : lastResult?.status === 'error'
-        ? 'Runtime Error'
-        : allPassed
-        ? 'Accepted'
-        : 'Wrong Answer';
+          ? 'Time Limit Exceeded'
+          : lastResult?.status === 'error'
+            ? 'Runtime Error'
+            : allPassed
+              ? 'Accepted'
+              : 'Wrong Answer';
 
       const submissionId = await saveSubmission(user.uid, {
         questionId: selectedQuestionId,
@@ -556,9 +553,8 @@ ${sourceCode}
   // ═════════════════════════════════════════════════════════════════════════
   return (
     <div
-      className={`flex flex-col select-none bg-[#070b13] ${
-        isStandalone ? 'h-[calc(100vh-64px)] w-screen overflow-hidden' : 'h-[calc(100vh-140px)] min-h-[500px] -mx-4 -mt-6'
-      }`}
+      className={`flex flex-col select-none bg-[#070b13] ${isStandalone ? 'h-[calc(100vh-64px)] w-screen overflow-hidden' : 'h-[calc(100vh-140px)] min-h-[500px] -mx-4 -mt-6'
+        }`}
       style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}
     >
       {/* ── Top Navbar ─────────────────────────────────────────────────────── */}
@@ -576,12 +572,6 @@ ${sourceCode}
             </button>
           )}
 
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center">
-              <Code2 className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-sm font-bold text-white tracking-tight hidden sm:inline">PrepMaster</span>
-          </div>
 
           {/* Problem Selector */}
           <div className="relative flex items-center gap-1.5">
@@ -696,9 +686,8 @@ ${sourceCode}
                         <button
                           key={q.id}
                           onClick={() => { setSelectedQuestionId(q.id); setShowQuestionDropdown(false); }}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs transition cursor-pointer ${
-                            isSelected ? 'bg-violet-600/20 border border-violet-500/30' : 'hover:bg-slate-700/50 border border-transparent'
-                          }`}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs transition cursor-pointer ${isSelected ? 'bg-violet-600/20 border border-violet-500/30' : 'hover:bg-slate-700/50 border border-transparent'
+                            }`}
                         >
                           <span className="w-5 h-5 rounded bg-slate-700/80 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
                             {idx + 1}
@@ -733,11 +722,10 @@ ${sourceCode}
           {/* AI Coach Toggle */}
           <button
             onClick={() => setActiveSidebar(activeSidebar === 'ai' ? null : 'ai')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
-              activeSidebar === 'ai'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${activeSidebar === 'ai'
                 ? 'bg-violet-600/10 border-violet-500/30 text-violet-300'
                 : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:text-slate-200'
-            }`}
+              }`}
             title="Toggle AI Coach Panel"
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -763,11 +751,10 @@ ${sourceCode}
           <button
             key={tab}
             onClick={() => setMobileView(tab)}
-            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
-              mobileView === tab
+            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${mobileView === tab
                 ? 'text-violet-400 border-b-2 border-violet-400'
                 : 'text-slate-500 hover:text-slate-300'
-            }`}
+              }`}
           >
             {tab === 'problem' ? 'Problem' : tab === 'code' ? 'Code' : tab === 'output' ? 'Output' : '🤖 Coach'}
           </button>
@@ -795,11 +782,10 @@ ${sourceCode}
                   <button
                     key={tab.id}
                     onClick={() => setActiveSidebar(activeSidebar === tab.id ? null : tab.id)}
-                    className={`w-full aspect-square rounded-lg flex items-center justify-center transition cursor-pointer relative group ${
-                      isActive
+                    className={`w-full aspect-square rounded-lg flex items-center justify-center transition cursor-pointer relative group ${isActive
                         ? 'bg-violet-600/20 text-violet-400 border border-violet-500/30'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                    }`}
+                      }`}
                     title={tab.label}
                   >
                     <Icon className="w-5 h-5" />
@@ -816,11 +802,10 @@ ${sourceCode}
             <div className="w-full px-2">
               <button
                 onClick={() => setActiveSidebar(activeSidebar === 'settings' ? null : 'settings')}
-                className={`w-full aspect-square rounded-lg flex items-center justify-center transition cursor-pointer relative group ${
-                  activeSidebar === 'settings'
+                className={`w-full aspect-square rounded-lg flex items-center justify-center transition cursor-pointer relative group ${activeSidebar === 'settings'
                     ? 'bg-violet-600/20 text-violet-400 border border-violet-500/30'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
+                  }`}
                 title="Settings"
               >
                 <Settings className="w-5 h-5" />
@@ -908,7 +893,7 @@ ${sourceCode}
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Draft saved locally</span>
                         {notes && (
                           <button
-                            onClick={() => { if(confirm("Clear notes?")) handleNotesChange(''); }}
+                            onClick={() => { if (confirm("Clear notes?")) handleNotesChange(''); }}
                             className="text-[10px] text-rose-450 hover:text-rose-400 transition"
                           >
                             Clear
@@ -1008,7 +993,7 @@ ${sourceCode}
                       {/* Editor Preferences */}
                       <div className="p-4 bg-slate-900/60 border border-slate-850 rounded-xl space-y-4">
                         <span className="text-xs font-bold text-slate-200 tracking-wide block">Editor Preferences</span>
-                        
+
                         {/* Font size */}
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-400 font-medium">Font Size:</span>
@@ -1047,7 +1032,7 @@ ${sourceCode}
                         <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-850">
                           <span className="text-slate-400">Restore starter template:</span>
                           <button
-                            onClick={() => { if(confirm("Reset code to default?")) handleResetCode(); }}
+                            onClick={() => { if (confirm("Reset code to default?")) handleResetCode(); }}
                             className="flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 text-rose-450 hover:text-rose-400 px-3 py-1.5 rounded-lg transition text-xs font-semibold cursor-pointer"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
@@ -1108,7 +1093,7 @@ ${sourceCode}
                 <div className="flex items-center justify-between px-3 py-1.5 bg-[#252526] border-b border-[#3c3c3c] shrink-0">
                   <div className="flex items-center gap-2">
                     <LanguageSelector selected={language} onChange={handleLanguageChange} />
-                    
+
                     {/* Compact layout feedback text */}
                     <span className="text-[10px] text-slate-500 font-mono ml-2 hidden xl:inline">
                       Language: {language} | Font: {fontSize}px
@@ -1166,7 +1151,7 @@ ${sourceCode}
                     submissions={submissions}
                     language={language}
                     onRestore={handleRestore}
-                    onSelectInput={() => {}}
+                    onSelectInput={() => { }}
                     onClear={() => setExecutionResult(null)}
                     onNavigateToLine={(line) => {
                       if (editorRef.current) {
@@ -1203,11 +1188,10 @@ ${sourceCode}
                     <button
                       onClick={handleRun}
                       disabled={isRunning || isSubmitting}
-                      className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
-                        isRunning || isSubmitting
+                      className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${isRunning || isSubmitting
                           ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border-transparent'
                           : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700/50 hover:border-slate-600/60'
-                      }`}
+                        }`}
                     >
                       {isRunning ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 text-emerald-400" />}
                       <span>Run</span>
@@ -1217,11 +1201,10 @@ ${sourceCode}
                     <button
                       onClick={handleSubmit}
                       disabled={isRunning || isSubmitting}
-                      className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                        isRunning || isSubmitting
+                      className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${isRunning || isSubmitting
                           ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
                           : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-700/30'
-                      }`}
+                        }`}
                     >
                       {isSubmitting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                       <span>Submit</span>
@@ -1329,7 +1312,7 @@ ${sourceCode}
               submissions={submissions}
               language={language}
               onRestore={handleRestore}
-              onSelectInput={() => {}}
+              onSelectInput={() => { }}
               onClear={() => setExecutionResult(null)}
               onNavigateToLine={(line) => {
                 setMobileView('code');

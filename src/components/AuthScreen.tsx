@@ -252,9 +252,7 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
             <div className="absolute inset-0 lp-grid-bg pointer-events-none opacity-40 z-0" />
             
             <div className="relative z-10 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                <Sparkles size={16} className="text-white" />
-              </div>
+              <img src="/prepFlow.png" alt="PrepFlow Logo" className="w-8 h-8 rounded-xl object-contain border border-slate-700/50 shadow-md shadow-indigo-500/10" />
               <span className="font-bold text-[16px] text-white font-display">PrepFlow</span>
             </div>
 
@@ -289,8 +287,8 @@ export default function AuthScreen({ onSuccess, onBackToLanding }: AuthScreenPro
           <div className="lg:col-span-7 p-10 flex flex-col justify-center relative">
             {/* Form Header (Mobile/Tablet only) */}
             <div className="text-center mb-6 relative lg:hidden mt-4">
-              <div className="inline-flex p-3 bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 rounded-2xl mb-4 border border-indigo-500/30">
-                <Sparkles className="w-8 h-8 text-indigo-400 animate-pulse" />
+              <div className="inline-flex mb-4">
+                <img src="/prepFlow.png" alt="PrepFlow Logo" className="w-14 h-14 rounded-2xl object-contain border border-slate-700/50 shadow-lg shadow-indigo-500/10" />
               </div>
               <h2 className="text-3xl font-bold font-display tracking-tight text-white mb-1.5">
                 PrepFlow

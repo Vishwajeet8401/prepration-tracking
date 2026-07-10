@@ -1471,12 +1471,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       >
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="lp-glass-strong flex items-center justify-between px-6 py-3">
-            {/* Logo & Creator Badge */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                  <Sparkles size={18} className="text-white" />
-                </div>
+                <img src="/prepFlow.png" alt="PrepFlow Logo" className="w-9 h-9 rounded-xl object-contain border border-slate-700/50 shadow-md shadow-indigo-500/10" />
                 <span className="font-bold text-[15px] tracking-tight">PrepFlow</span>
               </div>
               <a
@@ -1939,7 +1936,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <footer className="relative z-10 border-t border-white/5 py-8 px-6 md:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-indigo-400" />
+            <img src="/prepFlow.png" alt="PrepFlow Logo" className="w-5 h-5 rounded-md object-contain" />
             <span className="text-sm text-slate-500">
               PrepFlow — Open Source & Free. Created with ❤️ by{' '}
               <a
