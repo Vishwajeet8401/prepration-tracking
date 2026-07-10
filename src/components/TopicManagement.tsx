@@ -1393,29 +1393,7 @@ const TopicManagement = React.memo(function TopicManagement({
             </div>
             {!isEditingSubject && (
               <div className="flex items-center gap-2 flex-wrap">
-                <button 
-                  onClick={() => {
-                    const uncategorizedTopics = topics.filter(t => !t.subjectId);
-                    if (uncategorizedTopics.length === 0) {
-                      alert('All your topics are already categorized under a subject!');
-                      return;
-                    }
-                    if (subjects.length === 0) {
-                      alert('Please create at least one Subject first before migrating old topics.');
-                      return;
-                    }
-                    const targetSubject = subjects[0];
-                    if (confirm(`Do you want to automatically assign ${uncategorizedTopics.length} uncategorized topics to your "${targetSubject.name}" subject?`)) {
-                      uncategorizedTopics.forEach(t => {
-                        onUpdateTopic({...t, subjectId: targetSubject.id});
-                      });
-                      alert(`Successfully migrated ${uncategorizedTopics.length} topics to ${targetSubject.name}!`);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-md shrink-0 transition cursor-pointer"
-                >
-                  <span>Migrate Old Data</span>
-                </button>
+
                 <button 
                   onClick={() => {
                     setIsEditingSubject(true);

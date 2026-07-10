@@ -205,13 +205,13 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (user && onboardingCompleted) {
+    if (user && onboardingCompleted && !authLoading) {
       const tourCompleted = localStorage.getItem('prep_tour_completed');
       if (!tourCompleted) {
         setShowTour(true);
       }
     }
-  }, [user, onboardingCompleted]);
+  }, [user, onboardingCompleted, authLoading]);
 
   if (authLoading) {
     return (
@@ -228,10 +228,12 @@ export default function App() {
   // when onboardingCompleted becomes true after markOnboardingComplete resolves,
   // preventing the tour from showing twice.
   const handleOnboardingComplete = async (answers: Record<string, any>) => {
+    localStorage.removeItem('prep_tour_completed');
     await markOnboardingComplete(answers);
   };
 
   const handleOnboardingSkip = async () => {
+    localStorage.removeItem('prep_tour_completed');
     await markOnboardingComplete({});
   };
 
