@@ -385,7 +385,7 @@ export default function App() {
                        const Icon = tab.icon;
                        const isActive = activeTab === tab.label;
                        const hasAction = 'action' in tab;
-                       const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey;
+                       const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY;
                        return (
                          <button
                            key={tab.label}
@@ -468,7 +468,7 @@ export default function App() {
                  const Icon = tab.icon;
                  const isActive = activeTab === tab.label;
                  const hasAction = 'action' in tab;
-                 const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey;
+                 const hasWarning = tab.label === 'Backup & Data Settings' && !userSettings?.geminiApiKey && !import.meta.env.VITE_GEMINI_API_KEY && !import.meta.env.GEMINI_API_KEY;
                  return (
                    <button
                      key={tab.label}
