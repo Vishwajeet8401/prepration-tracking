@@ -262,7 +262,7 @@ export default function App() {
       )}
 
       {user && (
-      <header className="app-header text-white sticky top-0 z-50">
+      <header className="app-header text-white sticky top-0 z-[60]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           
           <div id="app-header-brand" className="flex items-center gap-2.5">
@@ -345,7 +345,7 @@ export default function App() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setIsNavOpen(false)}
-                  className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                  className="fixed inset-0 bg-black/50 z-[50] lg:hidden"
                 />
                 
                 <motion.div
@@ -353,7 +353,7 @@ export default function App() {
                   animate={{ x: 0 }}
                   exit={{ x: 300 }}
                   transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                  className="fixed right-0 top-16 h-[calc(100vh-64px)] w-72 bg-slate-900 border-l border-slate-700/50 z-40 overflow-y-auto p-4"
+                  className="fixed right-0 top-16 h-[calc(100vh-64px)] w-72 bg-slate-900 border-l border-slate-700/50 z-[55] overflow-y-auto p-4"
                 >
                   <div className="space-y-1.5">
                     <span className="block text-[10px] font-mono text-slate-400 uppercase tracking-widest px-2 mb-3 font-black">

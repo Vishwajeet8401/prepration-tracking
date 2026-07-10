@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, ArrowRight, ArrowLeft, X, CheckCircle2 } from 'lucide-react';
 
@@ -18,7 +18,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: '',
     title: 'Welcome to PrepFlow! 🎉',
-    content: 'We\'ve customized your learning environment based on your goals. Let\'s take a quick 1-minute tour to help you get hands-on and master the dashboard features.',
+    content: "We've customized your learning environment based on your goals. Let's take a quick 1-minute tour to help you get hands-on and master the dashboard features.",
     placement: 'center'
   },
   {
@@ -57,12 +57,20 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [coords, setCoords] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
-  
-  const step = TOUR_STEPS[currentStepIdx];
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Function to calculate target coordinates
-  const updateSpotlight = () => {
+  const step = TOUR_STEPS[currentStepIdx];
+
+  // Adaptive popover width — narrower on small screens
+  const getPopoverWidth = () => {
+    const vw = window.innerWidth;
+    if (vw < 400) return Math.min(vw - 24, 320);
+    if (vw < 640) return Math.min(vw - 32, 360);
+    return 380;
+  };
+
+  // Function to calculate target coordinates using fixed positioning
+  const updateSpotlight = useCallback(() => {
     if (!step.target) {
       setCoords(null);
       setPopoverStyle({
@@ -70,15 +78,17 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
+        width: `calc(100% - 32px)`,
+        maxWidth: `${getPopoverWidth()}px`,
         zIndex: 99999,
       });
       return;
     }
 
-    // Support multiple query selectors (e.g. falls back to mobile element if desktop is hidden)
+    // Support comma-separated selectors — picks first visible element (desktop vs mobile)
     const selectors = step.target.split(',');
     let targetEl: HTMLElement | null = null;
-    
+
     for (const selector of selectors) {
       const el = document.querySelector(selector.trim()) as HTMLElement;
       if (el && el.offsetWidth > 0 && el.offsetHeight > 0) {
@@ -88,66 +98,82 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
     }
 
     if (!targetEl) {
+      // Fallback: bottom-centre floating card
       setCoords(null);
-      // Fallback: bottom center
       setPopoverStyle({
         position: 'fixed',
-        bottom: '24px',
+        bottom: '16px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 99999,
         width: 'calc(100% - 32px)',
-        maxWidth: '450px'
+        maxWidth: `${getPopoverWidth()}px`,
       });
       return;
     }
 
-    // Scroll target element into view if it's off-screen
+    // getBoundingClientRect already gives viewport-relative coords
     const rect = targetEl.getBoundingClientRect();
-    const padding = 8;
-    
+    const padding = 6;
+
     setCoords({
-      x: rect.left - padding + window.scrollX,
-      y: rect.top - padding + window.scrollY,
+      x: rect.left - padding,
+      y: rect.top - padding,
       w: rect.width + padding * 2,
-      h: rect.height + padding * 2
+      h: rect.height + padding * 2,
     });
 
-    // Dynamic placement calculations
-    const popoverW = 380;
-    const popoverH = 200;
+    // Placement logic — all values are viewport-relative (fixed positioning)
+    const popoverW = getPopoverWidth();
+    const popoverH = 220; // estimated height for clamping
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
 
-    let top = rect.bottom + padding + 12 + window.scrollY;
-    let left = rect.left + rect.width / 2 - popoverW / 2 + window.scrollX;
+    let top = rect.bottom + padding + 10;
+    let left = rect.left + rect.width / 2 - popoverW / 2;
 
-    // Adjust left alignment if it exceeds viewport boundaries
-    if (left < 16) left = 16;
-    if (left + popoverW > viewportW - 16) left = viewportW - popoverW - 16;
+    // Keep popover inside horizontal bounds
+    if (left < 12) left = 12;
+    if (left + popoverW > viewportW - 12) left = viewportW - popoverW - 12;
 
     if (step.placement === 'top') {
-      top = rect.top - padding - popoverH - 12 + window.scrollY;
+      top = rect.top - padding - popoverH - 10;
     } else if (step.placement === 'left') {
-      top = rect.top + rect.height / 2 - popoverH / 2 + window.scrollY;
-      left = rect.left - padding - popoverW - 12 + window.scrollX;
+      top = rect.top + rect.height / 2 - popoverH / 2;
+      left = rect.left - padding - popoverW - 10;
+      // If doesn't fit left (mobile), fall back to bottom
+      if (left < 12) {
+        top = rect.bottom + padding + 10;
+        left = Math.max(12, rect.left + rect.width / 2 - popoverW / 2);
+      }
     } else if (step.placement === 'right') {
-      top = rect.top + rect.height / 2 - popoverH / 2 + window.scrollY;
-      left = rect.right + padding + 12 + window.scrollX;
+      top = rect.top + rect.height / 2 - popoverH / 2;
+      left = rect.right + padding + 10;
+      // If doesn't fit right (mobile), fall back to bottom
+      if (left + popoverW > viewportW - 12) {
+        top = rect.bottom + padding + 10;
+        left = Math.max(12, rect.left + rect.width / 2 - popoverW / 2);
+      }
     }
 
-    // Clamp vertical positions within viewport safety zones
-    if (top < 16) top = rect.bottom + padding + 12 + window.scrollY;
-    
+    // Clamp vertical — if goes off bottom, try above; if still bad, pin to safe area
+    if (top + popoverH > viewportH - 16) top = rect.top - padding - popoverH - 10;
+    if (top < 8) top = Math.min(rect.bottom + padding + 10, viewportH - popoverH - 16);
+    if (top < 8) top = 8;
+
+    // Ensure left is still valid after vertical recalculations
+    if (left < 12) left = 12;
+    if (left + popoverW > viewportW - 12) left = viewportW - popoverW - 12;
+
     setPopoverStyle({
-      position: 'absolute',
+      position: 'fixed',
       top: `${top}px`,
       left: `${left}px`,
       width: '100%',
       maxWidth: `${popoverW}px`,
       zIndex: 99999,
     });
-  };
+  }, [currentStepIdx, step]);
 
   useEffect(() => {
     // Scroll target element into view immediately if off-screen
@@ -162,37 +188,29 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
         }
       }
       if (targetEl) {
-        targetEl.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'nearest'
-        });
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
       }
     }
 
-    // Calculate spotlight layout coordinates
+    // Initial calculation
     updateSpotlight();
 
-    // Recalculate once smooth scrolling settles
-    const timer = setTimeout(() => {
-      updateSpotlight();
-    }, 400);
+    // Recalculate once smooth scrolling has settled
+    const timer = setTimeout(updateSpotlight, 420);
 
     window.addEventListener('resize', updateSpotlight);
-    window.addEventListener('scroll', updateSpotlight);
+    window.addEventListener('scroll', updateSpotlight, { passive: true });
     return () => {
       clearTimeout(timer);
       window.removeEventListener('resize', updateSpotlight);
       window.removeEventListener('scroll', updateSpotlight);
     };
-  }, [currentStepIdx]);
+  }, [currentStepIdx, updateSpotlight]);
 
   const handleNext = () => {
-    // If the step points to a specific tab, we can navigate there
     if (step.target.includes('quests-widget') && onNavigateToTab) {
       onNavigateToTab('Home Dashboard');
     }
-    
     if (currentStepIdx < TOUR_STEPS.length - 1) {
       setCurrentStepIdx(prev => prev + 1);
     } else {
@@ -210,25 +228,41 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
     onComplete(false);
   };
 
-  // Blocker Overlay elements around target coordinate
+  // Fixed-positioned spotlight overlay — consistent across all steps
   const renderBlockers = () => {
     if (!coords) {
-      return <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[99998]" onClick={handleSkip} />;
+      // No target — full-screen dim (click-to-skip disabled intentionally so user reads card)
+      return <div className="fixed inset-0 bg-black/65 backdrop-blur-[2px] z-[99998]" />;
     }
 
     const { x, y, w, h } = coords;
+    const rx = Math.max(0, x);
+    const ry = Math.max(0, y);
+
     return (
-      <div className="absolute inset-0 pointer-events-none z-[99998] overflow-hidden" style={{ height: `${document.documentElement.scrollHeight}px` }}>
-        {/* Semi-transparent background mask blockers */}
-        <div className="absolute bg-black/75 backdrop-blur-[2.5px] pointer-events-auto" style={{ top: 0, left: 0, right: 0, height: `${y}px` }} />
-        <div className="absolute bg-black/75 backdrop-blur-[2.5px] pointer-events-auto" style={{ top: `${y + h}px`, left: 0, right: 0, bottom: 0 }} />
-        <div className="absolute bg-black/75 backdrop-blur-[2.5px] pointer-events-auto" style={{ top: `${y}px`, left: 0, width: `${x}px`, height: `${h}px` }} />
-        <div className="absolute bg-black/75 backdrop-blur-[2.5px] pointer-events-auto" style={{ top: `${y}px`, left: `${x + w}px`, right: 0, height: `${h}px` }} />
-        
-        {/* Pulse glow highlight container over target element */}
-        <div 
-          className="absolute border-2 border-indigo-500 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.5)] pointer-events-none animate-pulse transition-all duration-300"
-          style={{ top: `${y}px`, left: `${x}px`, width: `${w}px`, height: `${h}px` }}
+      <div className="fixed inset-0 pointer-events-none z-[99998] overflow-hidden">
+        {/* Four mask panels that surround the spotlight cutout */}
+        <div
+          className="absolute bg-black/72 backdrop-blur-[2px] pointer-events-auto"
+          style={{ top: 0, left: 0, right: 0, height: `${ry}px` }}
+        />
+        <div
+          className="absolute bg-black/72 backdrop-blur-[2px] pointer-events-auto"
+          style={{ top: `${ry + h}px`, left: 0, right: 0, bottom: 0 }}
+        />
+        <div
+          className="absolute bg-black/72 backdrop-blur-[2px] pointer-events-auto"
+          style={{ top: `${ry}px`, left: 0, width: `${rx}px`, height: `${h}px` }}
+        />
+        <div
+          className="absolute bg-black/72 backdrop-blur-[2px] pointer-events-auto"
+          style={{ top: `${ry}px`, left: `${rx + w}px`, right: 0, height: `${h}px` }}
+        />
+
+        {/* Animated glow ring around target */}
+        <div
+          className="absolute rounded-2xl border-2 border-indigo-400 shadow-[0_0_18px_rgba(99,102,241,0.55)] pointer-events-none animate-pulse"
+          style={{ top: `${ry}px`, left: `${rx}px`, width: `${w}px`, height: `${h}px` }}
         />
       </div>
     );
@@ -241,77 +275,83 @@ export default function TourGuide({ onComplete, onNavigateToTab }: TourGuideProp
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStepIdx}
-          initial={{ opacity: 0, scale: 0.96, y: 10 }}
+          initial={{ opacity: 0, scale: 0.95, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: -10 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
+          exit={{ opacity: 0, scale: 0.95, y: -8 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
           ref={popoverRef}
           style={popoverStyle}
-          className="glass-card p-6 rounded-2xl border border-indigo-500/30 shadow-2xl z-[99999]"
+          className="glass-card rounded-xl sm:rounded-2xl border border-indigo-500/30 shadow-2xl z-[99999] overflow-hidden"
         >
-          {/* Progress dots */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-1">
-              {TOUR_STEPS.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-1 rounded-full transition-all duration-300 ${
-                    i === currentStepIdx ? 'w-5 bg-indigo-500' : 'w-1.5 bg-slate-700'
-                  }`}
-                />
-              ))}
-            </div>
-            
-            <button
-              onClick={handleSkip}
-              className="text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-white/5 cursor-pointer"
-              title="Skip Tour"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          <div className="p-4 sm:p-6">
+            {/* Progress dots + close */}
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="flex gap-1 items-center">
+                {TOUR_STEPS.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      i === currentStepIdx ? 'w-4 sm:w-5 bg-indigo-500' : 'w-1.5 bg-slate-700'
+                    }`}
+                  />
+                ))}
+                <span className="ml-2 text-[9px] sm:text-[10px] font-mono text-slate-500">
+                  {currentStepIdx + 1}/{TOUR_STEPS.length}
+                </span>
+              </div>
 
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4.5 h-4.5 text-indigo-400 animate-pulse" />
-            <h4 className="text-sm font-black text-white leading-tight font-display uppercase tracking-wide">
-              {step.title}
-            </h4>
-          </div>
-
-          {/* Content */}
-          <p className="text-xs text-slate-300 leading-relaxed mb-6 font-sans">
-            {step.content}
-          </p>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/5">
-            {currentStepIdx > 0 ? (
-              <button
-                onClick={handleBack}
-                className="px-4 py-1.5 rounded-lg border border-slate-750 text-slate-400 hover:text-slate-200 hover:bg-white/5 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
-              >
-                <ArrowLeft className="w-3 h-3" /> Back
-              </button>
-            ) : (
               <button
                 onClick={handleSkip}
-                className="text-slate-500 hover:text-slate-400 text-[11px] font-mono cursor-pointer"
+                className="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-lg hover:bg-white/5 cursor-pointer"
+                title="Skip Tour"
+                aria-label="Skip Tour"
               >
-                Skip intro
+                <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
-            )}
+            </div>
 
-            <button
-              onClick={handleNext}
-              className="px-5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-extrabold text-[11px] shadow-lg shadow-indigo-650/20 hover:scale-102 transition flex items-center gap-1 cursor-pointer"
-            >
-              {currentStepIdx === TOUR_STEPS.length - 1 ? (
-                <>Finish Tour <CheckCircle2 className="w-3.5 h-3.5" /></>
+            {/* Title */}
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 text-indigo-400 animate-pulse shrink-0" />
+              <h4 className="text-xs sm:text-sm font-black text-white leading-tight uppercase tracking-wide">
+                {step.title}
+              </h4>
+            </div>
+
+            {/* Content */}
+            <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed mb-4 sm:mb-6">
+              {step.content}
+            </p>
+
+            {/* Action Buttons — taller tap targets on mobile */}
+            <div className="flex items-center justify-between pt-2.5 sm:pt-3 border-t border-white/5 gap-2">
+              {currentStepIdx > 0 ? (
+                <button
+                  onClick={handleBack}
+                  className="px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg border border-slate-700/60 text-slate-400 hover:text-slate-200 hover:bg-white/5 text-[10px] sm:text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3 h-3" /> Back
+                </button>
               ) : (
-                <>Continue <ArrowRight className="w-3.5 h-3.5" /></>
+                <button
+                  onClick={handleSkip}
+                  className="text-slate-500 hover:text-slate-400 text-[10px] sm:text-[11px] font-mono cursor-pointer py-2 px-1"
+                >
+                  Skip intro
+                </button>
               )}
-            </button>
+
+              <button
+                onClick={handleNext}
+                className="px-4 sm:px-5 py-2 sm:py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-extrabold text-[10px] sm:text-[11px] shadow-lg transition flex items-center gap-1 cursor-pointer active:scale-95"
+              >
+                {currentStepIdx === TOUR_STEPS.length - 1 ? (
+                  <>Finish Tour <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /></>
+                ) : (
+                  <>Continue <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" /></>
+                )}
+              </button>
+            </div>
           </div>
         </motion.div>
       </AnimatePresence>

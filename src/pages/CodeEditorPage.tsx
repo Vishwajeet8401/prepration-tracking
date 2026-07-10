@@ -560,9 +560,9 @@ ${sourceCode}
       style={{ fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif" }}
     >
       {/* ── Top Navbar ─────────────────────────────────────────────────────── */}
-      <nav className="flex items-center justify-between px-4 py-2 bg-[#111827] border-b border-slate-700/50 shrink-0">
+      <nav className="flex items-center justify-between px-2 sm:px-4 py-2 bg-[#111827] border-b border-slate-700/50 shrink-0 gap-2">
         {/* Left: Logo + Problem Selector */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           {onBackToDashboard && (
             <button
               onClick={onBackToDashboard}
@@ -576,14 +576,14 @@ ${sourceCode}
 
 
           {/* Problem Selector */}
-          <div className="relative flex items-center gap-1.5">
+          <div className="relative flex items-center gap-1.5 min-w-0">
             <button
               onClick={() => setShowQuestionDropdown(!showQuestionDropdown)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/40 rounded-lg text-xs font-semibold text-slate-200 transition cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/40 rounded-lg text-xs font-semibold text-slate-200 transition cursor-pointer min-w-0"
             >
-              <ListChecks className="w-3.5 h-3.5 text-violet-400" />
-              <span className="max-w-[160px] truncate">{question.title}</span>
-              <ChevronDown className="w-3 h-3 text-slate-500" />
+              <ListChecks className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+              <span className="max-w-[90px] sm:max-w-[160px] truncate">{question.title}</span>
+              <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
             </button>
 
             <button
@@ -598,7 +598,7 @@ ${sourceCode}
             {showQuestionDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowQuestionDropdown(false)} />
-                <div className="absolute top-full mt-1 left-0 z-50 w-96 bg-[#1e293b] border border-slate-600/50 rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
+                <div className="absolute top-full mt-1 left-0 z-50 w-[calc(100vw-24px)] max-w-sm sm:max-w-md md:w-96 bg-[#1e293b] border border-slate-600/50 rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
                   <div className="px-3 py-2 border-b border-slate-700/50 flex items-center justify-between bg-slate-900/50">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Problem</span>
                     <label className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] font-bold text-slate-400">
@@ -720,7 +720,7 @@ ${sourceCode}
         </div>
 
         {/* Right: Timer + Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* AI Coach Toggle */}
           <button
             onClick={() => setActiveSidebar(activeSidebar === 'ai' ? null : 'ai')}
@@ -734,10 +734,10 @@ ${sourceCode}
             <span className="hidden sm:inline">AI Coach</span>
           </button>
 
-          {/* Keyboard Shortcuts Guide */}
+          {/* Keyboard Shortcuts Guide — hidden on small screens to save space */}
           <button
             onClick={() => setIsCheatSheetOpen(true)}
-            className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 rounded-lg border border-transparent transition cursor-pointer"
+            className="hidden sm:flex p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 rounded-lg border border-transparent transition cursor-pointer"
             title="Keyboard Shortcuts Guide (F1)"
           >
             <Keyboard className="w-4 h-4" />
@@ -746,6 +746,48 @@ ${sourceCode}
           <TimerDisplay />
         </div>
       </nav>
+
+      {/* ── Mobile Run/Submit sticky bar — visible on mobile when in 'code' or 'output' view ── */}
+      {(mobileView === 'code' || mobileView === 'output') && (
+        <div className="flex lg:hidden items-center justify-between bg-[#111827] border-b border-slate-700/30 px-3 py-1.5 shrink-0 gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleResetCode}
+              className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-slate-200 px-2 py-1.5 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              title="Reset code"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span className="hidden xs:inline">Reset</span>
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRun}
+              disabled={isRunning || isSubmitting}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                isRunning || isSubmitting
+                  ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border-transparent'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700/50'
+              }`}
+            >
+              {isRunning ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 text-emerald-400" />}
+              <span>Run</span>
+            </button>
+            <button
+              onClick={() => { handleSubmit(); setMobileView('output'); }}
+              disabled={isRunning || isSubmitting}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                isRunning || isSubmitting
+                  ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-700/30'
+              }`}
+            >
+              {isSubmitting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              <span>Submit</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile Tab Switcher (visible below lg) ──────────────────────────── */}
       <div className="flex lg:hidden bg-[#111827] border-b border-slate-700/50 shrink-0">
@@ -1297,9 +1339,24 @@ ${sourceCode}
                 </button>
               </div>
             </div>
+            {/* Editor fills remaining space */}
             <div className="flex-1 min-h-0">
               <MonacoEditorWrapper language={language} theme={theme} value={code} onChange={setCode} onRun={handleRun} fontSize={fontSize} />
             </div>
+            {/* Run result badge — tap Output tab to see full results */}
+            {executionResult && (
+              <button
+                onClick={() => setMobileView('output')}
+                className={`shrink-0 flex items-center justify-center gap-2 py-2 text-xs font-bold border-t ${
+                  executionResult.status === 'success'
+                    ? 'bg-emerald-900/40 border-emerald-700/40 text-emerald-300'
+                    : 'bg-rose-900/30 border-rose-700/40 text-rose-300'
+                } cursor-pointer`}
+              >
+                {executionResult.status === 'success' ? '✅' : '❌'}
+                {executionResult.status === 'success' ? 'Passed — tap to see output' : 'Error — tap to see output'}
+              </button>
+            )}
           </div>
         )}
 
