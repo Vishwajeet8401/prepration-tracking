@@ -12,6 +12,8 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'motion/react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ReactLenis } from 'lenis/react';
+import 'lenis/dist/lenis.css';
 
 gsap.registerPlugin(ScrollTrigger);
 import {
@@ -381,7 +383,7 @@ function DashboardShowcase() {
         scrollTrigger: {
           trigger: wrapRef.current,
           start: 'top top',
-          end: '+=1400',
+          end: '+=900',
           pin: true,
           scrub: 1,
         },
@@ -1411,9 +1413,47 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const [navVisible, setNavVisible] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(false);
   const lastScrollY = useRef(0);
+  const lenisRef = useRef<any>(null);
 
   useParticleCanvas(canvasRef);
   useScrollReveal();
+
+  // Sync GSAP ticker update loop with Lenis to avoid animation jitter
+  useEffect(() => {
+    function update(time: number) {
+      lenisRef.current?.lenis?.raf(time * 1000);
+    }
+    gsap.ticker.add(update);
+    gsap.ticker.lagSmoothing(0);
+    return () => {
+      gsap.ticker.remove(update);
+    };
+  }, []);
+
+  // Set up ScrollTrigger-based parallax query select effect
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const parallaxElements = gsap.utils.toArray<HTMLElement>('[data-parallax-speed]');
+      parallaxElements.forEach((el) => {
+        const speed = parseFloat(el.getAttribute('data-parallax-speed') || '0');
+        gsap.fromTo(
+          el,
+          { y: 0 },
+          {
+            y: speed * 120,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: true,
+            },
+          }
+        );
+      });
+    });
+    return () => ctx.revert();
+  }, []);
 
   // Scroll to bottom detection for creator/contact badge highlight
   useEffect(() => {
@@ -1446,21 +1486,22 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-[#060918] text-white overflow-x-hidden" style={{ cursor: 'none' }}>
-      <CustomCursor />
+    <ReactLenis ref={lenisRef} autoRaf={false} root options={{ lerp: 0.12, wheelMultiplier: 1.3, syncTouch: true }}>
+      <div className="relative min-h-screen bg-[#060918] text-white overflow-x-hidden" style={{ cursor: 'none' }}>
+        <CustomCursor />
 
-      {/* Aurora Background */}
-      <div className="lp-aurora">
-        <div className="lp-aurora__orb lp-aurora__orb--1" />
-        <div className="lp-aurora__orb lp-aurora__orb--2" />
-        <div className="lp-aurora__orb lp-aurora__orb--3" />
-      </div>
+        {/* Aurora Background */}
+        <div className="lp-aurora" data-parallax-speed="-0.3">
+          <div className="lp-aurora__orb lp-aurora__orb--1" />
+          <div className="lp-aurora__orb lp-aurora__orb--2" />
+          <div className="lp-aurora__orb lp-aurora__orb--3" />
+        </div>
 
-      {/* Noise Overlay */}
-      <div className="lp-noise" />
+        {/* Noise Overlay */}
+        <div className="lp-noise" />
 
-      {/* Particle Canvas */}
-      <canvas ref={canvasRef} className="fixed inset-0 z-[2] pointer-events-none" />
+        {/* Particle Canvas */}
+        <canvas ref={canvasRef} className="fixed inset-0 z-[2] pointer-events-none" />
 
       {/* ─── NAVBAR ─────────────────────────────────────────────────────────── */}
       <motion.nav
@@ -1549,12 +1590,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* ─── HERO ───────────────────────────────────────────────────────────── */}
       <section className="relative z-10 pt-36 pb-20 px-6 md:px-8 min-h-screen flex flex-col items-center justify-center text-center overflow-hidden">
         {/* Interactive Grid Background */}
-        <div className="absolute inset-0 lp-grid-bg pointer-events-none z-0" />
+        <div className="absolute inset-0 lp-grid-bg pointer-events-none z-0" data-parallax-speed="-0.15" />
 
         {/* Floating Award Winning Panels (Desktop only) */}
         <div className="absolute inset-0 pointer-events-none hidden xl:block select-none z-10">
           {/* Panel 1: Mock Simulator telemetry */}
-          <div className="absolute left-[5%] top-[24%] w-68 lp-glass p-5 text-left lp-float-1 border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <div data-parallax-speed="-0.5" className="absolute left-[5%] top-[24%] w-68 lp-glass p-5 text-left border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <div className="flex items-center justify-between mb-3.5">
               <span className="text-[10px] uppercase font-mono tracking-widest text-[#00F0FF] font-black">AI Mock Simulator</span>
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#10B981]" />
@@ -1578,7 +1619,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
 
           {/* Panel 2: Spaced Revisions */}
-          <div className="absolute right-[5%] top-[26%] w-60 lp-glass p-5 text-left lp-float-2 border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <div data-parallax-speed="0.7" className="absolute right-[5%] top-[26%] w-60 lp-glass p-5 text-left border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <div className="flex items-center justify-between mb-3.5">
               <span className="text-[10px] uppercase font-mono tracking-widest text-[#FF0055] font-black">Spaced Revisions</span>
               <span className="text-[9px] bg-pink-500/20 text-pink-400 font-bold px-1.5 py-0.5 rounded font-mono">SM-2 Engine</span>
@@ -1595,7 +1636,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
 
           {/* Panel 3: Prep Readiness */}
-          <div className="absolute left-[6%] bottom-[18%] w-56 lp-glass p-5 text-left lp-float-2 border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <div data-parallax-speed="-0.3" className="absolute left-[6%] bottom-[18%] w-56 lp-glass p-5 text-left border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-[10px] uppercase font-mono tracking-widest text-[#7000FF] font-black">Prep Readiness</span>
               <span className="text-emerald-400 font-bold font-mono text-[10px]">+8.4% this wk</span>
@@ -1605,7 +1646,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
 
           {/* Panel 4: Achievements */}
-          <div className="absolute right-[6%] bottom-[16%] w-64 lp-glass p-5 text-left lp-float-1 border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <div data-parallax-speed="0.4" className="absolute right-[6%] bottom-[16%] w-64 lp-glass p-5 text-left border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <div className="flex items-center gap-2 mb-2.5">
               <Award size={15} className="text-amber-400 animate-bounce" />
               <span className="text-[10px] uppercase font-mono tracking-widest text-amber-400 font-black">My Achievements</span>
@@ -1637,6 +1678,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
         {/* Headline */}
         <motion.h1
+          data-parallax-speed="0.25"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -1653,6 +1695,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
         {/* Subtitle */}
         <motion.p
+          data-parallax-speed="0.1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55, duration: 0.7 }}
@@ -2002,6 +2045,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </span>
         </a>
       </div>
-    </div>
+      </div>
+    </ReactLenis>
   );
 }
