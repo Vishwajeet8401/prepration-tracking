@@ -2003,6 +2003,15 @@ const Dashboard = React.memo(function Dashboard({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs">
+            {/* Manage Habits Direct Link */}
+            <button
+              onClick={() => onNavigate('Reminders & Habits')}
+              className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 transition-all font-bold cursor-pointer font-sans flex items-center gap-1"
+            >
+              <span>⚙️</span>
+              <span>Manage Habits</span>
+            </button>
+
             {/* Category Filter */}
             <div className="flex items-center gap-1.5">
               <span className="text-slate-400 font-mono text-[10px]">Filter:</span>
@@ -2068,7 +2077,7 @@ const Dashboard = React.memo(function Dashboard({
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-white/5 pb-2">
-                  <th className="py-2.5 pr-4 text-[10px] font-mono uppercase text-slate-450 tracking-wider w-[220px]">
+                  <th className="py-2.5 pr-4 text-[10px] font-mono uppercase text-slate-450 tracking-wider w-[200px] sm:w-[220px] sticky left-0 bg-[#0c101a] sm:bg-[#111827] z-20 border-r border-white/5 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">
                     Reminder / Habit Title
                   </th>
                   {matrixDates.map(dateStr => {
@@ -2110,7 +2119,7 @@ const Dashboard = React.memo(function Dashboard({
                       className="border-b border-white/5 hover:bg-white/2 transition-colors group"
                     >
                       {/* First Column: Title & Streak */}
-                      <td className="py-3 pr-4 text-left w-[220px]">
+                      <td className="py-3 pr-4 text-left w-[200px] sm:w-[220px] sticky left-0 bg-[#0c101a] sm:bg-[#111827] z-10 border-r border-white/5 group-hover:bg-[#151c2d] sm:group-hover:bg-slate-800/80 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.2)]">
                         <div className="flex items-center gap-1.5 overflow-hidden">
                           {item.isTask ? (
                             <ListTodo className="w-3.5 h-3.5 text-emerald-400 shrink-0" />

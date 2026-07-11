@@ -380,33 +380,27 @@ const PersonalReminders = React.memo(function PersonalReminders({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-400 font-semibold mb-1">Trigger Type</label>
-                    <div className="flex gap-2 mt-1">
-                      <button 
-                        type="button"
-                        onClick={() => { setIsWater(false); setIsMedicine(false); }}
-                        className={`flex-1 py-1.5 rounded-lg border text-center font-bold ${!isWater && !isMedicine ? 'bg-indigo-600/20 border-indigo-400 text-indigo-300' : 'bg-white/5 border-white/10 text-slate-400'}`}
-                      >
-                        Generic
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => { setIsWater(true); setIsMedicine(false); }}
-                        className={`flex-1 py-1.5 rounded-lg border text-center font-bold ${isWater ? 'bg-sky-600/20 border-sky-400 text-sky-300' : 'bg-white/5 border-white/10 text-slate-400'}`}
-                      >
-                        Water
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 font-semibold mb-1">&nbsp;</label>
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Trigger Type</label>
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    <button 
+                      type="button"
+                      onClick={() => { setIsWater(false); setIsMedicine(false); }}
+                      className={`py-1.5 rounded-lg border text-center font-bold transition cursor-pointer ${!isWater && !isMedicine ? 'bg-indigo-650/20 border-indigo-400 text-indigo-300' : 'bg-white/5 border-white/10 text-slate-450'}`}
+                    >
+                      Generic
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { setIsWater(true); setIsMedicine(false); }}
+                      className={`py-1.5 rounded-lg border text-center font-bold transition cursor-pointer ${isWater ? 'bg-sky-650/20 border-sky-400 text-sky-300' : 'bg-white/5 border-white/10 text-slate-455'}`}
+                    >
+                      Water
+                    </button>
                     <button 
                       type="button"
                       onClick={() => { setIsWater(false); setIsMedicine(true); }}
-                      className={`w-full py-1.5 rounded-lg border text-center font-bold ${isMedicine ? 'bg-emerald-650/20 border-emerald-450 text-emerald-350' : 'bg-white/5 border-white/10 text-slate-400'}`}
+                      className={`py-1.5 rounded-lg border text-center font-bold transition cursor-pointer ${isMedicine ? 'bg-emerald-650/20 border-emerald-450 text-emerald-350' : 'bg-white/5 border-white/10 text-slate-455'}`}
                     >
                       Medicine
                     </button>
@@ -729,8 +723,8 @@ const PersonalReminders = React.memo(function PersonalReminders({
                   </p>
                 </div>
 
-                <div className="border-t border-white/5 pt-3 flex items-center justify-between text-[10px] font-mono text-slate-400 z-10">
-                  <div className="flex items-center gap-2">
+                <div className="border-t border-white/5 pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[10px] font-mono text-slate-400 z-10">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Clock className="w-3.5 h-3.5 text-indigo-400" />
                     <span className="font-bold text-slate-200">{rem.reminderTime}</span>
                     <span className="text-slate-500">|</span>
@@ -738,7 +732,7 @@ const PersonalReminders = React.memo(function PersonalReminders({
                   </div>
 
                   {rem.active && (
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end">
                       <button 
                         onClick={() => onActionReminder(rem.id, 'Completed')}
                         className="p-1 px-2 rounded bg-emerald-650 hover:bg-emerald-550 text-white font-sans font-bold flex items-center gap-0.5 transition cursor-pointer"
