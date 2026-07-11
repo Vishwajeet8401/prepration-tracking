@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>How to Log & Analyze Coding Mistakes to Stop Repeating Them — PrepFlow Blog</title>
+  <meta name="description" content="Struggling with repeating same bugs in coding tests? Learn how to build a mistake pattern journal, classify engineering slips, and systematically build correction habits." />
+  <link rel="canonical" href="https://tracking-prep.web.app/blog/coding-interview-mistakes/" />
+  
+  <!-- OG & Twitter Tags -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://tracking-prep.web.app/blog/coding-interview-mistakes/" />
+  <meta property="og:title" content="How to Log & Analyze Coding Mistakes to Stop Repeating Them — PrepFlow Blog" />
+  <meta property="og:description" content="Build a mistake pattern journal, catalog bugs, classify logic errors, and build correction habits for technical tests." />
+  <meta property="og:image" content="https://tracking-prep.web.app/og-preview.png" />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              bg: '#0d131f',
+              card: 'rgba(255, 255, 255, 0.03)',
+              border: 'rgba(255, 255, 255, 0.08)',
+              glow: 'rgba(99, 102, 241, 0.15)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body {
+      background-color: #0d131f;
+      color: #f8fafc;
+    }
+    .mesh-gradient {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+  <!-- Structured Data (Schema.org JSON-LD Article) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://tracking-prep.web.app/blog/coding-interview-mistakes/"
+    },
+    "headline": "How to Log & Analyze Coding Mistakes to Stop Repeating Them",
+    "description": "Struggling with repeating same bugs in coding tests? Learn how to build a mistake pattern journal, classify engineering slips, and systematically build correction habits.",
+    "image": "https://tracking-prep.web.app/og-preview.png",
+    "author": {
+      "@type": "Organization",
+      "name": "PrepFlow Team"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "PrepFlow",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://tracking-prep.web.app/icons/icon-512.png"
+      }
+    },
+    "datePublished": "2026-07-11",
+    "dateModified": "2026-07-11"
+  }
+  </script>
+</head>
+<body class="font-sans antialiased text-slate-300 min-h-screen">
+  <div class="mesh-gradient"></div>
+
+  <!-- Header Nav -->
+  <header class="sticky top-0 z-50 glass-card border-b border-white/5 py-4 px-6">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <img src="/icons/icon-192.png" alt="PrepFlow Logo" class="w-8 h-8 rounded-lg border border-white/10" />
+        <span class="font-display font-bold text-white text-lg tracking-tight group-hover:text-indigo-400 transition">PrepFlow</span>
+      </a>
+      <a href="/?start=true" class="bg-indigo-650 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition shadow-lg shadow-indigo-650/30">
+        Open Free Workspace
+      </a>
+    </div>
+  </header>
+
+  <!-- Article Hero -->
+  <main class="max-w-3xl mx-auto px-6 py-12">
+    <article>
+      <header class="mb-10 text-center sm:text-left">
+        <div class="flex items-center justify-center sm:justify-start gap-2.5 text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-3">
+          <span>Error Logging</span> • <span>6 Min Read</span>
+        </div>
+        <h1 class="font-display font-black text-3xl sm:text-4xl md:text-5xl text-white tracking-tight leading-tight mb-6">
+          How to Log & Analyze Coding Mistakes to Stop Repeating Them
+        </h1>
+        <div class="flex items-center justify-center sm:justify-start gap-3 text-xs text-slate-400">
+          <span class="font-mono bg-white/5 px-2.5 py-1 rounded-md">Published July 11, 2026</span>
+          <span>By PrepFlow Team</span>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <section class="prose prose-invert max-w-none text-slate-300 leading-relaxed text-base space-y-6">
+        <p>
+          Have you ever spent 40 minutes debugging a LeetCode problem, only to realize that you made the exact same error you made last week? It could be an off-by-one error in a binary search, forgetting to check null pointers in a tree traversal, or writing a modulo computation that returns negative values in Java.
+        </p>
+        <p>
+          Making mistakes is a normal part of the learning process. Repeating the same mistake, however, is a sign of inefficient study. If you want to improve your problem-solving accuracy, you need to treat your bugs as critical data. You need a <strong>Mistake Pattern Journal</strong>.
+        </p>
+
+        <hr class="border-white/10 my-8" />
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">1. Why We Repeat Mistakes</h2>
+        <p>
+          When we solve a problem and it fails on an edge case, our immediate reaction is to look at the failing test, tweak our code until it passes, and click "Submit." Once we get the green "Accepted" screen, we experience a dopamine hit and immediately move on to the next problem.
+        </p>
+        <p>
+          Because we didn't pause to analyze <strong>why</strong> we made the mistake, our brain files it away as a random typo. In reality, coding errors are rarely random. They are usually caused by specific gaps in conceptual understanding or deep-seated muscle memory habits.
+        </p>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">2. The Anatomy of a Mistake Journal</h2>
+        <p>
+          A mistake journal is a systematic ledger where you catalog every bug you encounter. For each entry, you should record three key points:
+        </p>
+        <ul class="list-disc pl-6 space-y-3">
+          <li><strong>The Code snippet:</strong> The buggy line of code contrasted directly with the corrected code.</li>
+          <li><strong>The Mistake Category:</strong> Is it a <strong>Boundary Check</strong> (e.g. `i <= n` instead of `i < n`), a <strong>Logic Error</strong> (incorrect invariant), a <strong>Language Quirk</strong> (e.g. comparing Strings with `==` in Java), or an <strong>Edge Case Oversight</strong> (e.g. empty arrays or integer overflows)?</li>
+          <li><strong>The Prevention Rule:</strong> Write a simple, actionable instruction to prevent the error in the future (e.g. "Always write down constraints like N=0, N=1 before coding the algorithm").</li>
+        </ul>
+
+        <div class="glass-card p-6 rounded-2xl border-indigo-500/20 bg-indigo-950/20 my-8">
+          <h4 class="font-bold text-white mb-2">Automate Mistake Classification with PrepFlow</h4>
+          <p class="text-sm text-slate-350">
+            PrepFlow includes an integrated Mistake Pattern Journal. You can catalog your bug, classify it under standard buckets, and write down your custom prevention rules. The analytics dashboard charts your top mistake categories, highlighting exactly where your code quality slips.
+          </p>
+        </div>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">3. Common Coding Bug Categories to Watch</h2>
+        <p>
+          Based on analysis of thousands of interview attempts, here are the top categories of repeating bugs:
+        </p>
+        <ul class="list-disc pl-6 space-y-3">
+          <li><strong>Off-by-One Slips:</strong> Occurs when accessing arrays, updating pointers in sliding windows, or checking partition boundaries in divide-and-conquer logic.</li>
+          <li><strong>Integer Overflow:</strong> Neglecting to store sums or products in larger types (like `long` or `BigInt`) when constraint ranges can exceed $2^{31}-1$.</li>
+          <li><strong>Unchecked Nulls:</strong> Dereferencing empty variables in graphs, trees, or linked lists (e.g. calling `root.left.val` without verifying `root.left` exists).</li>
+          <li><strong>Negative Modulo Quirks:</strong> Forgetting that modulo operators in languages like C++ and Java retain negative signs (e.g. `(-5) % 3` returns `-2`, not `1`).</li>
+        </ul>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">Conclusion</h2>
+        <p>
+          If you want to pass coding interviews, stop measuring progress purely by the quantity of solved problems. Focus instead on the quality of your debugging. By systematically logging, categorizing, and reviewing your mistakes, you will eliminate repeating bugs, increase your coding accuracy, and write higher-quality code under pressure.
+        </p>
+      </section>
+
+      <!-- CTA Section -->
+      <section class="mt-12 glass-card rounded-2xl p-8 border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1)] text-center relative overflow-hidden">
+        <div class="absolute -top-12 -left-12 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl"></div>
+        <div class="absolute -bottom-12 -right-12 w-24 h-24 bg-pink-500/10 rounded-full blur-xl"></div>
+        <h3 class="font-display font-extrabold text-2xl text-white mb-3">Build Your Mistake Journal Today</h3>
+        <p class="text-slate-400 text-sm max-w-lg mx-auto mb-6">
+          Use PrepFlow to log your code slips, classify your errors, and track your error distributions over time.
+        </p>
+        <a href="/?start=true" class="inline-block bg-gradient-to-r from-indigo-500 to-purple-650 hover:from-indigo-650 hover:to-purple-750 text-white font-bold px-8 py-3.5 rounded-xl transition transform hover:scale-[1.02] shadow-lg shadow-indigo-650/20">
+          Open Mistake Journal
+        </a>
+      </section>
+      
+      <!-- Internal Linking & Navigation -->
+      <footer class="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs">
+        <a href="/blog/ai-mock-interviews-verbal-delivery/" class="text-indigo-400 hover:text-indigo-300 font-semibold">&larr; Previous: Verbal Mock Practice</a>
+        <a href="/blog/behavioral-interview-star-method/" class="text-indigo-400 hover:text-indigo-300 font-semibold">Next Guide: Behavioral STAR Method &rarr;</a>
+      </footer>
+    </article>
+  </main>
+
+  <footer class="border-t border-white/5 py-8 text-center text-xs text-slate-500 max-w-4xl mx-auto">
+    <p class="mb-2">&copy; 2026 PrepFlow Team. Released under the Apache-2.0 License.</p>
+    <p>Spaced repetition study tracker, active recall flashcards, and technical interview command center.</p>
+  </footer>
+</body>
+</html>

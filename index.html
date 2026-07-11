@@ -211,7 +211,159 @@
     </noscript>
 
     <!-- ===================== REACT ROOT ===================== -->
-    <div id="root" role="main" aria-label="PrepFlow Application"></div>
+    <div id="root" role="main" aria-label="PrepFlow Application">
+      <!-- Pre-rendered content for Search Engines (will be replaced by React) -->
+      <div class="prerendered-content">
+        <header style="padding: 1.5rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <img src="/icons/icon-192.png" alt="PrepFlow Logo" style="width: 2.25rem; height: 2.25rem; border-radius: 0.75rem;" />
+            <div>
+              <span style="font-weight: 900; font-size: 1.125rem; color: #ffffff;">PrepFlow</span>
+              <span style="font-size: 0.625rem; color: #94a3b8; display: block;">Your Smart Learning & Goal Companion</span>
+            </div>
+          </div>
+          <nav>
+            <a href="#features" style="color: #cbd5e1; margin-right: 1.5rem; text-decoration: none; font-size: 0.875rem;">Features</a>
+            <a href="#faq" style="color: #cbd5e1; margin-right: 1.5rem; text-decoration: none; font-size: 0.875rem;">FAQ</a>
+            <a href="#blog" style="color: #cbd5e1; text-decoration: none; font-size: 0.875rem;">Guides & Blog</a>
+          </nav>
+        </header>
+
+        <main style="max-width: 1200px; margin: 0 auto; padding: 4rem 1rem; text-align: center;">
+          <section style="margin-bottom: 5rem;">
+            <div style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid rgba(99,102,241,0.3); background: rgba(99,102,241,0.1); border-radius: 9999px; color: #a5b4fc; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2rem; font-family: monospace;">
+              <span>v1.0.0 released</span> • <span>Free & Open Source</span>
+            </div>
+            <h1 style="font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin-bottom: 1.5rem; color: #ffffff; letter-spacing: -0.025em;">
+              Master Your Tech Interviews, <br/><span style="color: #818cf8;">AI-Powered.</span>
+            </h1>
+            <p style="font-size: 1.25rem; color: #94a3b8; max-width: 48rem; margin: 0 auto 2.5rem auto; line-height: 1.6;">
+              PrepFlow (Preparation Tracker) is a free, all-in-one technical interview workspace. Track coding study topics with spaced repetition, practice active recall flashcards, simulate AI spoken mock interviews, and build daily study roadmaps.
+            </p>
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+              <a href="/?start=true" style="padding: 1rem 2rem; background: #4f46e5; color: white; border-radius: 0.75rem; text-decoration: none; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 14px rgba(79,70,229,0.4);">Get Started — It's Free</a>
+              <a href="https://github.com/Vishwajeet8401/prepration-tracking" target="_blank" rel="noopener noreferrer" style="padding: 1rem 2rem; background: rgba(255,255,255,0.08); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 0.75rem; text-decoration: none; font-weight: 600; font-size: 1rem;">View on GitHub</a>
+            </div>
+          </section>
+
+          <section id="features" style="padding: 4rem 0; text-align: left; border-top: 1px solid rgba(255,255,255,0.08);">
+            <h2 style="font-size: 2rem; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 3rem;">Core Study Features for Software Engineers</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 2rem; border-radius: 1rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #a5b4fc; margin-bottom: 0.75rem;">Spaced Repetition Study Tracker</h3>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0;">Uses the SM-2 algorithm to calculate optimal review intervals based on your confidence. Study data structures, algorithms, and system design topics efficiently without over-studying what you already know.</p>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 2rem; border-radius: 1rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #a5b4fc; margin-bottom: 0.75rem;">Active Recall Question Bank</h3>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0;">Practice flashcards covering essential technical questions. Test your knowledge, track your recall rate, and dynamically classify topics into weak, medium, and strong categories.</p>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 2rem; border-radius: 1rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #a5b4fc; margin-bottom: 0.75rem;">AI Mock Interviews (Spoken & Evaluated)</h3>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0;">Speak directly into your mic to answer Gemini-powered technical and behavioral questions. Receive real-time speech transcription, pacing assessment, filler word counting, and depth feedback.</p>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 2rem; border-radius: 1rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #a5b4fc; margin-bottom: 0.75rem;">Daily Study Planner & Roadmaps</h3>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0;">Set custom goals, plan revisions, log mistakes in a dedicated mistake pattern journal, and follow structured roadmaps designed for FAANG and high-growth startups.</p>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 2rem; border-radius: 1rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #a5b4fc; margin-bottom: 0.75rem;">Webcam Hand Gesture Controls</h3>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0;">Experience hands-free navigation. Utilize computer vision (MediaPipe) via your webcam to swipe cards, scroll, and toggle settings using natural hand movements.</p>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 2rem; border-radius: 1rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #a5b4fc; margin-bottom: 0.75rem;">PWA Offline Mode & Sync</h3>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0;">Fully mobile-responsive, works offline with local storage, and offers seamless cloud backup and sync through optional Firebase Authentication integrations.</p>
+              </div>
+            </div>
+          </section>
+
+          <section id="blog" style="padding: 4rem 0; text-align: left; border-top: 1px solid rgba(255,255,255,0.08);">
+            <h2 style="font-size: 2rem; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 3rem;">Technical Interview Preparation Guides</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+              <article style="border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1.5rem; background: rgba(255,255,255,0.01);">
+                <span style="font-size: 0.75rem; font-family: monospace; color: #818cf8;">STUDY STRATEGY</span>
+                <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0.5rem 0; color: white;">
+                  <a href="/blog/spaced-repetition-active-recall/" style="color: white; text-decoration: none;">How to Use Spaced Repetition and Active Recall to Ace Tech Interviews</a>
+                </h3>
+                <p style="color: #94a3b8; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.25rem;">Learn how the scientific principles of the SM-2 algorithm can significantly cut down coding revision time and maximize algorithm retention.</p>
+                <a href="/blog/spaced-repetition-active-recall/" style="color: #818cf8; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Read Guide &rarr;</a>
+              </article>
+              <article style="border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1.5rem; background: rgba(255,255,255,0.01);">
+                <span style="font-size: 0.75rem; font-family: monospace; color: #818cf8;">SYSTEM DESIGN</span>
+                <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0.5rem 0; color: white;">
+                  <a href="/blog/system-design-interview-prep/" style="color: white; text-decoration: none;">The Ultimate Guide to System Design Interview Preparation</a>
+                </h3>
+                <p style="color: #94a3b8; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.25rem;">Demystify scalability, caching, load balancing, and sharding. Discover how to track design mock sheets and build a consistent system design review loop.</p>
+                <a href="/blog/system-design-interview-prep/" style="color: #818cf8; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Read Guide &rarr;</a>
+              </article>
+              <article style="border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1.5rem; background: rgba(255,255,255,0.01);">
+                <span style="font-size: 0.75rem; font-family: monospace; color: #818cf8;">AI & PRACTICE</span>
+                <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0.5rem 0; color: white;">
+                  <a href="/blog/ai-mock-interviews-verbal-delivery/" style="color: white; text-decoration: none;">Mastering Verbal Delivery in Coding Interviews Using AI Mock Practice</a>
+                </h3>
+                <p style="color: #94a3b8; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.25rem;">Explore how spoken AI mock interviews help developers analyze filler word rates, sentence pacing, and technical vocabulary under pressure.</p>
+                <a href="/blog/ai-mock-interviews-verbal-delivery/" style="color: #818cf8; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Read Guide &rarr;</a>
+              </article>
+              <article style="border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1.5rem; background: rgba(255,255,255,0.01);">
+                <span style="font-size: 0.75rem; font-family: monospace; color: #818cf8;">ERROR LOGGING</span>
+                <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0.5rem 0; color: white;">
+                  <a href="/blog/coding-interview-mistakes/" style="color: white; text-decoration: none;">How to Log and Analyze Coding Mistakes to Stop Repeating Them</a>
+                </h3>
+                <p style="color: #94a3b8; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.25rem;">A deep dive into categorized mistake journals. Identify if your bugs are due to logic errors, language quirks, or edge case oversight, and stop repeats.</p>
+                <a href="/blog/coding-interview-mistakes/" style="color: #818cf8; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Read Guide &rarr;</a>
+              </article>
+              <article style="border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1.5rem; background: rgba(255,255,255,0.01);">
+                <span style="font-size: 0.75rem; font-family: monospace; color: #818cf8;">BEHAVIORAL</span>
+                <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0.5rem 0; color: white;">
+                  <a href="/blog/behavioral-interview-star-method/" style="color: white; text-decoration: none;">Behavioral Interviews: Structuring STAR Stories for Tech Roles</a>
+                </h3>
+                <p style="color: #94a3b8; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.25rem;">Master the Situation, Task, Action, and Result (STAR) framework. Catalog your engineering achievements to answer leadership, failure, and teamwork questions.</p>
+                <a href="/blog/behavioral-interview-star-method/" style="color: #818cf8; text-decoration: none; font-size: 0.875rem; font-weight: 600;">Read Guide &rarr;</a>
+              </article>
+            </div>
+          </section>
+
+          <section id="faq" style="padding: 4rem 0; text-align: left; border-top: 1px solid rgba(255,255,255,0.08);">
+            <h2 style="font-size: 2rem; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 3rem;">Frequently Asked Questions</h2>
+            <div style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem;">
+              <div>
+                <h3 style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">Is PrepFlow / Preparation Tracker really free?</h3>
+                <p style="color: #94a3b8; line-height: 1.6; margin: 0;">Yes, PrepFlow is completely free and open-source under the Apache-2.0 license. There are no hidden fees, no premium tiers, and no ads. You can fork it, customize it, and deploy it yourself.</p>
+              </div>
+              <div>
+                <h3 style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">Do I need to create an account to use PrepFlow?</h3>
+                <p style="color: #94a3b8; line-height: 1.6; margin: 0;">No. PrepFlow works entirely offline with local storage. Firebase authentication is optional and only required if you want to sync your study data across multiple devices.</p>
+              </div>
+              <div>
+                <h3 style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">How does the AI Mock Interview scoring work in PrepFlow?</h3>
+                <p style="color: #94a3b8; line-height: 1.6; margin: 0;">It uses the Gemini API to generate tailored interview questions, records your spoken responses via your microphone, transcribes them, and evaluates your keyword accuracy, filler words (like 'um' and 'uh'), clarity, and depth in real-time.</p>
+              </div>
+              <div>
+                <h3 style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">What is PrepFlow's gesture control feature?</h3>
+                <p style="color: #94a3b8; line-height: 1.6; margin: 0;">Using MediaPipe's real-time hand tracking via your webcam, you can navigate the PrepFlow workspace hands-free. You can swipe to change tabs/questions, pinch to click buttons, and point to scroll.</p>
+              </div>
+              <div>
+                <h3 style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">Can I use PrepFlow (Preparation Tracker) on my phone?</h3>
+                <p style="color: #94a3b8; line-height: 1.6; margin: 0;">Yes. The app includes a Capacitor configuration for Android with native speech-to-text, text-to-speech, and push notifications. The standard web app is also fully mobile-responsive.</p>
+              </div>
+              <div>
+                <h3 style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">How does spaced repetition work in PrepFlow?</h3>
+                <p style="color: #94a3b8; line-height: 1.6; margin: 0;">PrepFlow implements the SM-2 spaced repetition algorithm, which calculates optimal review intervals based on your self-reported confidence ratings. Difficult topics appear more frequently, while mastered topics are spaced further apart.</p>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <footer style="border-top: 1px solid rgba(255,255,255,0.08); padding: 3rem 1rem; text-align: center; color: #64748b; font-size: 0.875rem;">
+          <p style="margin-bottom: 1rem;">&copy; 2026 PrepFlow Team. Released under the Apache-2.0 License.</p>
+          <p style="margin-bottom: 1rem; display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap;">
+            <a href="/security/" style="color: #818cf8; text-decoration: none; font-weight: 550;">Security Policy</a>
+            <a href="/privacy/" style="color: #818cf8; text-decoration: none; font-weight: 550;">Privacy Policy</a>
+            <a href="/terms/" style="color: #818cf8; text-decoration: none; font-weight: 550;">Terms of Service</a>
+          </p>
+          <p style="margin: 0;">Optimized for coding interview practice, active recall study, and technical preparation tracking.</p>
+        </footer>
+      </div>
+    </div>
 
     <!-- ===================== APP ENTRY POINT ===================== -->
     <script type="module" src="/src/main.tsx"></script>

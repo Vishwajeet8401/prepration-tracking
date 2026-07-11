@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Privacy Policy — PrepFlow</title>
+  <meta name="description" content="Read PrepFlow's Privacy Policy. Understand how we prioritize local data storage, use zero analytics scripts, and isolate camera and microphone access on your local device." />
+  <link rel="canonical" href="https://tracking-prep.web.app/privacy/" />
+  
+  <!-- OG & Twitter Tags -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://tracking-prep.web.app/privacy/" />
+  <meta property="og:title" content="Privacy Policy — PrepFlow" />
+  <meta property="og:description" content="We run an offline-first workspace. Learn how your data stays on your machine, always." />
+  <meta property="og:image" content="https://tracking-prep.web.app/og-preview.png" />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              bg: '#0d131f',
+              card: 'rgba(255, 255, 255, 0.03)',
+              border: 'rgba(255, 255, 255, 0.08)',
+              glow: 'rgba(99, 102, 241, 0.15)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body {
+      background-color: #0d131f;
+      color: #f8fafc;
+    }
+    .mesh-gradient {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+  <!-- Structured Data (Schema.org WebPage) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Privacy Policy — PrepFlow",
+    "description": "Read how PrepFlow respects user privacy, uses functional local storage, and logs no tracking cookies.",
+    "url": "https://tracking-prep.web.app/privacy/"
+  }
+  </script>
+</head>
+<body class="font-sans antialiased text-slate-300 min-h-screen">
+  <div class="mesh-gradient"></div>
+
+  <!-- Header Nav -->
+  <header class="sticky top-0 z-50 glass-card border-b border-white/5 py-4 px-6">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <img src="/icons/icon-192.png" alt="PrepFlow Logo" class="w-8 h-8 rounded-lg border border-white/10" />
+        <span class="font-display font-bold text-white text-lg tracking-tight group-hover:text-indigo-400 transition">PrepFlow</span>
+      </a>
+      <a href="/?start=true" class="bg-indigo-650 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition shadow-lg shadow-indigo-650/30">
+        Open Free Workspace
+      </a>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="max-w-3xl mx-auto px-6 py-12">
+    <article>
+      <header class="mb-10 text-center sm:text-left">
+        <span class="text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-3 block">Compliance</span>
+        <h1 class="font-display font-black text-3xl sm:text-4xl md:text-5xl text-white tracking-tight leading-tight mb-6">
+          Privacy Policy
+        </h1>
+        <p class="text-slate-400 text-sm">
+          Last Updated: July 11, 2026
+        </p>
+      </header>
+
+      <section class="prose prose-invert max-w-none text-slate-300 leading-relaxed text-base space-y-6">
+        <p>
+          Your privacy is a cornerstone of how we design PrepFlow. This policy explains what information is collected, how it is stored, and what options you have regarding your study data.
+        </p>
+
+        <hr class="border-white/10 my-8" />
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">1. What Information We Collect</h2>
+        <p>
+          We believe in **Data Minimization**. 
+        </p>
+        <ul class="list-disc pl-6 space-y-2">
+          <li><strong>Study Information:</strong> All content you write (notes, flashcard subjects, mistake items, STAR stories) is kept on your device. We do not copy this to our servers.</li>
+          <li><strong>API Credentials:</strong> Configured AI API keys are stored only inside your browser's private local storage space. We do not collect or inspect these keys.</li>
+          <li><strong>Firebase Authentication Details:</strong> If you choose to enable cross-device syncing, we utilize standard Firebase Auth (email, password, or Google login). Firebase processes this authentication request.</li>
+        </ul>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">2. Cookies and Storage Files</h2>
+        <p>
+          PrepFlow does not set any advertising, tracking, or cross-site profiling cookies. We utilize standard Web Storage (LocalStorage and IndexedDB) strictly for functional application needs, including:
+        </p>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>Saving your active color theme choice.</li>
+          <li>Caching study state lists to support fully offline operational capability.</li>
+          <li>Maintaining local application state flags.</li>
+        </ul>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">3. Device Permissions (Camera & Microphone)</h2>
+        <p>
+          To enable features like hands-free gesture control and AI Mock Interview recording, PrepFlow requests browser permissions for your camera and microphone:
+        </p>
+        <ul class="list-disc pl-6 space-y-3">
+          <li><strong>Webcam Data:</strong> Framerate feeds are processed locally on your machine via client-side libraries. No image or video frames are saved or transmitted off your device.</li>
+          <li><strong>Microphone Data:</strong> Captured audio is converted to speech transcriptions locally or dispatched directly to AI provider endpoints. No raw audio clips are sent or stored on our servers.</li>
+        </ul>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">4. Third-Party Services</h2>
+        <p>
+          When utilizing the AI Mock Interview or coaching components, you connect to third-party providers (such as Google Generative AI, Cerebras, or Groq) using your own API credentials. All text inputs or transcriptions dispatched to these endpoints are governed by the respective privacy policies of those providers. We advise reviewing their terms of service to understand how they treat generative API inputs.
+        </p>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">5. Your Control & Data Erasure</h2>
+        <p>
+          Since your database is under your control, you can wipe it instantly at any time. Simply use the <strong>"Clear All Local Data"</strong> button inside the app settings, or clear your browser's site cookies and storage cache.
+        </p>
+      </section>
+
+      <!-- Internal Linking & Navigation -->
+      <footer class="mt-12 pt-8 border-t border-white/10 flex justify-between items-center text-xs">
+        <a href="/security/" class="text-indigo-400 hover:text-indigo-300 font-semibold">&larr; Security Policy</a>
+        <a href="/terms/" class="text-indigo-400 hover:text-indigo-300 font-semibold">Terms of Service &rarr;</a>
+      </footer>
+    </article>
+  </main>
+
+  <footer class="border-t border-white/5 py-8 text-center text-xs text-slate-500 max-w-4xl mx-auto">
+    <p class="mb-2">&copy; 2026 PrepFlow. Released under the Apache-2.0 License.</p>
+    <p>Zero tracking, maximum privacy developer utility.</p>
+  </footer>
+</body>
+</html>

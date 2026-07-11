@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Terms of Service — PrepFlow</title>
+  <meta name="description" content="Read the Terms of Service for PrepFlow. Review open-source license information, API usage responsibilities, and disclaimers of warranty." />
+  <link rel="canonical" href="https://tracking-prep.web.app/terms/" />
+  
+  <!-- OG & Twitter Tags -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://tracking-prep.web.app/terms/" />
+  <meta property="og:title" content="Terms of Service — PrepFlow" />
+  <meta property="og:description" content="Review licensing and usage terms for PrepFlow's free study workspace." />
+  <meta property="og:image" content="https://tracking-prep.web.app/og-preview.png" />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              bg: '#0d131f',
+              card: 'rgba(255, 255, 255, 0.03)',
+              border: 'rgba(255, 255, 255, 0.08)',
+              glow: 'rgba(99, 102, 241, 0.15)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body {
+      background-color: #0d131f;
+      color: #f8fafc;
+    }
+    .mesh-gradient {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+  <!-- Structured Data (Schema.org WebPage) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Terms of Service — PrepFlow",
+    "description": "Read user terms, licensing parameters, and guidelines for PrepFlow.",
+    "url": "https://tracking-prep.web.app/terms/"
+  }
+  </script>
+</head>
+<body class="font-sans antialiased text-slate-300 min-h-screen">
+  <div class="mesh-gradient"></div>
+
+  <!-- Header Nav -->
+  <header class="sticky top-0 z-50 glass-card border-b border-white/5 py-4 px-6">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <img src="/icons/icon-192.png" alt="PrepFlow Logo" class="w-8 h-8 rounded-lg border border-white/10" />
+        <span class="font-display font-bold text-white text-lg tracking-tight group-hover:text-indigo-400 transition">PrepFlow</span>
+      </a>
+      <a href="/?start=true" class="bg-indigo-650 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition shadow-lg shadow-indigo-650/30">
+        Open Free Workspace
+      </a>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="max-w-3xl mx-auto px-6 py-12">
+    <article>
+      <header class="mb-10 text-center sm:text-left">
+        <span class="text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-3 block">Agreement</span>
+        <h1 class="font-display font-black text-3xl sm:text-4xl md:text-5xl text-white tracking-tight leading-tight mb-6">
+          Terms of Service
+        </h1>
+        <p class="text-slate-400 text-sm">
+          Last Updated: July 11, 2026
+        </p>
+      </header>
+
+      <section class="prose prose-invert max-w-none text-slate-300 leading-relaxed text-base space-y-6">
+        <p>
+          Welcome to PrepFlow. By accessing this web application, you agree to comply with and be bound by the following terms and conditions.
+        </p>
+
+        <hr class="border-white/10 my-8" />
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">1. License & Usage</h2>
+        <p>
+          PrepFlow is free, open-source software distributed under the **Apache License, Version 2.0**.
+        </p>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>You are permitted to download, execute, copy, modify, merge, publish, or distribute the application.</li>
+          <li>Any derivative works must comply with the conditions stated in the Apache-2.0 License.</li>
+        </ul>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">2. AI API Keys and Billing</h2>
+        <p>
+          PrepFlow includes integration modules that make API calls to third-party generative models. 
+        </p>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>You are solely responsible for configuring, securing, and managing your own API credentials for Google Gemini, Cerebras, Groq, or other providers.</li>
+          <li>You are responsible for any usage charges, fees, or data limits incurred under your API keys. PrepFlow is not associated with nor liable for billing issues.</li>
+        </ul>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">3. Device Camera and Microphone Use</h2>
+        <p>
+          The application uses MediaPipe library scripts to parse camera feed frames on your local device. You must grant the required browser permission to enable hands-free gesture control. You are responsible for ensuring your webcam environment meets your individual privacy expectations.
+        </p>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">4. Disclaimer of Warranty</h2>
+        <p class="font-mono bg-white/5 p-4 rounded-lg text-xs leading-normal">
+          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+        </p>
+        <p>
+          PrepFlow is a study aid dashboard. We make no guarantees regarding your performance in technical coding, system design, or behavioral job interviews, nor do we represent association with any recruiting firm.
+        </p>
+      </section>
+
+      <!-- Internal Linking & Navigation -->
+      <footer class="mt-12 pt-8 border-t border-white/10 flex justify-between items-center text-xs">
+        <a href="/privacy/" class="text-indigo-400 hover:text-indigo-300 font-semibold">&larr; Privacy Policy</a>
+        <a href="/" class="text-slate-400 hover:text-slate-350">Back to Home</a>
+      </footer>
+    </article>
+  </main>
+
+  <footer class="border-t border-white/5 py-8 text-center text-xs text-slate-500 max-w-4xl mx-auto">
+    <p class="mb-2">&copy; 2026 PrepFlow. Released under the Apache-2.0 License.</p>
+    <p>Open source developer study companion built for software engineers.</p>
+  </footer>
+</body>
+</html>

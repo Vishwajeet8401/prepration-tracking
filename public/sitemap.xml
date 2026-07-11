@@ -1,9 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Homepage -->
   <url>
     <loc>https://tracking-prep.web.app/</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+  </url>
+  <!-- Spaced Repetition Guide -->
+  <url>
+    <loc>https://tracking-prep.web.app/blog/spaced-repetition-active-recall/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- System Design Guide -->
+  <url>
+    <loc>https://tracking-prep.web.app/blog/system-design-interview-prep/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- AI Mock Interviews Guide -->
+  <url>
+    <loc>https://tracking-prep.web.app/blog/ai-mock-interviews-verbal-delivery/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Coding Mistakes Guide -->
+  <url>
+    <loc>https://tracking-prep.web.app/blog/coding-interview-mistakes/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Behavioral STAR Guide -->
+  <url>
+    <loc>https://tracking-prep.web.app/blog/behavioral-interview-star-method/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Security Policy -->
+  <url>
+    <loc>https://tracking-prep.web.app/security/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <!-- Privacy Policy -->
+  <url>
+    <loc>https://tracking-prep.web.app/privacy/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <!-- Terms of Service -->
+  <url>
+    <loc>https://tracking-prep.web.app/terms/</loc>
+    <lastmod>2026-07-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>

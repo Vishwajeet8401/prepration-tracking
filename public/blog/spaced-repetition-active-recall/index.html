@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>How to Use Spaced Repetition & Active Recall to Ace Tech Interviews — PrepFlow Blog</title>
+  <meta name="description" content="Discover how to combine spaced repetition (using the SM-2 algorithm) and active recall flashcards to optimize your coding interview preparation and retain algorithms forever." />
+  <link rel="canonical" href="https://tracking-prep.web.app/blog/spaced-repetition-active-recall/" />
+  
+  <!-- OG & Twitter Tags -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://tracking-prep.web.app/blog/spaced-repetition-active-recall/" />
+  <meta property="og:title" content="How to Use Spaced Repetition & Active Recall to Ace Tech Interviews — PrepFlow Blog" />
+  <meta property="og:description" content="Master coding interview preparation using scientific study methods. Cut revision time and boost memory retention." />
+  <meta property="og:image" content="https://tracking-prep.web.app/og-preview.png" />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              bg: '#0d131f',
+              card: 'rgba(255, 255, 255, 0.03)',
+              border: 'rgba(255, 255, 255, 0.08)',
+              glow: 'rgba(99, 102, 241, 0.15)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body {
+      background-color: #0d131f;
+      color: #f8fafc;
+    }
+    .mesh-gradient {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+
+  <!-- Structured Data (Schema.org JSON-LD Article) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://tracking-prep.web.app/blog/spaced-repetition-active-recall/"
+    },
+    "headline": "How to Use Spaced Repetition & Active Recall to Ace Tech Interviews",
+    "description": "Discover how to combine spaced repetition (using the SM-2 algorithm) and active recall flashcards to optimize your coding interview preparation and retain algorithms forever.",
+    "image": "https://tracking-prep.web.app/og-preview.png",
+    "author": {
+      "@type": "Organization",
+      "name": "PrepFlow Team"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "PrepFlow",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://tracking-prep.web.app/icons/icon-512.png"
+      }
+    },
+    "datePublished": "2026-07-11",
+    "dateModified": "2026-07-11"
+  }
+  </script>
+</head>
+<body class="font-sans antialiased text-slate-300 min-h-screen">
+  <div class="mesh-gradient"></div>
+
+  <!-- Header Nav -->
+  <header class="sticky top-0 z-50 glass-card border-b border-white/5 py-4 px-6">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <img src="/icons/icon-192.png" alt="PrepFlow Logo" class="w-8 h-8 rounded-lg border border-white/10" />
+        <span class="font-display font-bold text-white text-lg tracking-tight group-hover:text-indigo-400 transition">PrepFlow</span>
+      </a>
+      <a href="/?start=true" class="bg-indigo-650 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition shadow-lg shadow-indigo-650/30">
+        Open Free Workspace
+      </a>
+    </div>
+  </header>
+
+  <!-- Article Hero -->
+  <main class="max-w-3xl mx-auto px-6 py-12">
+    <article>
+      <header class="mb-10 text-center sm:text-left">
+        <div class="flex items-center justify-center sm:justify-start gap-2.5 text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-3">
+          <span>Study Strategy</span> • <span>7 Min Read</span>
+        </div>
+        <h1 class="font-display font-black text-3xl sm:text-4xl md:text-5xl text-white tracking-tight leading-tight mb-6">
+          How to Use Spaced Repetition & Active Recall to Ace Tech Interviews
+        </h1>
+        <div class="flex items-center justify-center sm:justify-start gap-3 text-xs text-slate-400">
+          <span class="font-mono bg-white/5 px-2.5 py-1 rounded-md">Published July 11, 2026</span>
+          <span>By PrepFlow Team</span>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <section class="prose prose-invert max-w-none text-slate-300 leading-relaxed text-base space-y-6">
+        <p>
+          Coding interview preparation is notoriously overwhelming. Software engineers spend hundreds of hours solving hundreds of LeetCode challenges, only to find themselves completely blanking out when asked to solve a problem they solved just three weeks ago. 
+        </p>
+        <p>
+          The problem isn't intelligence or coding competence; it's a structural limitation of human memory known as the <strong>Forgetting Curve</strong>. First discovered by psychologist Hermann Ebbinghaus, the forgetting curve shows that we forget up to 80% of newly learned information within 48 hours unless we actively review it.
+        </p>
+        <p>
+          To beat the forgetting curve and master the massive scope of technical interviews, you need a scientific approach: <strong>Active Recall</strong> combined with <strong>Spaced Repetition</strong>.
+        </p>
+
+        <hr class="border-white/10 my-8" />
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">1. What is Active Recall?</h2>
+        <p>
+          Active recall is the process of actively testing your brain to retrieve information rather than passively reading a solution. 
+        </p>
+        <p>
+          When you stare at a solved code template or read a blog post explaining how to detect a cycle in a linked list, you are practicing <strong>passive recognition</strong>. Your brain feels comfortable because it recognizes the pattern, giving you a false sense of mastery.
+        </p>
+        <p>
+          <strong>Active recall breaks this illusion.</strong> By forcing yourself to write the code from scratch, map out the algorithm on a whiteboard, or explain the time complexity without looking at the answer, you strengthen the neural pathways associated with that concept.
+        </p>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">2. The Spaced Repetition Method (The SM-2 Algorithm)</h2>
+        <p>
+          Active recall is most powerful when scheduled systematically. Spaced repetition spaces out your reviews over increasing intervals. If you review a topic right before you are about to forget it, the cognitive effort required to recall it cements it deeply into your long-term memory.
+        </p>
+        <p>
+          The gold standard for spaced repetition is the <strong>SM-2 algorithm</strong>, which computes the ideal next review date using a dynamic multiplication factor (the E-Factor) based on your confidence level:
+        </p>
+        <ul class="list-disc pl-6 space-y-2">
+          <li><strong>Confidence score of 5 (Perfect recall):</strong> The interval increases significantly (e.g., review in 21 days).</li>
+          <li><strong>Confidence score of 3 (Recalled with difficulty):</strong> The interval increases slightly (e.g., review in 4 days).</li>
+          <li><strong>Confidence score of 1 or 2 (Failed recall):</strong> The interval resets back to 1 day to build reinforcement.</li>
+        </ul>
+
+        <div class="glass-card p-6 rounded-2xl border-indigo-500/20 bg-indigo-950/20 my-8">
+          <h4 class="font-bold text-white mb-2">How PrepFlow Automates SM-2</h4>
+          <p class="text-sm text-slate-350">
+            PrepFlow features an integrated Spaced Repetition study tracker. Every time you revise a topic or practice a coding card, you rate your confidence from 1 to 5. The app automatically calculates the next review date using SM-2, surfacing weak areas daily and keeping your dashboard organized.
+          </p>
+        </div>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">3. Step-by-Step Plan to Structure Your Prep</h2>
+        <ol class="list-decimal pl-6 space-y-4">
+          <li>
+            <strong>Map Your Core Subjects:</strong> Divide your preparation into distinct categories: Arrays, Graphs, Dynamic Programming, System Design, and Behavioral Stories.
+          </li>
+          <li>
+            <strong>Build Your Question Cards:</strong> For every problem you solve, create a question card listing the problem statement and constraints. Leave the solution hidden.
+          </li>
+          <li>
+            <strong>Practice Active Retrieval:</strong> When reviewing, do not look at your previous solution. Try to explain the algorithm out loud or write the pseudocode.
+          </li>
+          <li>
+            <strong>Log Your Recall Rating:</strong> Record how easily you retrieved the solution. Let the scheduling system set the next revision day.
+          </li>
+        </ol>
+
+        <h2 class="font-display font-bold text-2xl text-white mt-8 mb-4">Conclusion</h2>
+        <p>
+          Stop wasting hours re-solving random problems. Shift from passive reading to active, spaced reviews. By incorporating active recall and spaced repetition into your daily study routing, you will retain complex code patterns, solve coding interview questions faster, and approach your interviews with confidence.
+        </p>
+      </section>
+
+      <!-- CTA Section -->
+      <section class="mt-12 glass-card rounded-2xl p-8 border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1)] text-center relative overflow-hidden">
+        <div class="absolute -top-12 -left-12 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl"></div>
+        <div class="absolute -bottom-12 -right-12 w-24 h-24 bg-pink-500/10 rounded-full blur-xl"></div>
+        <h3 class="font-display font-extrabold text-2xl text-white mb-3">Optimize Your Coding Reviews Instantly</h3>
+        <p class="text-slate-400 text-sm max-w-lg mx-auto mb-6">
+          PrepFlow is a completely free, open-source dashboard that integrates active recall, spaced repetition, AI mock interviews, and mistake journals.
+        </p>
+        <a href="/?start=true" class="inline-block bg-gradient-to-r from-indigo-500 to-purple-650 hover:from-indigo-650 hover:to-purple-750 text-white font-bold px-8 py-3.5 rounded-xl transition transform hover:scale-[1.02] shadow-lg shadow-indigo-650/20">
+          Start Practicing Free
+        </a>
+      </section>
+      
+      <!-- Internal Linking & Navigation -->
+      <footer class="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs">
+        <a href="/blog/system-design-interview-prep/" class="text-indigo-400 hover:text-indigo-300 font-semibold">&rarr; Next Guide: System Design Prep</a>
+        <a href="/" class="text-slate-400 hover:text-slate-350">Back to Home</a>
+      </footer>
+    </article>
+  </main>
+
+  <footer class="border-t border-white/5 py-8 text-center text-xs text-slate-500 max-w-4xl mx-auto">
+    <p class="mb-2">&copy; 2026 PrepFlow Team. Released under the Apache-2.0 License.</p>
+    <p>Spaced repetition study tracker, active recall flashcards, and technical interview command center.</p>
+  </footer>
+</body>
+</html>

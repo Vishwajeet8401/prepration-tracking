@@ -1986,7 +1986,29 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <BuyMeCoffeeSection />
 
       {/* ─── FOOTER ─────────────────────────────────────────────────────────── */}
-      <footer className="relative z-10 border-t border-white/5 py-8 px-6 md:px-8">
+      <footer className="relative z-10 border-t border-white/5 py-12 px-6 md:px-8">
+        <div className="max-w-7xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-2 gap-8 border-b border-white/5 pb-8 text-sm text-slate-400">
+          <div>
+            <h4 className="font-display font-bold text-white mb-3">PrepFlow Blog & Guides</h4>
+            <p className="text-slate-400 text-xs max-w-sm mb-4">
+              Explore our free study resources designed to help you prepare for software engineering, system design, and behavioral interviews.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="flex flex-col gap-2">
+              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Study Methods</span>
+              <a href="/blog/spaced-repetition-active-recall/" className="hover:text-indigo-400 transition">Spaced Repetition & Recall Guide</a>
+              <a href="/blog/coding-interview-mistakes/" className="hover:text-indigo-400 transition">Mistake Pattern Journaling</a>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Technical Skills</span>
+              <a href="/blog/system-design-interview-prep/" className="hover:text-indigo-400 transition">System Design Interview Prep</a>
+              <a href="/blog/ai-mock-interviews-verbal-delivery/" className="hover:text-indigo-400 transition">AI Mock Interviews & Delivery</a>
+              <a href="/blog/behavioral-interview-star-method/" className="hover:text-indigo-400 transition">Behavioral STAR Stories</a>
+            </div>
+          </div>
+        </div>
+
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <img src="/prepFlow.png" alt="PrepFlow Logo" className="w-5 h-5 rounded-md object-contain" />
@@ -2002,9 +2024,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               </a>
             </span>
           </div>
-          <div className="flex items-center gap-6 text-xs text-slate-600">
+          <div className="flex items-center gap-6 text-xs text-slate-600 flex-wrap justify-center md:justify-end">
             <a href="https://github.com/Vishwajeet8401/prepration-tracking" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">GitHub</a>
             <a href="https://tracking-prep.web.app" target="_blank" rel="noopener noreferrer" className="hover:text-white transition lp-interactive">Live App</a>
+            <a href="/security/" className="hover:text-white transition lp-interactive">Security</a>
+            <a href="/privacy/" className="hover:text-white transition lp-interactive">Privacy</a>
+            <a href="/terms/" className="hover:text-white transition lp-interactive">Terms</a>
             <a
               href="https://vishwajeetkalokhe-dev-portfolio.vercel.app/"
               target="_blank"
