@@ -36,6 +36,7 @@ import { BuyMeCoffeeModal } from './components/BuyMeCoffee';
 import CodeEditorPage from './pages/CodeEditorPage';
 import OnboardingGuide from './components/OnboardingGuide';
 import TourGuide from './components/TourGuide';
+import FloatingTimer from './components/FloatingTimer';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
@@ -867,6 +868,8 @@ export default function App() {
         isOpen={isCoffeeModalOpen} 
         onClose={() => setIsCoffeeModalOpen(false)} 
       />
+
+      <FloatingTimer />
 
       {/* Floating Scroll to Top button */}
       <AnimatePresence>

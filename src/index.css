@@ -985,5 +985,42 @@ html {
   line-height: 1.6;
 }
 
+/* ── Gemini Animated Gradient Border ── */
+@keyframes gemini-gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gemini-animated-border {
+  position: relative;
+  border-radius: inherit;
+}
+
+.gemini-animated-border::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px; /* Border thickness */
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, #7a5af8, #c39dfc, #6366f1, #38bdf8, #ec4899, #f43f5e);
+  background-size: 300% 300%;
+  animation: gemini-gradient-flow 6s ease infinite;
+  -webkit-mask: 
+     linear-gradient(#fff 0 0) content-box, 
+     linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 10;
+}
+
+
 
 

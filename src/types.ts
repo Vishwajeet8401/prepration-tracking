@@ -185,6 +185,17 @@ export interface DailyTask {
   category: ActivityCategory;
 }
 
+export interface ActiveTaskTimer {
+  taskId: string;
+  taskTitle: string;
+  task: DailyTask;
+  startTime: number;   // Date.now() when current segment started
+  elapsed: number;     // seconds accumulated before the current segment
+  isPaused: boolean;
+  displaySeconds: number; // derived value updated by the interval
+}
+
+
 export interface ActivityLog {
   id: string;
   taskId: string;

@@ -10,8 +10,9 @@ import {
   AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, 
   DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, 
   PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject, UserSettings, StarStory, MockPresetQuestion,
-  VocabularyWord, VocabularyStatus, WordDefinition, CodeQuestion, CodingProgress
+  VocabularyWord, VocabularyStatus, WordDefinition, CodeQuestion, CodingProgress, ActiveTaskTimer
 } from '../types';
+import { playSuccessChime } from '../utils/audio';
 import { 
   initialTopics, initialQuestions, initialJobApplications, 
   initialInterviews, initialMistakes, initialStudySessions, initialNotifications, 
@@ -130,6 +131,8 @@ export interface DatabaseContextType {
   handleDeleteCodingQuestion: (id: string) => Promise<void>;
   handleRecordCodingRecall: (questionId: string, topicId: string, response: 'Remembered' | 'Partially' | 'Forgot') => Promise<void>;
   handleLinkCodingQuestionToTopic: (questionId: string, topicId: string) => Promise<void>;
+  activeTaskTimer: ActiveTaskTimer | null;
+  setActiveTaskTimer: React.Dispatch<React.SetStateAction<ActiveTaskTimer | null>>;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -164,6 +167,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [vocabularyWords, setVocabularyWords] = useState<VocabularyWord[]>([]);
   const [codingQuestions, setCodingQuestions] = useState<CodeQuestion[]>([]);
   const [codingProgress, setCodingProgress] = useState<CodingProgress[]>([]);
+  const [activeTaskTimer, setActiveTaskTimer] = useState<ActiveTaskTimer | null>(null);
 
   const globalStats = useGlobalStats(user?.uid);
   const { urgentTopics } = useUrgentTopics(user?.uid);
@@ -2633,6 +2637,98 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user]);
 
+  // ─── Active Task Timer Background Hooks ───
+  useEffect(() => {
+    if (!activeTaskTimer || activeTaskTimer.isPaused) return;
+
+    const interval = setInterval(() => {
+      setActiveTaskTimer(prev => {
+        if (!prev || prev.isPaused) return prev;
+        const wallSeconds = Math.floor((Date.now() - prev.startTime) / 1000);
+        return { ...prev, displaySeconds: prev.elapsed + wallSeconds };
+      });
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [activeTaskTimer?.isPaused, activeTaskTimer?.taskId]);
+
+  const overflowedTaskIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeTaskTimer) {
+      overflowedTaskIdRef.current = null;
+      return;
+    }
+
+    const targetSeconds = (activeTaskTimer.task.targetHours || 0) * 3600;
+
+    if (targetSeconds > 0 && activeTaskTimer.displaySeconds >= targetSeconds) {
+      if (overflowedTaskIdRef.current !== activeTaskTimer.taskId) {
+        overflowedTaskIdRef.current = activeTaskTimer.taskId;
+
+        // Auto-complete the task!
+        const autoComplete = async () => {
+          try {
+            const finalHours = Number(activeTaskTimer.task.targetHours) || 1;
+            
+            // Format time display helper
+            const h = Math.floor(activeTaskTimer.displaySeconds / 3600).toString().padStart(2, '0');
+            const m = Math.floor((activeTaskTimer.displaySeconds % 3600) / 60).toString().padStart(2, '0');
+            const s = (activeTaskTimer.displaySeconds % 60).toString().padStart(2, '0');
+            const formattedTime = `${h}:${m}:${s}`;
+
+            await handleUpdateTaskInApp({
+              ...activeTaskTimer.task,
+              status: 'Completed',
+              completedAt: new Date().toISOString()
+            }, finalHours, `Auto-completed via timer. Time spent: ${formattedTime}`);
+
+            playSuccessChime();
+            setActiveTaskTimer(null);
+          } catch (err) {
+            console.error("Auto-complete failed:", err);
+          }
+        };
+        autoComplete();
+      }
+    } else {
+      if (overflowedTaskIdRef.current === activeTaskTimer.taskId) {
+        overflowedTaskIdRef.current = null;
+      }
+    }
+  }, [activeTaskTimer?.displaySeconds, activeTaskTimer?.taskId, activeTaskTimer?.task, handleUpdateTaskInApp]);
+
+  useEffect(() => {
+    if (!activeTaskTimer) return;
+
+    const targetSeconds = (activeTaskTimer.task.targetHours || 0) * 3600;
+
+    if (!activeTaskTimer.isPaused) {
+      const remainingSeconds = targetSeconds - activeTaskTimer.elapsed;
+      if (remainingSeconds > 0) {
+        import('../utils/mobileScheduler').then(m => {
+          m.scheduleTimerOverflowNotification(
+            activeTaskTimer.taskId,
+            activeTaskTimer.taskTitle,
+            activeTaskTimer.task.targetHours || 1,
+            remainingSeconds
+          );
+        }).catch(err => console.error("Failed to load mobile scheduler:", err));
+      }
+    } else {
+      import('../utils/mobileScheduler').then(m => {
+        m.cancelTimerOverflowNotification(activeTaskTimer.taskId);
+      }).catch(err => console.error("Failed to load mobile scheduler:", err));
+    }
+
+    return () => {
+      import('../utils/mobileScheduler').then(m => {
+        m.cancelTimerOverflowNotification(activeTaskTimer.taskId);
+      }).catch(err => console.error("Failed to load mobile scheduler:", err));
+    };
+  }, [activeTaskTimer?.isPaused, activeTaskTimer?.taskId, activeTaskTimer?.elapsed]);
+
+
   // ─── Vocabulary Builder handlers ───────────────────────────────────────────
 
   // Levenshtein distance for fuzzy matching
@@ -3070,7 +3166,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       handleDeleteTaskInApp, handleAddMockPresetQuestion, handleDeleteMockPresetQuestion, handleUpdateCustomPrompt,
       vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
       handleMarkWordReviewed, handleSearchWordDefinition,
-      codingQuestions, codingProgress, handleAddCodingQuestion, handleUpdateCodingQuestion, handleDeleteCodingQuestion, handleRecordCodingRecall, handleLinkCodingQuestionToTopic
+      codingQuestions, codingProgress, handleAddCodingQuestion, handleUpdateCodingQuestion, handleDeleteCodingQuestion, handleRecordCodingRecall, handleLinkCodingQuestionToTopic,
+      activeTaskTimer, setActiveTaskTimer
     }}>
       {children}
     </DatabaseContext.Provider>

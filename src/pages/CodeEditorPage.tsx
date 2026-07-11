@@ -585,10 +585,10 @@ ${sourceCode}
             : 'w-full h-full'
         } rounded-2xl overflow-hidden`}
         style={{
-          border: '1px solid rgba(148,163,184,0.18)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
           boxShadow: isStandalone
             ? '0 0 0 1px rgba(0,0,0,0.6), 0 32px 80px rgba(0,0,0,0.7), 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)'
-            : '0 8px 32px rgba(0,0,0,0.5)',
+            : 'inset 0 1.5px 0 rgba(255, 255, 255, 0.12), 0 24px 64px rgba(0, 0, 0, 0.6)',
         }}
       >
       {/* ── macOS Title Bar ─────────────────────────────────────────────── */}
@@ -634,27 +634,35 @@ ${sourceCode}
             {/* Red — Close / Back */}
             <button
               onClick={onBackToDashboard || undefined}
-              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center"
-              style={{ background: 'radial-gradient(circle at 40% 35%, #ff8a7a, #ff5f57)', boxShadow: '0 1px 3px rgba(255,95,87,0.5), inset 0 1px 0 rgba(255,255,255,0.25)' }}
+              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center border-0"
+              style={{ background: 'radial-gradient(circle at 40% 35%, #ff8a7a, #ff5f57)', boxShadow: '0 1px 2px rgba(255,95,87,0.4), inset 0 0.5px 0 rgba(255,255,255,0.2)' }}
               title={onBackToDashboard ? 'Close – Return to Dashboard' : 'Close'}
             >
               <span className="opacity-0 group-hover/tl:opacity-100 text-[8px] font-black text-red-900 leading-none select-none transition-opacity">✕</span>
             </button>
-            {/* Yellow — Minimize (visual only) */}
+            {/* Yellow — Minimize Sidebar */}
             <button
-              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-default flex items-center justify-center"
-              style={{ background: 'radial-gradient(circle at 40% 35%, #ffd86b, #febc2e)', boxShadow: '0 1px 3px rgba(254,188,46,0.5), inset 0 1px 0 rgba(255,255,255,0.25)' }}
-              title="Minimize"
-              onClick={() => {}}
+              onClick={() => setActiveSidebar(prev => prev ? null : 'problem')}
+              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center border-0"
+              style={{ background: 'radial-gradient(circle at 40% 35%, #ffd86b, #febc2e)', boxShadow: '0 1px 2px rgba(254,188,46,0.4), inset 0 0.5px 0 rgba(255,255,255,0.2)' }}
+              title="Toggle Sidebar Layout"
             >
               <span className="opacity-0 group-hover/tl:opacity-100 text-[8px] font-black text-amber-900 leading-none select-none transition-opacity">−</span>
             </button>
-            {/* Green — Maximize (visual only) */}
+            {/* Green — Full Screen */}
             <button
-              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-default flex items-center justify-center"
-              style={{ background: 'radial-gradient(circle at 40% 35%, #5de576, #28c840)', boxShadow: '0 1px 3px rgba(40,200,64,0.5), inset 0 1px 0 rgba(255,255,255,0.25)' }}
-              title="Full Screen"
-              onClick={() => {}}
+              onClick={() => {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen().catch((err) => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                  });
+                } else {
+                  document.exitFullscreen();
+                }
+              }}
+              className="relative w-3.5 h-3.5 rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center border-0"
+              style={{ background: 'radial-gradient(circle at 40% 35%, #5de576, #28c840)', boxShadow: '0 1px 2px rgba(40,200,64,0.4), inset 0 0.5px 0 rgba(255,255,255,0.2)' }}
+              title="Toggle Full Screen"
             >
               <span className="opacity-0 group-hover/tl:opacity-100 text-[8px] font-black text-green-900 leading-none select-none transition-opacity">+</span>
             </button>

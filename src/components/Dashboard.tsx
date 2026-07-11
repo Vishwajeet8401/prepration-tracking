@@ -14,6 +14,8 @@ import {
 import { motion } from 'motion/react';
 import { useScrollGesture } from '../hooks/useScrollGesture';
 import { useAuth } from '../context/AuthContext';
+import { useDatabase } from '../context/DatabaseContext';
+import { playSuccessChime } from '../utils/audio';
 
 interface DashboardProps {
   topics: Topic[];
@@ -234,102 +236,7 @@ const Dashboard = React.memo(function Dashboard({
   // ── Gesture scroll ──
   useScrollGesture({ activeTab: 'Home Dashboard', scrollAmount: 150 });
 
-  // Active Task Timer State
-  // `startTime` = wall-clock ms when the current running segment began
-  // `elapsed`   = total seconds accumulated in previous (paused) segments
-  // On every tick we compute: display = elapsed + (Date.now() - startTime) / 1000
-  // This stays accurate even when the browser throttles background tabs.
-  const [activeTaskTimer, setActiveTaskTimer] = useState<{
-    taskId: string;
-    taskTitle: string;
-    task: DailyTask;
-    startTime: number;   // Date.now() when current segment started
-    elapsed: number;     // seconds accumulated before the current segment
-    isPaused: boolean;
-    displaySeconds: number; // derived value updated by the interval
-  } | null>(null);
-
-  useEffect(() => {
-    if (!activeTaskTimer || activeTaskTimer.isPaused) return;
-
-    // Use a shorter interval (500ms) so the display feels responsive,
-    // but always derive the value from wall-clock time — never accumulate ticks.
-    const interval = setInterval(() => {
-      setActiveTaskTimer(prev => {
-        if (!prev || prev.isPaused) return prev;
-        const wallSeconds = Math.floor((Date.now() - prev.startTime) / 1000);
-        return { ...prev, displaySeconds: prev.elapsed + wallSeconds };
-      });
-    }, 500);
-
-    return () => clearInterval(interval);
-  // Only restart the interval when paused state or the timer identity changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTaskTimer?.isPaused, activeTaskTimer?.taskId]);
-
-  // Track overflow state to prevent double alerts
-  const overflowedTaskIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!activeTaskTimer) {
-      overflowedTaskIdRef.current = null;
-      return;
-    }
-
-    const targetSeconds = (activeTaskTimer.task.targetHours || 0) * 3600;
-
-    if (targetSeconds > 0 && activeTaskTimer.displaySeconds > targetSeconds) {
-      if (overflowedTaskIdRef.current !== activeTaskTimer.taskId) {
-        overflowedTaskIdRef.current = activeTaskTimer.taskId;
-        if (pushNotification) {
-          pushNotification({
-            title: `Task Time Limit Overflowed`,
-            message: `You have exceeded the target of ${activeTaskTimer.task.targetHours}h for task "${activeTaskTimer.taskTitle}".`,
-            type: 'daily',
-            priority: 'high'
-          }).catch(e => console.error("Failed to push overflow notification:", e));
-        }
-      }
-    } else {
-      if (overflowedTaskIdRef.current === activeTaskTimer.taskId) {
-        overflowedTaskIdRef.current = null;
-      }
-    }
-  }, [activeTaskTimer?.displaySeconds, activeTaskTimer?.taskId, activeTaskTimer?.task?.targetHours, pushNotification]);
-
-  // Native Mobile background timer compatibility syncer
-  useEffect(() => {
-    if (!activeTaskTimer) return;
-
-    const targetSeconds = (activeTaskTimer.task.targetHours || 0) * 3600;
-
-    if (!activeTaskTimer.isPaused) {
-      // Timer is active: calculate remaining time and schedule future overflow notification
-      const remainingSeconds = targetSeconds - activeTaskTimer.elapsed;
-      if (remainingSeconds > 0) {
-        import('../utils/mobileScheduler').then(m => {
-          m.scheduleTimerOverflowNotification(
-            activeTaskTimer.taskId,
-            activeTaskTimer.taskTitle,
-            activeTaskTimer.task.targetHours || 1,
-            remainingSeconds
-          );
-        }).catch(err => console.error("Failed to load mobile scheduler:", err));
-      }
-    } else {
-      // Timer is paused: cancel any scheduled overflow notification
-      import('../utils/mobileScheduler').then(m => {
-        m.cancelTimerOverflowNotification(activeTaskTimer.taskId);
-      }).catch(err => console.error("Failed to load mobile scheduler:", err));
-    }
-
-    // Cleanup: cancel notification on task switch or unmount
-    return () => {
-      import('../utils/mobileScheduler').then(m => {
-        m.cancelTimerOverflowNotification(activeTaskTimer.taskId);
-      }).catch(err => console.error("Failed to load mobile scheduler:", err));
-    };
-  }, [activeTaskTimer?.isPaused, activeTaskTimer?.taskId, activeTaskTimer?.elapsed]);
+  const { activeTaskTimer, setActiveTaskTimer } = useDatabase();
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -1052,38 +959,7 @@ const Dashboard = React.memo(function Dashboard({
     );
   };
 
-  // Play a success sound using Web Audio API
-  const playSuccessChime = () => {
-    try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
 
-      const playOscillator = (freq: number, startTime: number, duration: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
-
-        gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
-        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startTime + duration);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + startTime);
-        osc.stop(ctx.currentTime + startTime + duration);
-      };
-
-      // Play a quick uplifting chord arpeggio
-      playOscillator(523.25, 0.0, 0.3); // C5
-      playOscillator(659.25, 0.1, 0.3); // E5
-      playOscillator(783.99, 0.2, 0.3); // G5
-      playOscillator(1046.50, 0.3, 0.8); // C6
-    } catch (e) {
-      console.error("Audio playback failed", e);
-    }
-  };
 
   return (
     <motion.div
@@ -1093,107 +969,7 @@ const Dashboard = React.memo(function Dashboard({
       className="space-y-6"
     >
 
-      {/* 0. Top Priority Dynamic Island Timer Widget */}
-      {activeTaskTimer && (
-        <motion.div
-          initial={{ opacity: 0, y: -20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -20, scale: 0.95 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-          className="relative overflow-hidden rounded-[2.5rem] p-8 md:p-10 flex flex-col items-center justify-center gap-8 shadow-xl border border-white/5"
-        >
-          {/* Animated Background Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-slate-900/95 to-black/90 backdrop-blur-3xl -z-10" />
 
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent opacity-50" />
-          <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-30" />
-
-          {/* Row 1: Mission Info & Timer */}
-          <div className="flex flex-col items-center gap-3 w-full">
-            <div className="flex items-center gap-2 bg-white/5 px-4 py-1.5 rounded-full border border-white/5 shadow-inner">
-              <div className={`w-2 h-2 rounded-full ${activeTaskTimer.isPaused ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-red-500 animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.8)]'}`} />
-              <div className="text-[10px] text-slate-300 font-mono font-bold uppercase tracking-widest">{activeTaskTimer.isPaused ? 'Paused' : 'Active Mission'}</div>
-            </div>
-
-            <div className="flex flex-col items-center mt-2">
-              <div className={`font-mono font-bold tracking-tighter text-center ${activeTaskTimer.isPaused ? 'text-slate-600' : 'text-transparent bg-clip-text bg-gradient-to-b from-white via-indigo-100 to-slate-400 drop-shadow-[0_0_40px_rgba(255,255,255,0.15)]'}`}>
-                {/* Mobile Vertical Timer */}
-                <div className="flex md:hidden flex-col items-center text-[5.5rem] leading-[0.85]">
-                  <div>{formatTime(activeTaskTimer.displaySeconds).split(':')[0]}</div>
-                  <div>{formatTime(activeTaskTimer.displaySeconds).split(':')[1]}</div>
-                  <div className="text-4xl text-indigo-300/60 mt-2 bg-clip-text">{formatTime(activeTaskTimer.displaySeconds).split(':')[2]}</div>
-                </div>
-                {/* Desktop Horizontal Timer */}
-                <div className="hidden md:block text-[7.5rem] leading-none">
-                  {formatTime(activeTaskTimer.displaySeconds)}
-                </div>
-              </div>
-              <div className="font-display text-base md:text-xl font-medium text-indigo-200/70 mt-4 max-w-[280px] md:max-w-xl text-center truncate px-2">
-                {activeTaskTimer.taskTitle}
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Premium Dock Controls */}
-          <div className="flex flex-wrap items-center justify-center gap-2 bg-white/5 backdrop-blur-xl p-2 rounded-3xl border border-white/10 shadow-2xl">
-            <button
-              onClick={() => {
-                setActiveTaskTimer(prev => {
-                  if (!prev) return null;
-                  if (!prev.isPaused) {
-                    // Pausing: snapshot how many seconds have elapsed so far
-                    const wallSeconds = Math.floor((Date.now() - prev.startTime) / 1000);
-                    return { ...prev, isPaused: true, elapsed: prev.elapsed + wallSeconds, displaySeconds: prev.elapsed + wallSeconds };
-                  } else {
-                    // Resuming: reset startTime so wall-clock diff starts fresh
-                    return { ...prev, isPaused: false, startTime: Date.now() };
-                  }
-                });
-              }}
-              title={activeTaskTimer.isPaused ? "Resume" : "Pause"}
-              className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
-            >
-              {activeTaskTimer.isPaused ? <Play className="w-5 h-5 text-indigo-300 ml-0.5" /> : <Pause className="w-5 h-5 text-amber-300" />}
-            </button>
-
-            <button
-              onClick={() => setActiveTaskTimer(null)}
-              title="Stop & Discard"
-              className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group"
-            >
-              <Square className="w-4 h-4 text-rose-300 group-hover:text-rose-400" />
-            </button>
-
-            <div className="w-px h-8 bg-white/10 mx-2" />
-
-            <button
-              onClick={async () => {
-                try {
-                  const elapsedHours = Number((activeTaskTimer.displaySeconds / 3600).toFixed(2));
-                  const fallbackHours = Number(activeTaskTimer.task.targetHours) || 1;
-                  const finalHours = elapsedHours > 0 ? elapsedHours : fallbackHours;
-                  
-                  await onUpdateTask({
-                    ...activeTaskTimer.task,
-                    targetHours: fallbackHours,
-                    status: 'Completed',
-                    completedAt: new Date().toISOString()
-                  }, finalHours, `Completed via timer. Time spent: ${formatTime(activeTaskTimer.displaySeconds)}`);
-
-                  playSuccessChime();
-                  setActiveTaskTimer(null);
-                } catch (err) {
-                  console.error(err);
-                }
-              }}
-              className="px-6 h-12 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-900 font-bold text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center gap-2"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>Complete Mission</span>
-            </button>
-          </div>
-        </motion.div>
-      )}
 
       {/* 1. Header with custom premium font pairing */}
       <motion.div
