@@ -308,6 +308,40 @@ service cloud.firestore {
         && (!('isAiGenerated' in data) || data.isAiGenerated is bool);
     }
 
+    function isValidCodingQuestion(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'difficulty', 'description', 'examples', 'testCases', 'constraints', 'tags', 'starterCode'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 500
+        && data.difficulty is string && (data.difficulty == 'Easy' || data.difficulty == 'Medium' || data.difficulty == 'Hard')
+        && data.description is string && data.description.size() <= 50000
+        && data.examples is list && data.examples.size() <= 30
+        && data.testCases is list && data.testCases.size() <= 100
+        && data.constraints is list && data.constraints.size() <= 30
+        && data.tags is list && data.tags.size() <= 30
+        && data.starterCode is map
+        && (!('topicId' in data) || (data.topicId is string && data.topicId.size() <= 128))
+        && (!('isCustom' in data) || data.isCustom is bool)
+        && (!('easeFactor' in data) || ((data.easeFactor is float || data.easeFactor is int) && data.easeFactor >= 0))
+        && (!('intervalDays' in data) || ((data.intervalDays is float || data.intervalDays is int) && data.intervalDays >= 0))
+        && (!('revisionCount' in data) || ((data.revisionCount is float || data.revisionCount is int) && data.revisionCount >= 0))
+        && (!('lastRevisedDate' in data) || (data.lastRevisedDate is string && data.lastRevisedDate.size() <= 60))
+        && (!('nextRevisionDate' in data) || (data.nextRevisionDate is string && data.nextRevisionDate.size() <= 60));
+    }
+
+    function isValidCodingProgress(data) {
+      return data.keys().hasAll(['id', 'userId', 'questionId', 'easeFactor', 'intervalDays', 'revisionCount'])
+        && data.id is string && data.id.size() <= 256
+        && data.userId == request.auth.uid
+        && data.questionId is string && data.questionId.size() <= 128
+        && (data.easeFactor is float || data.easeFactor is int) && data.easeFactor >= 0
+        && (data.intervalDays is float || data.intervalDays is int) && data.intervalDays >= 0
+        && (data.revisionCount is float || data.revisionCount is int) && data.revisionCount >= 0
+        && (!('topicId' in data) || (data.topicId is string && data.topicId.size() <= 128))
+        && (!('lastRevisedDate' in data) || (data.lastRevisedDate is string && data.lastRevisedDate.size() <= 60))
+        && (!('nextRevisionDate' in data) || (data.nextRevisionDate is string && data.nextRevisionDate.size() <= 60));
+    }
+
     // Collection Security Declarations
     match /users/{userId} {
       allow get: if isVerifiedUser() && isOwner(userId);
@@ -511,6 +545,22 @@ service cloud.firestore {
         && incoming().language is string
         && incoming().sourceCode is string && incoming().sourceCode.size() <= 50000
         && incoming().status is string;
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /codingQuestions/{questionId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser();
+      allow create: if isVerifiedUser() && isValidId(questionId) && isValidCodingQuestion(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidCodingQuestion(incoming());
+      allow delete: if isVerifiedUser() && isDocOwner(existing());
+    }
+
+    match /codingProgress/{progressId} {
+      allow get: if isVerifiedUser() && isDocOwner(existing());
+      allow list: if isVerifiedUser();
+      allow create: if isVerifiedUser() && isValidId(progressId) && isValidCodingProgress(incoming());
+      allow update: if isVerifiedUser() && isDocOwner(existing()) && incoming().userId == existing().userId && isValidCodingProgress(incoming());
       allow delete: if isVerifiedUser() && isDocOwner(existing());
     }
   }
