@@ -2006,7 +2006,7 @@ const Dashboard = React.memo(function Dashboard({
             {/* Manage Habits Direct Link */}
             <button
               onClick={() => onNavigate('Reminders & Habits')}
-              className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 text-indigo-300 transition-all font-bold cursor-pointer font-sans flex items-center gap-1.5 shadow-sm"
+              className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 transition-all font-bold cursor-pointer font-sans flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95"
             >
               <span>⚙️</span>
               <span>Manage Habits</span>
@@ -2018,7 +2018,7 @@ const Dashboard = React.memo(function Dashboard({
               <select
                 value={matrixCategory}
                 onChange={(e) => setMatrixCategory(e.target.value)}
-                className="bg-slate-900/90 border border-slate-700/50 rounded-lg px-2.5 py-1 text-slate-100 font-sans text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-sm"
+                className="bg-slate-900/90 border border-slate-700/50 rounded-xl px-3 py-1.5 text-slate-100 font-sans text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40 shadow-sm cursor-pointer"
               >
                 {matrixCategories.map(cat => (
                   <option key={cat} value={cat} className="bg-slate-900 text-slate-100">{cat}</option>
@@ -2027,11 +2027,11 @@ const Dashboard = React.memo(function Dashboard({
             </div>
 
             {/* View Horizon Toggle */}
-            <div className="bg-slate-900/80 p-0.5 rounded-lg border border-slate-700/50 flex items-center shadow-sm">
+            <div className="bg-slate-900/90 p-1 rounded-xl border border-slate-700/50 flex items-center shadow-sm gap-0.5">
               <button
                 onClick={() => setMatrixView('Weekly')}
-                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${matrixView === 'Weekly'
-                  ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                className={`px-3 py-1 rounded-lg font-sans text-xs transition-all cursor-pointer ${matrixView === 'Weekly'
+                  ? 'bg-indigo-600 text-white font-bold shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
                   }`}
               >
@@ -2039,8 +2039,8 @@ const Dashboard = React.memo(function Dashboard({
               </button>
               <button
                 onClick={() => setMatrixView('Monthly')}
-                className={`px-2.5 py-0.5 rounded-md font-sans transition-all cursor-pointer ${matrixView === 'Monthly'
-                  ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                className={`px-3 py-1 rounded-lg font-sans text-xs transition-all cursor-pointer ${matrixView === 'Monthly'
+                  ? 'bg-indigo-600 text-white font-bold shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
                   }`}
               >
@@ -2057,7 +2057,7 @@ const Dashboard = React.memo(function Dashboard({
                   setSelectedMonth(m);
                   setSelectedYear(y);
                 }}
-                className="bg-slate-900/90 border border-slate-700/50 rounded-lg px-2.5 py-1 text-slate-100 font-sans text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-sm"
+                className="bg-slate-900/90 border border-slate-700/50 rounded-xl px-3 py-1.5 text-slate-100 font-sans text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40 shadow-sm cursor-pointer"
               >
                 {monthOptions.map(opt => (
                   <option key={`${opt.year}-${opt.month}`} value={`${opt.year}-${opt.month}`} className="bg-slate-900 text-slate-100">
@@ -2070,15 +2070,15 @@ const Dashboard = React.memo(function Dashboard({
         </div>
 
         {/* Matrix Grid Container */}
-        <div className="glass-card rounded-2xl border border-slate-700/30 bg-slate-950/40 p-4 relative overflow-hidden shadow-2xl backdrop-blur-xl">
-          <div className="absolute -top-10 -right-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="glass-card rounded-2xl border border-slate-700/40 bg-slate-950/40 p-4 sm:p-5 relative overflow-hidden shadow-2xl backdrop-blur-xl">
+          <div className="absolute -top-10 -right-10 w-52 h-52 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-52 h-52 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-indigo-500/20 scrollbar-track-transparent">
-            <table className="w-full text-left border-collapse min-w-[700px]">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/40 bg-slate-900/30 scrollbar-thin scrollbar-thumb-indigo-500/20 scrollbar-track-transparent">
+            <table className="w-full text-left border-collapse min-w-[720px]">
               <thead>
-                <tr className="border-b border-slate-700/40 pb-2">
-                  <th className="py-3 pr-4 text-[10px] font-mono uppercase text-slate-400 font-bold tracking-wider w-[200px] sm:w-[220px] sticky left-0 bg-slate-900/95 backdrop-blur-md z-20 border-r border-slate-700/40 shadow-[4px_0_12px_rgba(0,0,0,0.15)]">
+                <tr className="border-b border-slate-700/40">
+                  <th className="py-3.5 px-4 sm:px-5 text-[10px] font-mono uppercase text-slate-400 font-bold tracking-wider w-[210px] sm:w-[230px] sticky left-0 bg-slate-900/95 backdrop-blur-md z-20 border-r border-slate-700/40 shadow-[4px_0_12px_rgba(0,0,0,0.15)] rounded-tl-xl">
                     Reminder / Habit Title
                   </th>
                   {matrixDates.map(dateStr => {
@@ -2092,8 +2092,8 @@ const Dashboard = React.memo(function Dashboard({
                     return (
                       <th
                         key={dateStr}
-                        className={`py-2 px-1 text-center font-mono text-[9px] font-bold min-w-[34px] ${isToday
-                          ? 'text-indigo-400 ring-1 ring-indigo-500/40 rounded-lg bg-indigo-500/10 shadow-[0_0_8px_rgba(99,102,241,0.15)]'
+                        className={`py-2.5 px-1.5 text-center font-mono text-[9px] font-bold min-w-[36px] ${isToday
+                          ? 'text-indigo-400 ring-1 ring-indigo-500/40 rounded-xl bg-indigo-500/10 shadow-[0_0_10px_rgba(99,102,241,0.2)]'
                           : isWeekend
                             ? 'text-rose-400'
                             : 'text-slate-400'
@@ -2104,7 +2104,7 @@ const Dashboard = React.memo(function Dashboard({
                       </th>
                     );
                   })}
-                  <th className="py-3 pl-4 text-center text-[10px] font-mono uppercase text-slate-400 font-bold tracking-wider w-[90px]">
+                  <th className="py-3.5 px-4 text-center text-[10px] font-mono uppercase text-slate-400 font-bold tracking-wider w-[95px] rounded-tr-xl">
                     Ratio
                   </th>
                 </tr>
@@ -2120,8 +2120,8 @@ const Dashboard = React.memo(function Dashboard({
                       className="border-b border-slate-800/40 hover:bg-indigo-500/5 transition-colors group"
                     >
                       {/* First Column: Title & Streak */}
-                      <td className="py-3 pr-4 text-left w-[200px] sm:w-[220px] sticky left-0 bg-slate-900/95 backdrop-blur-md z-10 border-r border-slate-700/40 group-hover:bg-slate-800/90 transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.15)]">
-                        <div className="flex items-center gap-1.5 overflow-hidden">
+                      <td className="py-3.5 px-4 sm:px-5 text-left w-[210px] sm:w-[230px] sticky left-0 bg-slate-900/95 backdrop-blur-md z-10 border-r border-slate-700/40 group-hover:bg-slate-800/90 transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.15)]">
+                        <div className="flex items-center gap-2 overflow-hidden">
                           {item.isTask ? (
                             <ListTodo className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                           ) : item.isHabit ? (
@@ -2129,16 +2129,16 @@ const Dashboard = React.memo(function Dashboard({
                           ) : (
                             <Bell className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                           )}
-                          <span className="font-extrabold text-xs text-slate-100 truncate max-w-[135px]" title={item.title}>
+                          <span className="font-extrabold text-xs text-slate-100 truncate max-w-[140px]" title={item.title}>
                             {item.title}
                           </span>
                           {item.isHabit && item.habitStreak !== undefined && item.habitStreak > 0 && (
-                            <span className="text-[9px] font-bold text-orange-400 bg-orange-500/15 border border-orange-500/30 px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-0.5 shadow-sm">
+                            <span className="text-[9px] font-bold text-orange-400 bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-0.5 shadow-sm">
                               🔥 {item.habitStreak}d
                             </span>
                           )}
                         </div>
-                        <span className="block text-[9px] text-slate-400 font-mono mt-0.5 uppercase tracking-wide truncate max-w-[180px]">
+                        <span className="block text-[9px] text-slate-400 font-mono mt-1 uppercase tracking-wide truncate max-w-[185px]">
                           {item.category} • {item.repeatType}
                         </span>
                       </td>
@@ -2157,7 +2157,7 @@ const Dashboard = React.memo(function Dashboard({
                         return (
                           <td
                             key={dateStr}
-                            className={`py-3 px-1 text-center align-middle min-w-[34px] ${isToday ? 'bg-indigo-500/10' : ''
+                            className={`py-3.5 px-1.5 text-center align-middle min-w-[36px] ${isToday ? 'bg-indigo-500/10' : ''
                               }`}
                           >
                             {isScheduled ? (
@@ -2170,10 +2170,10 @@ const Dashboard = React.memo(function Dashboard({
                                       item.toggleToday(isCompleted);
                                     }
                                   }}
-                                  className={`w-4.5 h-4.5 rounded-md flex items-center justify-center border transition-all duration-150 ${isCompleted
+                                  className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-all duration-150 ${isCompleted
                                     ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.4)] scale-100'
                                     : isToday
-                                      ? 'bg-slate-900/90 border-indigo-400 hover:border-indigo-300 text-indigo-300 cursor-pointer shadow-[0_0_6px_rgba(99,102,241,0.25)] hover:scale-110 active:scale-95'
+                                      ? 'bg-slate-900/90 border-indigo-400 hover:border-indigo-300 text-indigo-300 cursor-pointer shadow-[0_0_8px_rgba(99,102,241,0.3)] hover:scale-110 active:scale-95'
                                       : 'bg-slate-950/60 border-slate-700/60 text-slate-600 cursor-not-allowed opacity-60'
                                     }`}
                                   title={
@@ -2184,7 +2184,7 @@ const Dashboard = React.memo(function Dashboard({
                                         : `Scheduled but Incomplete on ${dateStr}`
                                   }
                                 >
-                                  {isCompleted && <Check className="w-3 h-3 stroke-[3px]" />}
+                                  {isCompleted && <Check className="w-3.5 h-3.5 stroke-[3px]" />}
                                 </button>
                               </div>
                             ) : (
@@ -2195,13 +2195,13 @@ const Dashboard = React.memo(function Dashboard({
                       })}
 
                       {/* Final Column: Ratio Completion Percent */}
-                      <td className="py-3 pl-4 text-center w-[90px]">
+                      <td className="py-3.5 px-4 text-center w-[95px]">
                         {totalScheduled > 0 ? (
                           <div className="inline-flex flex-col items-center">
                             <span className="text-[10px] font-mono font-bold text-indigo-300">
                               {totalCompleted}/{totalScheduled}
                             </span>
-                            <div className="w-12 h-1 bg-slate-800 rounded-full overflow-hidden mt-1 shadow-inner">
+                            <div className="w-14 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1 shadow-inner">
                               <div
                                 className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-300"
                                 style={{ width: `${Math.round((totalCompleted / totalScheduled) * 100)}%` }}
@@ -2221,7 +2221,7 @@ const Dashboard = React.memo(function Dashboard({
 
                 {/* Total Hours Summary Row */}
                 <tr className="border-t-2 border-slate-700/40 bg-indigo-500/5 hover:bg-indigo-500/10 transition-colors">
-                  <td className="py-3 pr-4 text-left font-display font-bold text-[11px] text-indigo-300 uppercase tracking-widest flex items-center gap-1.5 sticky left-0 bg-slate-900/95 backdrop-blur-md z-10 border-r border-slate-700/40 shadow-[4px_0_12px_rgba(0,0,0,0.15)]">
+                  <td className="py-3.5 px-4 sm:px-5 text-left font-display font-bold text-[11px] text-indigo-300 uppercase tracking-widest flex items-center gap-1.5 sticky left-0 bg-slate-900/95 backdrop-blur-md z-10 border-r border-slate-700/40 shadow-[4px_0_12px_rgba(0,0,0,0.15)] rounded-bl-xl">
                     <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                     Total Study Hours
                   </td>
@@ -2231,10 +2231,10 @@ const Dashboard = React.memo(function Dashboard({
                     const totalCompleted = dayTasks.filter(t => t.status === 'Completed').reduce((sum, t) => sum + (t.targetHours || 0), 0);
 
                     return (
-                      <td key={dateStr} className="py-3 px-1 text-center align-middle">
+                      <td key={dateStr} className="py-3.5 px-1.5 text-center align-middle">
                         {totalTarget > 0 ? (
                           <div className="inline-flex flex-col items-center">
-                            <span className={`text-[9px] font-mono font-bold whitespace-nowrap px-1.5 py-0.5 rounded shadow-sm ${totalCompleted >= totalTarget ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                            <span className={`text-[9px] font-mono font-bold whitespace-nowrap px-2 py-0.5 rounded-lg shadow-sm ${totalCompleted >= totalTarget ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
                               }`}>
                               {totalCompleted.toFixed(1)} / {totalTarget.toFixed(1)}h
                             </span>
@@ -2245,7 +2245,7 @@ const Dashboard = React.memo(function Dashboard({
                       </td>
                     );
                   })}
-                  <td className="py-3 pl-4 text-center"></td>
+                  <td className="py-3.5 px-4 text-center rounded-br-xl"></td>
                 </tr>
 
                 {combinedMatrixItems.length === 0 && (
@@ -2263,30 +2263,30 @@ const Dashboard = React.memo(function Dashboard({
           </div>
 
           {/* Bottom Grid Legend & Diagnostics */}
-          <div className="border-t border-slate-700/40 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[10px] font-mono text-slate-400">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 justify-center sm:justify-start">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-emerald-500 border border-emerald-400 flex items-center justify-center text-slate-950 font-bold text-[8px] shrink-0 shadow-sm">
-                  <Check className="w-2 h-2 stroke-[3px]" />
+          <div className="border-t border-slate-700/40 pt-4 mt-4 px-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[10px] font-mono text-slate-400">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 justify-center sm:justify-start">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-700/40 shadow-sm">
+                <span className="w-3.5 h-3.5 rounded-md bg-emerald-500 border border-emerald-400 flex items-center justify-center text-slate-950 font-bold text-[8px] shrink-0 shadow-sm">
+                  <Check className="w-2.5 h-2.5 stroke-[3px]" />
                 </span>
                 <span>Completed</span>
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-slate-900 border border-indigo-400 shrink-0 shadow-sm" />
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-700/40 shadow-sm">
+                <span className="w-3.5 h-3.5 rounded-md bg-slate-900 border border-indigo-400 shrink-0 shadow-sm" />
                 <span>Today (Actionable)</span>
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-slate-950/60 border border-slate-700/60 shrink-0 opacity-60" />
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-700/40 shadow-sm">
+                <span className="w-3.5 h-3.5 rounded-md bg-slate-950/60 border border-slate-700/60 shrink-0 opacity-60" />
                 <span>Scheduled (Incomplete)</span>
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-700/40 shadow-sm">
                 <span className="text-slate-500 shrink-0 font-bold">•</span>
                 <span>Off-Schedule</span>
               </span>
             </div>
 
-            <div className="text-center sm:text-right text-slate-400">
-              💡 <span className="text-indigo-400 font-bold">Interactive:</span> Click **Today's** grid checkboxes to quickly record habit check-ins!
+            <div className="text-center sm:text-right text-slate-400 bg-slate-900/40 px-3 py-1.5 rounded-xl border border-slate-700/30">
+              💡 <span className="text-indigo-400 font-bold">Interactive:</span> Click **Today's** grid checkboxes to log habit check-ins!
             </div>
           </div>
         </div>
