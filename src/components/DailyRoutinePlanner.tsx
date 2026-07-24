@@ -876,7 +876,7 @@ export default function DailyRoutinePlanner() {
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-400">{r.description || 'No description provided.'}</p>
+                <p className="text-xs text-slate-400 max-h-20 overflow-y-auto pr-1">{r.description || 'No description provided.'}</p>
 
                 <div className="flex items-center justify-between text-xs font-mono text-slate-400 pt-2 border-t border-white/10">
                   <span>⏰ {formatTime12h(r.startTime)} - {formatTime12h(r.endTime)}</span>
