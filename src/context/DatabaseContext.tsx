@@ -191,12 +191,80 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [activeTaskTimer, setActiveTaskTimer] = useState<ActiveTaskTimer | null>(null);
 
   // ── Daily Routine Planner State ───────────────────────────────────────────
-  const [routines, setRoutines] = useState<Routine[]>(() => initialRoutines);
-  const [routineHistories, setRoutineHistories] = useState<RoutineHistory[]>(() => initialRoutineHistories);
-  const [habits, setHabits] = useState<Habit[]>(() => initialHabits);
-  const [habitLogs, setHabitLogs] = useState<HabitLog[]>(() => initialHabitLogs);
-  const [dailyReflections, setDailyReflections] = useState<DailyReflection[]>(() => initialDailyReflections);
-  const [routineGamification, setRoutineGamification] = useState<RoutineGamification>(() => initialRoutineGamification);
+  const LOCAL_ROUTINES_KEY = 'prepflow_daily_routines';
+  const LOCAL_ROUTINE_HISTORIES_KEY = 'prepflow_routine_histories';
+  const LOCAL_HABITS_KEY = 'prepflow_habits';
+  const LOCAL_HABIT_LOGS_KEY = 'prepflow_habit_logs';
+  const LOCAL_REFLECTIONS_KEY = 'prepflow_daily_reflections';
+  const LOCAL_GAMIFICATION_KEY = 'prepflow_routine_gamification';
+
+  const [routines, setRoutines] = useState<Routine[]>(() => {
+    const saved = localStorage.getItem(LOCAL_ROUTINES_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return initialRoutines;
+  });
+  const [routineHistories, setRoutineHistories] = useState<RoutineHistory[]>(() => {
+    const saved = localStorage.getItem(LOCAL_ROUTINE_HISTORIES_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return initialRoutineHistories;
+  });
+  const [habits, setHabits] = useState<Habit[]>(() => {
+    const saved = localStorage.getItem(LOCAL_HABITS_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return initialHabits;
+  });
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>(() => {
+    const saved = localStorage.getItem(LOCAL_HABIT_LOGS_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return initialHabitLogs;
+  });
+  const [dailyReflections, setDailyReflections] = useState<DailyReflection[]>(() => {
+    const saved = localStorage.getItem(LOCAL_REFLECTIONS_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return initialDailyReflections;
+  });
+  const [routineGamification, setRoutineGamification] = useState<RoutineGamification>(() => {
+    const saved = localStorage.getItem(LOCAL_GAMIFICATION_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return initialRoutineGamification;
+  });
+
+  // LocalStorage sync effects
+  useEffect(() => {
+    localStorage.setItem(LOCAL_ROUTINES_KEY, JSON.stringify(routines));
+  }, [routines]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_ROUTINE_HISTORIES_KEY, JSON.stringify(routineHistories));
+  }, [routineHistories]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_HABITS_KEY, JSON.stringify(habits));
+  }, [habits]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_HABIT_LOGS_KEY, JSON.stringify(habitLogs));
+  }, [habitLogs]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_REFLECTIONS_KEY, JSON.stringify(dailyReflections));
+  }, [dailyReflections]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_GAMIFICATION_KEY, JSON.stringify(routineGamification));
+  }, [routineGamification]);
 
   const globalStats = useGlobalStats(user?.uid);
   const { urgentTopics } = useUrgentTopics(user?.uid);
@@ -516,10 +584,27 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'routines'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const list: Routine[] = [];
       snapshot.forEach((doc) => list.push(doc.data() as Routine));
-      if (list.length > 0) setRoutines(list);
+
+      const seedKey = `prepflow_routines_seeded_${user.uid}`;
+      const isSeeded = localStorage.getItem(seedKey) === 'true';
+
+      if (snapshot.empty && !isSeeded) {
+        localStorage.setItem(seedKey, 'true');
+        try {
+          const batch = writeBatch(db);
+          initialRoutines.forEach(r => {
+            batch.set(doc(db, 'routines', r.id), { ...r, userId: user.uid });
+          });
+          await batch.commit();
+        } catch (err) {
+          console.error("Error seeding initial routines to Firestore:", err);
+        }
+      } else {
+        setRoutines(list);
+      }
     }, (err) => console.error("Routines snapshot error:", err));
     return () => unsubscribe();
   }, [user]);
@@ -530,7 +615,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: RoutineHistory[] = [];
       snapshot.forEach((doc) => list.push(doc.data() as RoutineHistory));
-      if (list.length > 0) setRoutineHistories(list);
+      setRoutineHistories(list);
     }, (err) => console.error("RoutineHistory snapshot error:", err));
     return () => unsubscribe();
   }, [user]);
@@ -538,21 +623,38 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'habits'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const list: Habit[] = [];
       snapshot.forEach((doc) => list.push(doc.data() as Habit));
-      if (list.length > 0) setHabits(list);
+
+      const seedKey = `prepflow_habits_seeded_${user.uid}`;
+      const isSeeded = localStorage.getItem(seedKey) === 'true';
+
+      if (snapshot.empty && !isSeeded) {
+        localStorage.setItem(seedKey, 'true');
+        try {
+          const batch = writeBatch(db);
+          initialHabits.forEach(h => {
+            batch.set(doc(db, 'habits', h.id), { ...h, userId: user.uid });
+          });
+          await batch.commit();
+        } catch (err) {
+          console.error("Error seeding initial habits to Firestore:", err);
+        }
+      } else {
+        setHabits(list);
+      }
     }, (err) => console.error("Habits snapshot error:", err));
     return () => unsubscribe();
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'habitLogs'));
+    const q = query(collection(db, 'habitLogs'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: HabitLog[] = [];
       snapshot.forEach((doc) => list.push(doc.data() as HabitLog));
-      if (list.length > 0) setHabitLogs(list);
+      setHabitLogs(list);
     }, (err) => console.error("HabitLogs snapshot error:", err));
     return () => unsubscribe();
   }, [user]);
@@ -563,7 +665,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: DailyReflection[] = [];
       snapshot.forEach((doc) => list.push(doc.data() as DailyReflection));
-      if (list.length > 0) setDailyReflections(list);
+      setDailyReflections(list);
     }, (err) => console.error("DailyReflections snapshot error:", err));
     return () => unsubscribe();
   }, [user]);
