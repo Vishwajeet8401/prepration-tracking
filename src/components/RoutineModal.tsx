@@ -6,6 +6,7 @@ import {
   Briefcase, Zap, Moon, Sun, Droplet, MessageSquare, Video, 
   Layers, ShieldAlert, ChevronRight, Tag, Palette
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { calculateDurationMinutes, formatDuration, detectRoutineConflicts, formatTime12h } from '../utils/routineUtils';
 
 interface RoutineModalProps {
@@ -205,431 +206,421 @@ export default function RoutineModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl glass-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
-        
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/60">
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg font-mono font-bold"
-              style={{ backgroundColor: color }}
-            >
-              <Clock className="w-5 h-5" />
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="relative w-full max-w-2xl glass-card rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border border-white/15"
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/10 bg-slate-900/70">
+            <div className="flex items-center gap-3">
+              <div 
+                className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg font-mono font-bold"
+                style={{ backgroundColor: color }}
+              >
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-[#f8fafc] font-sans tracking-tight">
+                  {initialRoutine ? 'Edit Routine' : 'Create New Routine'}
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  PrepFlow time scheduling & alarm controls
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-[#f8fafc] font-sans">
-                {initialRoutine ? 'Edit Routine' : 'Create New Routine'}
-              </h2>
-              <p className="text-xs text-slate-400">
-                PrepFlow time-based scheduling & reminder configuration
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* PrepFlow Theme Sub-Tabs */}
-        <div className="flex bg-slate-900/50 p-1.5 border-b border-white/10 px-6 gap-2">
-          {[
-            { id: 'basic', label: '1. Basic Info & Category' },
-            { id: 'schedule', label: '2. Time & Recurrence' },
-            { id: 'reminders', label: '3. Alarm & Reminders' }
-          ].map(tab => (
             <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold select-none transition ${
-                activeTab === tab.id
-                  ? 'bg-indigo-650 text-white shadow'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
             >
-              {tab.label}
+              <X className="w-5 h-5" />
             </button>
-          ))}
-        </div>
+          </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {formError && (
-            <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-350 rounded-xl text-xs">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
-              <span>{formError}</span>
-            </div>
-          )}
+          {/* PrepFlow Theme Mobile-Responsive Sub-Tabs */}
+          <div className="flex bg-slate-950/60 p-1.5 border-b border-white/10 px-4 sm:px-6 gap-1.5 overflow-x-auto scrollbar-none">
+            {[
+              { id: 'basic', label: '1. Basic Info' },
+              { id: 'schedule', label: '2. Time & Days' },
+              { id: 'reminders', label: '3. Alarms & Reminders' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold select-none transition whitespace-nowrap cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-indigo-650 text-white shadow-md font-bold'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-          {/* Overlap Conflict Alert */}
-          {conflicts.length > 0 && (
-            <div className="flex items-start gap-3 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs">
-              <ShieldAlert className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
-              <div>
-                <span className="font-semibold block mb-0.5">Schedule Overlap Warning!</span>
-                This routine time ({formatTime12h(startTime)} - {formatTime12h(endTime)}) overlaps with:
-                <ul className="list-disc list-inside mt-1 space-y-0.5">
-                  {conflicts.map(c => (
-                    <li key={c.id}>
-                      <span className="font-medium">{c.title}</span> ({formatTime12h(c.startTime)} - {formatTime12h(c.endTime)})
-                    </li>
-                  ))}
-                </ul>
+          {/* Form Body */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {formError && (
+              <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-350 rounded-xl text-xs">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{formError}</span>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* TAB 1: BASIC INFO */}
-          {activeTab === 'basic' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Routine Name <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g., Java Practice, DSA Revision, Exercise"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Description (Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Goals, target questions, or notes for this routine session..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none resize-none"
-                />
-              </div>
-
-              {/* Category Grid */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  Category
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {CATEGORY_OPTIONS.map((cat) => {
-                    const isSelected = category === cat.name;
-                    return (
-                      <button
-                        key={cat.name}
-                        type="button"
-                        onClick={() => handleCategorySelect(cat.name)}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs text-left transition ${
-                          isSelected
-                            ? 'bg-indigo-650/40 border-indigo-500 text-white font-bold shadow'
-                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <span 
-                          className="w-2.5 h-2.5 rounded-full shrink-0" 
-                          style={{ backgroundColor: cat.defaultColor }}
-                        />
-                        <span className="truncate">{cat.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Color Swatches & Priority */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            {/* Overlap Conflict Alert */}
+            {conflicts.length > 0 && (
+              <div className="flex items-start gap-3 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs">
+                <ShieldAlert className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">
-                    Theme Color
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {COLOR_SWATCHES.map((swatch) => (
-                      <button
-                        key={swatch}
-                        type="button"
-                        onClick={() => setColor(swatch)}
-                        className={`w-7 h-7 rounded-full transition transform ${
-                          color === swatch ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900' : 'hover:scale-105'
-                        }`}
-                        style={{ backgroundColor: swatch }}
-                      />
+                  <span className="font-semibold block mb-0.5">Schedule Overlap Warning!</span>
+                  This time ({formatTime12h(startTime)} - {formatTime12h(endTime)}) overlaps with:
+                  <ul className="list-disc list-inside mt-1 space-y-0.5">
+                    {conflicts.map(c => (
+                      <li key={c.id}>
+                        <span className="font-medium">{c.title}</span> ({formatTime12h(c.startTime)} - {formatTime12h(c.endTime)})
+                      </li>
                     ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Priority Level
-                  </label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as any)}
-                    className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
-                  >
-                    <option value="High" className="bg-slate-900 text-white">🔴 High Priority</option>
-                    <option value="Medium" className="bg-slate-900 text-white">🟡 Medium Priority</option>
-                    <option value="Low" className="bg-slate-900 text-white">🟢 Low Priority</option>
-                  </select>
+                  </ul>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* TAB 2: TIME & RECURRENCE */}
-          {activeTab === 'schedule' && (
-            <div className="space-y-4">
-              {/* Start Time & End Time */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* TAB 1: BASIC INFO */}
+            {activeTab === 'basic' && (
+              <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Start Time <span className="text-rose-400">*</span>
+                    Routine Name <span className="text-rose-400">*</span>
                   </label>
                   <input
-                    type="time"
+                    type="text"
                     required
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none font-mono"
+                    placeholder="e.g., Java Practice, DSA Revision, Exercise"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none"
                   />
-                  <span className="text-[11px] text-slate-400 mt-1 block">
-                    {formatTime12h(startTime)}
-                  </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    End Time <span className="text-rose-400">*</span>
+                    Description (Optional)
                   </label>
-                  <input
-                    type="time"
-                    required
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none font-mono"
+                  <textarea
+                    rows={2}
+                    placeholder="Goals, target questions, or notes for this routine session..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none resize-none"
                   />
-                  <span className="text-[11px] text-slate-400 mt-1 block">
-                    {formatTime12h(endTime)}
-                  </span>
                 </div>
-              </div>
 
-              {/* Auto Calculated Duration Banner */}
-              <div className="flex items-center justify-between p-3.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-300 text-xs font-sans">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-indigo-400" />
-                  <span>Calculated Duration:</span>
-                </div>
-                <span className="font-bold text-white font-mono text-sm">
-                  {formatDuration(durationMinutes)} ({durationMinutes} mins)
-                </span>
-              </div>
-
-              {/* Repeat Type */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  Repeat Schedule
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(['One Time', 'Daily', 'Weekdays', 'Weekends', 'Weekly', 'Monthly', 'Custom Days'] as RepeatType[]).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setRepeatType(type)}
-                      className={`px-3 py-2 rounded-xl border text-xs transition text-center ${
-                        repeatType === type
-                          ? 'bg-indigo-650 border-indigo-500 text-white font-semibold shadow'
-                          : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Custom Days selector if repeatType === 'Custom Days' */}
-              {repeatType === 'Custom Days' && (
+                {/* Category Grid */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-2">
-                    Select Active Days
+                    Category Selection
                   </label>
-                  <div className="flex items-center gap-2">
-                    {DAYS_OF_WEEK.map((day) => {
-                      const active = repeatDays.includes(day);
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {CATEGORY_OPTIONS.map((cat) => {
+                      const isSelected = category === cat.name;
                       return (
                         <button
-                          key={day}
+                          key={cat.name}
                           type="button"
-                          onClick={() => toggleDay(day)}
-                          className={`w-9 h-9 rounded-xl border text-xs font-semibold transition ${
-                            active
-                              ? 'bg-indigo-650 border-indigo-500 text-white shadow'
-                              : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                          onClick={() => handleCategorySelect(cat.name)}
+                          className={`flex items-center gap-2 p-2 rounded-xl border text-xs text-left transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-650/40 border-indigo-500 text-white font-bold shadow'
+                              : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
                           }`}
                         >
-                          {day}
+                          <span 
+                            className="w-2.5 h-2.5 rounded-full shrink-0" 
+                            style={{ backgroundColor: cat.defaultColor }}
+                          />
+                          <span className="truncate">{cat.name}</span>
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* TAB 3: ALARM & REMINDERS */}
-          {activeTab === 'reminders' && (
-            <div className="space-y-4">
-              {/* Enable Reminder Toggle */}
-              <div className="flex items-center justify-between p-4 glass-card rounded-xl border border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                    <Bell className="w-5 h-5" />
-                  </div>
+                {/* Color Swatches & Priority */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   <div>
-                    <h4 className="text-xs font-semibold text-white">Enable Reminder Notification</h4>
-                    <p className="text-[11px] text-slate-400">Receive smart alarm before routine starts</p>
+                    <label className="block text-xs font-semibold text-slate-300 mb-2">
+                      Theme Accent Color
+                    </label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {COLOR_SWATCHES.map((swatch) => (
+                        <button
+                          key={swatch}
+                          type="button"
+                          onClick={() => setColor(swatch)}
+                          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full transition transform cursor-pointer ${
+                            color === swatch ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900' : 'hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: swatch }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={alarmEnabled}
-                    onChange={(e) => setAlarmEnabled(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-650"></div>
-                </label>
-              </div>
 
-              {alarmEnabled && (
-                <div className="space-y-3 pt-2">
-                  {/* Reminder Time Dropdown */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Reminder Trigger Time
+                      Priority Level
                     </label>
                     <select
-                      value={alarmMinutesBefore}
-                      onChange={(e) => setAlarmMinutesBefore(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none"
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value as any)}
+                      className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
                     >
-                      <option value={0} className="bg-slate-900 text-white">At Start Time ({formatTime12h(startTime)})</option>
-                      <option value={5} className="bg-slate-900 text-white">5 minutes before</option>
-                      <option value={10} className="bg-slate-900 text-white">10 minutes before</option>
-                      <option value={15} className="bg-slate-900 text-white">15 minutes before</option>
-                      <option value={30} className="bg-slate-900 text-white">30 minutes before</option>
-                      <option value={60} className="bg-slate-900 text-white">1 hour before</option>
+                      <option value="High" className="bg-slate-900 text-white">🔴 High Priority</option>
+                      <option value="Medium" className="bg-slate-900 text-white">🟡 Medium Priority</option>
+                      <option value="Low" className="bg-slate-900 text-white">🟢 Low Priority</option>
                     </select>
                   </div>
+                </div>
+              </div>
+            )}
 
-                  {/* Sound & Vibration */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Notification Sound
-                      </label>
-                      <select
-                        value={notificationSound}
-                        onChange={(e) => setNotificationSound(e.target.value)}
-                        className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
-                      >
-                        <option value="chime" className="bg-slate-900 text-white">🔔 Gentle Chime</option>
-                        <option value="energetic" className="bg-slate-900 text-white">⚡ Energetic Alert</option>
-                        <option value="bell" className="bg-slate-900 text-white">🛎️ Service Bell</option>
-                        <option value="default" className="bg-slate-900 text-white">📱 Default Device Sound</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Vibration Alert
-                      </label>
-                      <select
-                        value={vibration ? 'yes' : 'no'}
-                        onChange={(e) => setVibration(e.target.value === 'yes')}
-                        className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
-                      >
-                        <option value="yes" className="bg-slate-900 text-white">📳 Enabled</option>
-                        <option value="no" className="bg-slate-900 text-white">🔕 Disabled</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Snooze Options */}
-                  <div className="flex items-center justify-between p-3.5 glass-card rounded-xl border border-white/10">
-                    <div>
-                      <h5 className="text-xs font-semibold text-white">Snooze Option</h5>
-                      <p className="text-[11px] text-slate-400">Allow snoozing notifications</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={snoozeDuration}
-                        onChange={(e) => setSnoozeDuration(Number(e.target.value))}
-                        className="px-2.5 py-1 glass-input rounded-lg text-white text-xs"
-                      >
-                        <option value={5} className="bg-slate-900 text-white">5 min</option>
-                        <option value={10} className="bg-slate-900 text-white">10 min</option>
-                        <option value={15} className="bg-slate-900 text-white">15 min</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Repeat notification until completed */}
-                  <div className="flex items-center justify-between p-3.5 glass-card rounded-xl border border-white/10">
-                    <div>
-                      <h5 className="text-xs font-semibold text-white">Repeat Until Completed</h5>
-                      <p className="text-[11px] text-slate-400">Keep reminding every 15 mins until routine is marked complete</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={repeatUntilCompleted}
-                        onChange={(e) => setRepeatUntilCompleted(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-650"></div>
+            {/* TAB 2: TIME & RECURRENCE */}
+            {activeTab === 'schedule' && (
+              <div className="space-y-4">
+                {/* Start Time & End Time */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Start Time <span className="text-rose-400">*</span>
                     </label>
+                    <input
+                      type="time"
+                      required
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none font-mono"
+                    />
+                    <span className="text-[11px] text-slate-400 mt-1 block font-mono">
+                      {formatTime12h(startTime)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      End Time <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none font-mono"
+                    />
+                    <span className="text-[11px] text-slate-400 mt-1 block font-mono">
+                      {formatTime12h(endTime)}
+                    </span>
                   </div>
                 </div>
-              )}
+
+                {/* Auto Calculated Duration Banner */}
+                <div className="flex items-center justify-between p-3.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-300 text-xs font-sans">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-400" />
+                    <span>Calculated Duration:</span>
+                  </div>
+                  <span className="font-bold text-white font-mono text-sm">
+                    {formatDuration(durationMinutes)} ({durationMinutes} mins)
+                  </span>
+                </div>
+
+                {/* Repeat Type */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">
+                    Repeat Schedule
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {(['One Time', 'Daily', 'Weekdays', 'Weekends', 'Weekly', 'Monthly', 'Custom Days'] as RepeatType[]).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setRepeatType(type)}
+                        className={`px-3 py-2 rounded-xl border text-xs transition text-center cursor-pointer ${
+                          repeatType === type
+                            ? 'bg-indigo-650 border-indigo-500 text-white font-bold shadow'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Days selector if repeatType === 'Custom Days' */}
+                {repeatType === 'Custom Days' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-2">
+                      Select Active Days
+                    </label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {DAYS_OF_WEEK.map((day) => {
+                        const active = repeatDays.includes(day);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => toggleDay(day)}
+                            className={`w-9 h-9 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                              active
+                                ? 'bg-indigo-650 border-indigo-500 text-white shadow'
+                                : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: ALARM & REMINDERS */}
+            {activeTab === 'reminders' && (
+              <div className="space-y-4">
+                {/* Enable Reminder Toggle */}
+                <div className="flex items-center justify-between p-3.5 sm:p-4 glass-card rounded-xl border border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-white">Enable Reminder Notification</h4>
+                      <p className="text-[10px] text-slate-400">Receive alarm before routine starts</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={alarmEnabled}
+                      onChange={(e) => setAlarmEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-650"></div>
+                  </label>
+                </div>
+
+                {alarmEnabled && (
+                  <div className="space-y-3 pt-1">
+                    {/* Reminder Time Dropdown */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        Reminder Trigger Time
+                      </label>
+                      <select
+                        value={alarmMinutesBefore}
+                        onChange={(e) => setAlarmMinutesBefore(Number(e.target.value))}
+                        className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none"
+                      >
+                        <option value={0} className="bg-slate-900 text-white">At Start Time ({formatTime12h(startTime)})</option>
+                        <option value={5} className="bg-slate-900 text-white">5 minutes before</option>
+                        <option value={10} className="bg-slate-900 text-white">10 minutes before</option>
+                        <option value={15} className="bg-slate-900 text-white">15 minutes before</option>
+                        <option value={30} className="bg-slate-900 text-white">30 minutes before</option>
+                        <option value={60} className="bg-slate-900 text-white">1 hour before</option>
+                      </select>
+                    </div>
+
+                    {/* Sound & Vibration */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                          Notification Sound
+                        </label>
+                        <select
+                          value={notificationSound}
+                          onChange={(e) => setNotificationSound(e.target.value)}
+                          className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
+                        >
+                          <option value="chime" className="bg-slate-900 text-white">🔔 Gentle Chime</option>
+                          <option value="energetic" className="bg-slate-900 text-white">⚡ Energetic Alert</option>
+                          <option value="bell" className="bg-slate-900 text-white">🛎️ Service Bell</option>
+                          <option value="default" className="bg-slate-900 text-white">📱 Default Device Sound</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                          Vibration Alert
+                        </label>
+                        <select
+                          value={vibration ? 'yes' : 'no'}
+                          onChange={(e) => setVibration(e.target.value === 'yes')}
+                          className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
+                        >
+                          <option value="yes" className="bg-slate-900 text-white">📳 Enabled</option>
+                          <option value="no" className="bg-slate-900 text-white">🔕 Disabled</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Snooze Options */}
+                    <div className="flex items-center justify-between p-3.5 glass-card rounded-xl border border-white/10">
+                      <div>
+                        <h5 className="text-xs font-semibold text-white">Snooze Option</h5>
+                        <p className="text-[10px] text-slate-400">Allow snoozing notifications</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={snoozeDuration}
+                          onChange={(e) => setSnoozeDuration(Number(e.target.value))}
+                          className="px-2.5 py-1 glass-input rounded-lg text-white text-xs"
+                        >
+                          <option value={5} className="bg-slate-900 text-white">5 min</option>
+                          <option value={10} className="bg-slate-900 text-white">10 min</option>
+                          <option value={15} className="bg-slate-900 text-white">15 min</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-white/10">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-5 py-2 text-xs font-semibold text-white bg-indigo-650 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <span>Saving...</span>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>{initialRoutine ? 'Update Routine' : 'Create Routine'}</span>
+                  </>
+                )}
+              </button>
             </div>
-          )}
+          </form>
 
-          {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-650 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center gap-2 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <span>Saving...</span>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>{initialRoutine ? 'Update Routine' : 'Create Routine'}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-
+        </motion.div>
       </div>
-    </div>
+    </AnimatePresence>
   );
 }

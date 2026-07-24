@@ -7,8 +7,9 @@ import {
   Download, Sparkles, Bell, AlertCircle, Dumbbell, Code, Brain, 
   Layers, MessageSquare, BookOpen, Video, Sun, Moon, Droplet, 
   Coffee, Briefcase, ChevronLeft, ChevronRight, Copy, Trash2, Edit3,
-  Star, Heart, Smile, Meh, Frown, Zap, FileSpreadsheet, CalendarCheck
+  Star, Heart, Smile, Meh, Frown, Zap, FileSpreadsheet, CalendarCheck, ShieldAlert
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, 
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, AreaChart, Area 
@@ -304,37 +305,39 @@ export default function DailyRoutinePlanner() {
   }, [historiesToday, routines]);
 
   return (
-    <div className="space-y-6 animate-fadeIn font-sans">
+    <div className="space-y-5 animate-fadeIn font-sans pb-8">
       
-      {/* 1. Header Banner matching PrepFlow Card Style */}
-      <div className="glass-card p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-650/30 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-md">
-            <Clock className="w-6 h-6" />
+      {/* 1. Hero Header Banner matching PrepFlow Modern Card Aesthetic */}
+      <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-white/15 relative overflow-hidden shadow-xl">
+        <div className="absolute -top-12 -right-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex items-center gap-3.5 sm:gap-4 relative z-10">
+          <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 shrink-0">
+            <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-black text-[#f8fafc] tracking-tight font-sans">
                 Daily Routine Planner
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                PrepFlow Module
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                PrepFlow Pro
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Time-based routines, reminders, streak tracking & productivity insights
+              Time-based routine schedules, smart alarms, habit tracking & productivity insights
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end relative z-10">
           <button
             onClick={() => {
               setEditingRoutine(null);
               setIsModalOpen(true);
             }}
-            className="px-4 py-2 bg-indigo-650 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2.5 bg-indigo-650 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center gap-2 cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Create Routine</span>
@@ -342,16 +345,17 @@ export default function DailyRoutinePlanner() {
 
           <button
             onClick={handleExportICS}
-            className="px-3.5 py-2 glass-card hover:bg-white/10 text-slate-300 text-xs rounded-xl border border-white/10 transition flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2.5 glass-card hover:bg-white/10 text-slate-300 text-xs rounded-xl border border-white/10 transition flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Export to Google Calendar / Outlook (.ics)"
           >
             <CalendarCheck className="w-4 h-4 text-indigo-400" />
-            <span>Export iCal</span>
+            <span className="hidden sm:inline">Export iCal</span>
+            <span className="sm:hidden">iCal</span>
           </button>
 
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 glass-card hover:bg-white/10 text-slate-300 text-xs rounded-xl border border-white/10 transition flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2.5 glass-card hover:bg-white/10 text-slate-300 text-xs rounded-xl border border-white/10 transition flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Export to CSV Spreadsheet"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
@@ -360,8 +364,8 @@ export default function DailyRoutinePlanner() {
         </div>
       </div>
 
-      {/* 2. Sub Navigation Bar matching PrepFlow Tab Pattern */}
-      <div className="flex bg-slate-900/50 p-1.5 rounded-xl border border-white/10 overflow-x-auto scrollbar-none gap-1">
+      {/* 2. Sub Navigation Bar with Touch-Scroll Support */}
+      <div className="flex bg-slate-900/60 p-1.5 rounded-2xl border border-white/10 overflow-x-auto scrollbar-none gap-1 sm:gap-1.5">
         {[
           { id: 'dashboard', label: "Today's Agenda", icon: Sparkles },
           { id: 'timeline', label: 'Daily Timeline', icon: Clock },
@@ -376,9 +380,9 @@ export default function DailyRoutinePlanner() {
             <button
               key={sb.id}
               onClick={() => setActiveSubTab(sb.id as PlannerSubTab)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-semibold select-none cursor-pointer transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold select-none cursor-pointer transition flex items-center gap-2 whitespace-nowrap ${
                 isActive
-                  ? 'bg-indigo-650 text-white shadow'
+                  ? 'bg-indigo-650 text-white shadow-md font-bold'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -390,24 +394,24 @@ export default function DailyRoutinePlanner() {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {/* SUBTAB 1: TODAY'S AGENDA & DASHBOARD */}
+      {/* SUBTAB 1: DASHBOARD OVERVIEW */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSubTab === 'dashboard' && (
-        <div className="space-y-6 animate-fadeIn">
+        <div className="space-y-5 animate-fadeIn">
           
-          {/* Key Metrics Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Key Metrics Bento Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             
             {/* Today's Focus Hours */}
-            <div className="glass-card p-4 flex flex-col justify-between gap-2.5">
+            <div className="glass-card p-4 rounded-2xl flex flex-col justify-between gap-2.5">
               <div className="flex items-center justify-between w-full">
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Today's Focus</span>
-                  <span className="text-2xl font-black text-[#f8fafc] font-mono">
+                  <span className="text-xl sm:text-2xl font-black text-[#f8fafc] font-mono">
                     {formatDuration(totalStudyMinutesToday)}
                   </span>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400 shrink-0">
                   <Clock className="w-5 h-5" />
                 </div>
               </div>
@@ -417,15 +421,15 @@ export default function DailyRoutinePlanner() {
             </div>
 
             {/* Productivity Score */}
-            <div className="glass-card p-4 flex flex-col justify-between gap-2.5">
+            <div className="glass-card p-4 rounded-2xl flex flex-col justify-between gap-2.5">
               <div className="flex items-center justify-between w-full">
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Productivity Score</span>
-                  <span className="text-2xl font-black text-emerald-400 font-mono flex items-baseline gap-1">
+                  <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono flex items-baseline gap-1">
                     {productivityScore} <span className="text-xs font-normal text-slate-400">/ 100</span>
                   </span>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400 shrink-0">
                   <TrendingUp className="w-5 h-5" />
                 </div>
               </div>
@@ -434,16 +438,16 @@ export default function DailyRoutinePlanner() {
               </p>
             </div>
 
-            {/* Current Streak */}
-            <div className="glass-card p-4 flex flex-col justify-between gap-2.5">
+            {/* Active Streak */}
+            <div className="glass-card p-4 rounded-2xl flex flex-col justify-between gap-2.5">
               <div className="flex items-center justify-between w-full">
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Active Streak</span>
-                  <span className="text-2xl font-black text-amber-400 font-mono">
+                  <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono">
                     {streakStats.currentStreak} <span className="text-xs font-normal text-slate-400">Days</span>
                   </span>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-orange-500/15 flex items-center justify-center text-orange-400">
+                <div className="w-9 h-9 rounded-xl bg-orange-500/15 flex items-center justify-center text-orange-400 shrink-0">
                   <Flame className="w-5 h-5 fill-current animate-bounce" />
                 </div>
               </div>
@@ -453,15 +457,15 @@ export default function DailyRoutinePlanner() {
             </div>
 
             {/* Level & XP */}
-            <div className="glass-card p-4 flex flex-col justify-between gap-2.5">
+            <div className="glass-card p-4 rounded-2xl flex flex-col justify-between gap-2.5">
               <div className="flex items-center justify-between w-full">
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Level {routineGamification.level}</span>
-                  <span className="text-2xl font-black text-purple-400 font-mono">
+                  <span className="text-xl sm:text-2xl font-black text-purple-400 font-mono">
                     {routineGamification.xp} <span className="text-xs font-normal text-slate-400">XP</span>
                   </span>
                 </div>
-                <div className="w-9 h-9 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-400 shrink-0">
                   <Award className="w-5 h-5" />
                 </div>
               </div>
@@ -473,18 +477,18 @@ export default function DailyRoutinePlanner() {
           </div>
 
           {/* Current Live Session Card & Next Routine */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             
             {/* Active Live Session Container */}
-            <div className="lg:col-span-2 glass-card p-6 rounded-2xl space-y-5">
+            <div className="lg:col-span-2 glass-card p-5 sm:p-6 rounded-2xl space-y-4">
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
                   <span>Current Active Session</span>
                 </div>
                 {currentRoutine && (
                   <span 
-                    className="px-2.5 py-0.5 rounded-full text-xs font-medium text-white shadow"
+                    className="px-2.5 py-0.5 rounded-full text-xs font-semibold text-white shadow"
                     style={{ backgroundColor: currentRoutine.color }}
                   >
                     {currentRoutine.category}
@@ -495,18 +499,18 @@ export default function DailyRoutinePlanner() {
               {currentRoutine ? (
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-xl font-black text-[#f8fafc] font-sans">{currentRoutine.title}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{currentRoutine.description || 'Focus on current routine targets.'}</p>
+                    <h3 className="text-lg sm:text-xl font-black text-[#f8fafc] font-sans">{currentRoutine.title}</h3>
+                    <p className="text-xs text-slate-400 mt-1">{currentRoutine.description || 'Focus session in progress.'}</p>
                   </div>
 
-                  <div className="flex items-center gap-6 p-4 glass-card rounded-xl border border-white/10">
-                    <div className="space-y-1">
+                  <div className="flex items-center gap-4 sm:gap-6 p-3.5 sm:p-4 glass-card rounded-xl border border-white/10">
+                    <div className="space-y-0.5">
                       <span className="text-[11px] text-slate-400 block">Scheduled Time</span>
                       <div className="text-xs font-bold text-slate-200 font-mono">
                         {formatTime12h(currentRoutine.startTime)} - {formatTime12h(currentRoutine.endTime)}
                       </div>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <span className="text-[11px] text-slate-400 block">Target Duration</span>
                       <div className="text-xs font-bold text-slate-200 font-mono">
                         {formatDuration(currentRoutine.duration)}
@@ -519,7 +523,7 @@ export default function DailyRoutinePlanner() {
                     <div className="flex items-center justify-between p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
                       <div>
                         <span className="text-xs text-indigo-300 block mb-0.5">Elapsed Focus Time</span>
-                        <div className="text-3xl font-extrabold text-indigo-400 font-mono tracking-wider">
+                        <div className="text-2xl sm:text-3xl font-extrabold text-indigo-400 font-mono tracking-wider">
                           {Math.floor(timerSeconds / 3600).toString().padStart(2, '0')}:
                           {Math.floor((timerSeconds % 3600) / 60).toString().padStart(2, '0')}:
                           {(timerSeconds % 60).toString().padStart(2, '0')}
@@ -529,11 +533,11 @@ export default function DailyRoutinePlanner() {
                   )}
 
                   {/* Live Timer Control Buttons */}
-                  <div className="flex items-center gap-3 pt-2">
+                  <div className="flex items-center flex-wrap gap-2.5 pt-1">
                     {activeTimerRoutineId !== currentRoutine.id ? (
                       <button
                         onClick={() => handleStartTimer(currentRoutine)}
-                        className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center gap-2 cursor-pointer"
+                        className="px-4 sm:px-5 py-2.5 bg-indigo-650 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center gap-2 cursor-pointer"
                       >
                         <Play className="w-4 h-4 fill-current" />
                         <span>Start Focus Timer</span>
@@ -541,7 +545,7 @@ export default function DailyRoutinePlanner() {
                     ) : isTimerRunning ? (
                       <button
                         onClick={handlePauseTimer}
-                        className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-amber-600/30 transition flex items-center gap-2 cursor-pointer"
+                        className="px-4 sm:px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-amber-600/30 transition flex items-center gap-2 cursor-pointer"
                       >
                         <Pause className="w-4 h-4 fill-current" />
                         <span>Pause Timer</span>
@@ -549,7 +553,7 @@ export default function DailyRoutinePlanner() {
                     ) : (
                       <button
                         onClick={handleResumeTimer}
-                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-600/30 transition flex items-center gap-2 cursor-pointer"
+                        className="px-4 sm:px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-600/30 transition flex items-center gap-2 cursor-pointer"
                       >
                         <Play className="w-4 h-4 fill-current" />
                         <span>Resume Timer</span>
@@ -558,7 +562,7 @@ export default function DailyRoutinePlanner() {
 
                     <button
                       onClick={() => handleCompleteTimer(currentRoutine)}
-                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-600/30 transition flex items-center gap-2 cursor-pointer"
+                      className="px-4 sm:px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-600/30 transition flex items-center gap-2 cursor-pointer"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
                       <span>Mark Complete (+20 XP)</span>
@@ -576,7 +580,7 @@ export default function DailyRoutinePlanner() {
             <div className="space-y-4">
               
               {/* Up Next Card */}
-              <div className="glass-card p-5 rounded-2xl space-y-3">
+              <div className="glass-card p-4 sm:p-5 rounded-2xl space-y-2.5">
                 <div className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   <span>Up Next Today</span>
@@ -594,12 +598,12 @@ export default function DailyRoutinePlanner() {
               </div>
 
               {/* Habit Checklist */}
-              <div className="glass-card p-5 rounded-2xl space-y-3">
+              <div className="glass-card p-4 sm:p-5 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
                   <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Daily Habits</span>
                   <button
                     onClick={() => setIsHabitModalOpen(true)}
-                    className="text-xs text-indigo-400 hover:underline cursor-pointer"
+                    className="text-xs text-indigo-400 hover:underline cursor-pointer font-medium"
                   >
                     + Add Habit
                   </button>
@@ -644,8 +648,8 @@ export default function DailyRoutinePlanner() {
       {/* SUBTAB 2: DAILY TIMELINE VIEW */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSubTab === 'timeline' && (
-        <div className="glass-card p-6 rounded-2xl space-y-4 animate-fadeIn">
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl space-y-4 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
             <div>
               <h3 className="text-base font-bold text-[#f8fafc]">Daily Timeline Schedule</h3>
               <p className="text-xs text-slate-400">Google Calendar style vertical chronological view</p>
@@ -656,8 +660,8 @@ export default function DailyRoutinePlanner() {
             </div>
           </div>
 
-          {/* Timeline Grid (05:00 to 23:00) */}
-          <div className="relative border-l border-white/10 ml-16 my-4 space-y-6 pl-6">
+          {/* Mobile-Responsive Timeline Grid */}
+          <div className="relative border-l border-white/10 ml-12 sm:ml-16 my-4 space-y-5 pl-4 sm:pl-6">
             {Array.from({ length: 19 }, (_, i) => i + 5).map(hour => {
               const hourStr = `${hour.toString().padStart(2, '0')}:00`;
               const routinesAtHour = routines.filter(r => {
@@ -668,7 +672,7 @@ export default function DailyRoutinePlanner() {
               return (
                 <div key={hour} className="relative group">
                   {/* Hour timestamp */}
-                  <div className="absolute -left-20 top-0 text-xs font-mono font-bold text-slate-400">
+                  <div className="absolute -left-16 sm:-left-20 top-0 text-[11px] sm:text-xs font-mono font-bold text-slate-400">
                     {formatTime12h(hourStr)}
                   </div>
 
@@ -678,24 +682,24 @@ export default function DailyRoutinePlanner() {
                       {routinesAtHour.map(r => (
                         <div
                           key={r.id}
-                          className="p-4 rounded-xl glass-card border border-white/10 hover:border-indigo-500/50 transition shadow-lg flex items-start justify-between"
+                          className="p-3.5 sm:p-4 rounded-xl glass-card border border-white/10 hover:border-indigo-500/50 transition shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
                           style={{ borderLeftColor: r.color, borderLeftWidth: '6px' }}
                         >
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-white font-sans">{r.title}</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs sm:text-sm font-bold text-white font-sans">{r.title}</span>
                               <span className="px-2 py-0.5 rounded text-[10px] bg-white/10 text-slate-300 font-mono">
                                 {r.category}
                               </span>
                             </div>
                             <p className="text-xs text-slate-400 mt-1">{r.description || 'Routine task.'}</p>
-                            <div className="text-xs text-slate-400 font-mono mt-2 flex items-center gap-4">
+                            <div className="text-xs text-slate-400 font-mono mt-2 flex items-center gap-3">
                               <span>⏰ {formatTime12h(r.startTime)} - {formatTime12h(r.endTime)}</span>
                               <span>⏳ {formatDuration(r.duration)}</span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
                             <button
                               onClick={() => handleActionRoutine(r.id, 'complete')}
                               className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg text-xs font-semibold transition cursor-pointer"
@@ -716,7 +720,7 @@ export default function DailyRoutinePlanner() {
                       ))}
                     </div>
                   ) : (
-                    <div className="h-6 border-b border-dashed border-white/5" />
+                    <div className="h-5 border-b border-dashed border-white/5" />
                   )}
                 </div>
               );
@@ -729,8 +733,8 @@ export default function DailyRoutinePlanner() {
       {/* SUBTAB 3: CALENDAR VIEW */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSubTab === 'calendar' && (
-        <div className="glass-card p-6 rounded-2xl space-y-6 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl space-y-5 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
             <div>
               <h3 className="text-base font-bold text-[#f8fafc]">Calendar Planner Grid</h3>
               <p className="text-xs text-slate-400">Daily, weekly, and monthly routine scheduling views</p>
@@ -752,9 +756,9 @@ export default function DailyRoutinePlanner() {
 
           {/* Weekly 7-Day Grid View */}
           {calendarMode === 'weekly' && (
-            <div className="grid grid-cols-1 sm:grid-cols-7 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                <div key={day} className="p-3 glass-card rounded-xl space-y-3 min-h-[300px]">
+                <div key={day} className="p-3 glass-card rounded-xl space-y-3 min-h-[260px]">
                   <div className="text-xs font-bold text-center text-indigo-400 border-b border-white/10 pb-2">
                     {day}
                   </div>
@@ -787,9 +791,9 @@ export default function DailyRoutinePlanner() {
       {/* SUBTAB 4: ROUTINES & HABITS MANAGER */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSubTab === 'routines' && (
-        <div className="space-y-6 animate-fadeIn">
+        <div className="space-y-5 animate-fadeIn">
           {/* Search & Filter Bar */}
-          <div className="glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="relative w-full md:w-72">
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
               <input
@@ -801,11 +805,11 @@ export default function DailyRoutinePlanner() {
               />
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 glass-input rounded-xl text-xs text-white"
+                className="px-3 py-2 glass-input rounded-xl text-xs text-white flex-1 md:flex-none"
               >
                 <option value="All" className="bg-slate-900 text-white">All Categories</option>
                 {CATEGORY_OPTIONS.map(c => (
@@ -816,7 +820,7 @@ export default function DailyRoutinePlanner() {
               <select
                 value={selectedPriority}
                 onChange={(e) => setSelectedPriority(e.target.value)}
-                className="px-3 py-2 glass-input rounded-xl text-xs text-white"
+                className="px-3 py-2 glass-input rounded-xl text-xs text-white flex-1 md:flex-none"
               >
                 <option value="All" className="bg-slate-900 text-white">All Priorities</option>
                 <option value="High" className="bg-slate-900 text-white">High Priority</option>
@@ -827,11 +831,11 @@ export default function DailyRoutinePlanner() {
           </div>
 
           {/* Master Routines Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredRoutines.map(r => (
               <div
                 key={r.id}
-                className="p-5 glass-card glass-card-hover rounded-2xl space-y-4 shadow-xl"
+                className="p-4 sm:p-5 glass-card glass-card-hover rounded-2xl space-y-3.5 shadow-xl"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -841,7 +845,7 @@ export default function DailyRoutinePlanner() {
                     >
                       {r.category}
                     </span>
-                    <h4 className="text-base font-bold text-[#f8fafc]">{r.title}</h4>
+                    <h4 className="text-sm sm:text-base font-bold text-[#f8fafc]">{r.title}</h4>
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -888,11 +892,11 @@ export default function DailyRoutinePlanner() {
       {/* SUBTAB 5: CONSISTENCY & ANALYTICS */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSubTab === 'analytics' && (
-        <div className="space-y-6 animate-fadeIn">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-5 animate-fadeIn">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             
             {/* Study Hours Bar Chart */}
-            <div className="glass-card p-6 rounded-2xl space-y-4">
+            <div className="glass-card p-5 rounded-2xl space-y-4">
               <h3 className="text-sm font-bold text-[#f8fafc]">Daily Focus Hours (Past 7 Days)</h3>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -908,7 +912,7 @@ export default function DailyRoutinePlanner() {
             </div>
 
             {/* Routine Completion Donut Chart */}
-            <div className="glass-card p-6 rounded-2xl space-y-4">
+            <div className="glass-card p-5 rounded-2xl space-y-4">
               <h3 className="text-sm font-bold text-[#f8fafc]">Today's Routine Status Breakdown</h3>
               <div className="h-64 w-full flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
@@ -940,15 +944,15 @@ export default function DailyRoutinePlanner() {
       {/* SUBTAB 6: DAILY REFLECTION */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSubTab === 'reflection' && (
-        <div className="glass-card p-6 rounded-2xl max-w-2xl mx-auto space-y-6 animate-fadeIn">
+        <div className="glass-card p-5 sm:p-6 rounded-2xl max-w-2xl mx-auto space-y-5 animate-fadeIn">
           <div>
             <h3 className="text-lg font-bold text-[#f8fafc]">End of Day Reflection</h3>
-            <p className="text-xs text-slate-400">Reflect on today's learning achievements, distractions & energy levels</p>
+            <p className="text-xs text-slate-400">Reflect on today's achievements, distractions & mood rating</p>
           </div>
 
           <form onSubmit={handleReflectionSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 🏆 Biggest Achievement Today
               </label>
               <textarea
@@ -961,7 +965,7 @@ export default function DailyRoutinePlanner() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 ⚠️ Biggest Distraction
               </label>
               <input
@@ -973,42 +977,67 @@ export default function DailyRoutinePlanner() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Mood Rating
-                </label>
-                <select
-                  value={reflMood}
-                  onChange={(e) => setReflMood(e.target.value as any)}
-                  className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs"
-                >
-                  <option value="great" className="bg-slate-900 text-white">😄 Great</option>
-                  <option value="good" className="bg-slate-900 text-white">🙂 Good</option>
-                  <option value="okay" className="bg-slate-900 text-white">😐 Okay</option>
-                  <option value="tired" className="bg-slate-900 text-white">🥱 Tired</option>
-                  <option value="stressed" className="bg-slate-900 text-white">😫 Stressed</option>
-                </select>
+            {/* Interactive Mood Selector Grid */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Mood Rating
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { id: 'great', label: 'Great', emoji: '😄' },
+                  { id: 'good', label: 'Good', emoji: '🙂' },
+                  { id: 'okay', label: 'Okay', emoji: '😐' },
+                  { id: 'tired', label: 'Tired', emoji: '🥱' },
+                  { id: 'stressed', label: 'Stressed', emoji: '😫' }
+                ].map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setReflMood(m.id as any)}
+                    className={`p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      reflMood === m.id
+                        ? 'bg-indigo-650/40 border-indigo-500 text-white font-bold shadow'
+                        : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xl sm:text-2xl">{m.emoji}</span>
+                    <span className="text-[10px]">{m.label}</span>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Energy Level (1-5)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={reflEnergy}
-                  onChange={(e) => setReflEnergy(Number(e.target.value))}
-                  className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs font-mono"
-                />
+            {/* Interactive 5-Star Energy Rating */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Energy Level Rating
+              </label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map(starIndex => (
+                  <button
+                    key={starIndex}
+                    type="button"
+                    onClick={() => setReflEnergy(starIndex)}
+                    className="p-1 cursor-pointer transition transform hover:scale-110"
+                  >
+                    <Star 
+                      className={`w-6 h-6 ${
+                        starIndex <= reflEnergy 
+                          ? 'fill-amber-400 text-amber-400' 
+                          : 'text-slate-600 hover:text-amber-400'
+                      }`} 
+                    />
+                  </button>
+                ))}
+                <span className="text-xs font-mono font-bold text-amber-300 ml-2">
+                  {reflEnergy} / 5 Stars
+                </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                🎯 Tomorrow's Goal
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                🎯 Tomorrow's Target Goal
               </label>
               <input
                 type="text"
@@ -1051,7 +1080,7 @@ export default function DailyRoutinePlanner() {
       {/* Habit Create Modal */}
       {isHabitModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="w-full max-w-md glass-card rounded-2xl p-6 space-y-4 border border-white/10">
+          <div className="w-full max-w-md glass-card rounded-2xl p-5 space-y-4 border border-white/15">
             <h3 className="text-sm font-bold text-[#f8fafc]">Add New Habit</h3>
             <form onSubmit={handleCreateHabitSubmit} className="space-y-4">
               <input
@@ -1065,13 +1094,13 @@ export default function DailyRoutinePlanner() {
                 <button
                   type="button"
                   onClick={() => setIsHabitModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-650 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow"
+                  className="px-4 py-2 bg-indigo-650 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow cursor-pointer"
                 >
                   Add Habit
                 </button>
