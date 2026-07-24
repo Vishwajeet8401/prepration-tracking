@@ -15,6 +15,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, AreaChart, Area 
 } from 'recharts';
 import RoutineModal, { CATEGORY_OPTIONS } from './RoutineModal';
+import RoutineAiJsonModal from './RoutineAiJsonModal';
 import { 
   formatTime12h, formatDuration, calculateDurationMinutes, 
   calculateProductivityScore, calculateRoutineStreak, 
@@ -33,7 +34,9 @@ export default function DailyRoutinePlanner() {
     habitLogs,
     dailyReflections,
     routineGamification,
+    userSettings,
     handleAddRoutine,
+    handleBulkAddRoutines,
     handleUpdateRoutine,
     handleDeleteRoutine,
     handleDuplicateRoutine,
@@ -46,6 +49,7 @@ export default function DailyRoutinePlanner() {
 
   const [activeSubTab, setActiveSubTab] = useState<PlannerSubTab>('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAiJsonModalOpen, setIsAiJsonModalOpen] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
 
   // Gesture Navigation Integration
@@ -332,6 +336,15 @@ export default function DailyRoutinePlanner() {
 
         {/* Action Controls */}
         <div className="flex items-center flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end relative z-10">
+          <button
+            onClick={() => setIsAiJsonModalOpen(true)}
+            className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-purple-600/30 transition flex items-center gap-2 cursor-pointer shrink-0"
+            title="Bulk import or generate routine using AI prompt / JSON"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>AI / JSON Bulk Add</span>
+          </button>
+
           <button
             onClick={() => {
               setEditingRoutine(null);
@@ -1109,6 +1122,14 @@ export default function DailyRoutinePlanner() {
           </div>
         </div>
       )}
+
+      {/* AI & JSON Routine Bulk Import Modal */}
+      <RoutineAiJsonModal
+        isOpen={isAiJsonModalOpen}
+        onClose={() => setIsAiJsonModalOpen(false)}
+        onImportRoutines={handleBulkAddRoutines}
+        userSettings={userSettings}
+      />
 
     </div>
   );

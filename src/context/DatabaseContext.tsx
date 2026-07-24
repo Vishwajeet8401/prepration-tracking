@@ -145,6 +145,7 @@ export interface DatabaseContextType {
   dailyReflections: DailyReflection[];
   routineGamification: RoutineGamification;
   handleAddRoutine: (newRoutine: Omit<Routine, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  handleBulkAddRoutines: (newRoutinesList: Omit<Routine, 'id' | 'createdAt' | 'updatedAt'>[], replaceExisting?: boolean) => Promise<void>;
   handleUpdateRoutine: (updated: Routine) => Promise<void>;
   handleDeleteRoutine: (id: string) => Promise<void>;
   handleDuplicateRoutine: (id: string) => Promise<void>;
@@ -3256,6 +3257,53 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, [user, pushNotification]);
 
+  const handleBulkAddRoutines = useCallback(async (
+    newRoutinesList: Omit<Routine, 'id' | 'createdAt' | 'updatedAt'>[],
+    replaceExisting: boolean = false
+  ) => {
+    if (newRoutinesList.length === 0) return;
+
+    const createdRoutines: Routine[] = newRoutinesList.map((item, idx) => {
+      const id = `rt-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`;
+      const duration = calculateDurationMinutes(item.startTime, item.endTime);
+      return {
+        ...item,
+        id,
+        userId: user?.uid,
+        duration: duration > 0 ? duration : 30,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    });
+
+    if (user) {
+      try {
+        if (replaceExisting) {
+          const q = query(collection(db, 'routines'), where('userId', '==', user.uid));
+          const snap = await getDocs(q);
+          const batch = writeBatch(db);
+          snap.forEach(d => batch.delete(d.ref));
+          createdRoutines.forEach(r => batch.set(doc(db, 'routines', r.id), r));
+          await batch.commit();
+        } else {
+          const batch = writeBatch(db);
+          createdRoutines.forEach(r => batch.set(doc(db, 'routines', r.id), r));
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error("Error bulk adding routines to Firestore:", err);
+      }
+    }
+
+    setRoutines(prev => replaceExisting ? createdRoutines : [...prev, ...createdRoutines]);
+    
+    await pushNotification({
+      title: 'Routines Bulk Imported! 🚀',
+      message: `Successfully added ${createdRoutines.length} routine items to your daily schedule.`,
+      type: 'daily'
+    });
+  }, [user, pushNotification]);
+
   const handleUpdateRoutine = useCallback(async (updated: Routine) => {
     const duration = calculateDurationMinutes(updated.startTime, updated.endTime);
     const routine: Routine = {
@@ -3480,7 +3528,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       codingQuestions, codingProgress, handleAddCodingQuestion, handleUpdateCodingQuestion, handleDeleteCodingQuestion, handleRecordCodingRecall, handleLinkCodingQuestionToTopic,
       activeTaskTimer, setActiveTaskTimer,
       routines, routineHistories, habits, habitLogs, dailyReflections, routineGamification,
-      handleAddRoutine, handleUpdateRoutine, handleDeleteRoutine, handleDuplicateRoutine, handleActionRoutine,
+      handleAddRoutine, handleBulkAddRoutines, handleUpdateRoutine, handleDeleteRoutine, handleDuplicateRoutine, handleActionRoutine,
       handleAddHabit, handleToggleHabit, handleDeleteHabit, handleSaveReflection
     }}>
       {children}

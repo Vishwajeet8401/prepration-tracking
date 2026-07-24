@@ -50,6 +50,30 @@ interface BulkImportExportCenterProps {
 // ─── TEMPLATES ───────────────────────────────────────────────────────────────
 
 const TEMPLATES = {
+  Routines: {
+    format: 'JSON / CSV / Excel',
+    requiredFields: ['title', 'startTime', 'endTime'],
+    optionalFields: ['category', 'priority', 'repeatType', 'description', 'alarmEnabled', 'alarmMinutesBefore'],
+    example: [
+      {
+        title: 'Morning DSA Practice',
+        startTime: '07:30',
+        endTime: '09:00',
+        category: 'DSA',
+        priority: 'High',
+        repeatType: 'Daily',
+        description: 'Solve 2 LeetCode Medium problems'
+      }
+    ],
+    prompt: `You are a productivity expert. Generate a JSON array of 5 daily routine items for a software engineer preparing for technical interviews.
+
+STRICT RULES:
+- Output ONLY a valid JSON array. No markdown, no code fences.
+- "title": concise routine title
+- "startTime" & "endTime": 24-hour time format "HH:mm" (e.g. "07:30", "09:00")
+- "category": DSA | System Design | Java | Spring Boot | Mock Interview | Revision | Exercise | Meditation | Office | Break | Sleep | Custom
+- "priority": High | Medium | Low`
+  },
   Subjects: {
     format: 'JSON / CSV / Excel',
     requiredFields: ['name'],
