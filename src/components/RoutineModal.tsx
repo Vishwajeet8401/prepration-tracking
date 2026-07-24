@@ -4,7 +4,7 @@ import {
   X, Clock, Calendar as CalendarIcon, Bell, AlertTriangle, 
   Sparkles, Check, Code, BookOpen, Coffee, Dumbbell, Brain, 
   Briefcase, Zap, Moon, Sun, Droplet, MessageSquare, Video, 
-  Layers, Volume2, ShieldAlert
+  Layers, ShieldAlert, ChevronRight, Tag, Palette
 } from 'lucide-react';
 import { calculateDurationMinutes, formatDuration, detectRoutineConflicts, formatTime12h } from '../utils/routineUtils';
 
@@ -205,77 +205,62 @@ export default function RoutineModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-slate-900/90 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-2xl glass-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/80">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/60">
           <div className="flex items-center gap-3">
             <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg font-mono font-bold"
               style={{ backgroundColor: color }}
             >
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">
+              <h2 className="text-lg font-bold text-[#f8fafc] font-sans">
                 {initialRoutine ? 'Edit Routine' : 'Create New Routine'}
               </h2>
               <p className="text-xs text-slate-400">
-                Configure time, schedule, reminders & category
+                PrepFlow time-based scheduling & reminder configuration
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-slate-800 bg-slate-950/50 px-6 gap-2 pt-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('basic')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-              activeTab === 'basic'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            1. Basic Info & Category
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('schedule')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-              activeTab === 'schedule'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            2. Time & Recurrence
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('reminders')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-              activeTab === 'reminders'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            3. Alarm & Reminders
-          </button>
+        {/* PrepFlow Theme Sub-Tabs */}
+        <div className="flex bg-slate-900/50 p-1.5 border-b border-white/10 px-6 gap-2">
+          {[
+            { id: 'basic', label: '1. Basic Info & Category' },
+            { id: 'schedule', label: '2. Time & Recurrence' },
+            { id: 'reminders', label: '3. Alarm & Reminders' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold select-none transition ${
+                activeTab === tab.id
+                  ? 'bg-indigo-650 text-white shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
           {formError && (
-            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-350 rounded-xl text-xs">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{formError}</span>
             </div>
           )}
@@ -300,10 +285,10 @@ export default function RoutineModal({
 
           {/* TAB 1: BASIC INFO */}
           {activeTab === 'basic' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Routine Name <span className="text-red-400">*</span>
+                  Routine Name <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -311,7 +296,7 @@ export default function RoutineModal({
                   placeholder="e.g., Java Practice, DSA Revision, Exercise"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
@@ -324,7 +309,7 @@ export default function RoutineModal({
                   placeholder="Goals, target questions, or notes for this routine session..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm resize-none"
+                  className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none resize-none"
                 />
               </div>
 
@@ -343,8 +328,8 @@ export default function RoutineModal({
                         onClick={() => handleCategorySelect(cat.name)}
                         className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs text-left transition ${
                           isSelected
-                            ? 'bg-indigo-600/20 border-indigo-500 text-white font-medium shadow-md'
-                            : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-indigo-650/40 border-indigo-500 text-white font-bold shadow'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
                         }`}
                       >
                         <span 
@@ -386,11 +371,11 @@ export default function RoutineModal({
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
                   >
-                    <option value="High">🔴 High Priority</option>
-                    <option value="Medium">🟡 Medium Priority</option>
-                    <option value="Low">🟢 Low Priority</option>
+                    <option value="High" className="bg-slate-900 text-white">🔴 High Priority</option>
+                    <option value="Medium" className="bg-slate-900 text-white">🟡 Medium Priority</option>
+                    <option value="Low" className="bg-slate-900 text-white">🟢 Low Priority</option>
                   </select>
                 </div>
               </div>
@@ -399,19 +384,19 @@ export default function RoutineModal({
 
           {/* TAB 2: TIME & RECURRENCE */}
           {activeTab === 'schedule' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Start Time & End Time */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Start Time <span className="text-red-400">*</span>
+                    Start Time <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="time"
                     required
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none font-mono"
                   />
                   <span className="text-[11px] text-slate-400 mt-1 block">
                     {formatTime12h(startTime)}
@@ -420,14 +405,14 @@ export default function RoutineModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    End Time <span className="text-red-400">*</span>
+                    End Time <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="time"
                     required
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none font-mono"
                   />
                   <span className="text-[11px] text-slate-400 mt-1 block">
                     {formatTime12h(endTime)}
@@ -436,12 +421,12 @@ export default function RoutineModal({
               </div>
 
               {/* Auto Calculated Duration Banner */}
-              <div className="flex items-center justify-between p-3.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-300 text-sm">
+              <div className="flex items-center justify-between p-3.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-300 text-xs font-sans">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-indigo-400" />
                   <span>Calculated Duration:</span>
                 </div>
-                <span className="font-bold text-white text-base">
+                <span className="font-bold text-white font-mono text-sm">
                   {formatDuration(durationMinutes)} ({durationMinutes} mins)
                 </span>
               </div>
@@ -459,8 +444,8 @@ export default function RoutineModal({
                       onClick={() => setRepeatType(type)}
                       className={`px-3 py-2 rounded-xl border text-xs transition text-center ${
                         repeatType === type
-                          ? 'bg-indigo-600 border-indigo-500 text-white font-medium shadow'
-                          : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'
+                          ? 'bg-indigo-650 border-indigo-500 text-white font-semibold shadow'
+                          : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
                       }`}
                     >
                       {type}
@@ -483,10 +468,10 @@ export default function RoutineModal({
                           key={day}
                           type="button"
                           onClick={() => toggleDay(day)}
-                          className={`w-10 h-10 rounded-xl border text-xs font-semibold transition ${
+                          className={`w-9 h-9 rounded-xl border text-xs font-semibold transition ${
                             active
-                              ? 'bg-indigo-600 border-indigo-500 text-white shadow'
-                              : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:bg-slate-800'
+                              ? 'bg-indigo-650 border-indigo-500 text-white shadow'
+                              : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
                           }`}
                         >
                           {day}
@@ -501,16 +486,16 @@ export default function RoutineModal({
 
           {/* TAB 3: ALARM & REMINDERS */}
           {activeTab === 'reminders' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Enable Reminder Toggle */}
-              <div className="flex items-center justify-between p-4 bg-slate-800/60 border border-slate-700 rounded-xl">
+              <div className="flex items-center justify-between p-4 glass-card rounded-xl border border-white/10">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
                     <Bell className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Enable Reminder Notification</h4>
-                    <p className="text-xs text-slate-400">Receive smart alarm before routine starts</p>
+                    <h4 className="text-xs font-semibold text-white">Enable Reminder Notification</h4>
+                    <p className="text-[11px] text-slate-400">Receive smart alarm before routine starts</p>
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -520,12 +505,12 @@ export default function RoutineModal({
                     onChange={(e) => setAlarmEnabled(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-650"></div>
                 </label>
               </div>
 
               {alarmEnabled && (
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 pt-2">
                   {/* Reminder Time Dropdown */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1.5">
@@ -534,14 +519,14 @@ export default function RoutineModal({
                     <select
                       value={alarmMinutesBefore}
                       onChange={(e) => setAlarmMinutesBefore(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                      className="w-full px-4 py-2.5 glass-input rounded-xl text-white text-xs focus:outline-none"
                     >
-                      <option value={0}>At Start Time ({formatTime12h(startTime)})</option>
-                      <option value={5}>5 minutes before</option>
-                      <option value={10}>10 minutes before</option>
-                      <option value={15}>15 minutes before</option>
-                      <option value={30}>30 minutes before</option>
-                      <option value={60}>1 hour before</option>
+                      <option value={0} className="bg-slate-900 text-white">At Start Time ({formatTime12h(startTime)})</option>
+                      <option value={5} className="bg-slate-900 text-white">5 minutes before</option>
+                      <option value={10} className="bg-slate-900 text-white">10 minutes before</option>
+                      <option value={15} className="bg-slate-900 text-white">15 minutes before</option>
+                      <option value={30} className="bg-slate-900 text-white">30 minutes before</option>
+                      <option value={60} className="bg-slate-900 text-white">1 hour before</option>
                     </select>
                   </div>
 
@@ -554,12 +539,12 @@ export default function RoutineModal({
                       <select
                         value={notificationSound}
                         onChange={(e) => setNotificationSound(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
                       >
-                        <option value="chime">🔔 Gentle Chime</option>
-                        <option value="energetic">⚡ Energetic Alert</option>
-                        <option value="bell">🛎️ Service Bell</option>
-                        <option value="default">📱 Default Device Sound</option>
+                        <option value="chime" className="bg-slate-900 text-white">🔔 Gentle Chime</option>
+                        <option value="energetic" className="bg-slate-900 text-white">⚡ Energetic Alert</option>
+                        <option value="bell" className="bg-slate-900 text-white">🛎️ Service Bell</option>
+                        <option value="default" className="bg-slate-900 text-white">📱 Default Device Sound</option>
                       </select>
                     </div>
 
@@ -570,16 +555,16 @@ export default function RoutineModal({
                       <select
                         value={vibration ? 'yes' : 'no'}
                         onChange={(e) => setVibration(e.target.value === 'yes')}
-                        className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3 py-2 glass-input rounded-xl text-white text-xs focus:outline-none"
                       >
-                        <option value="yes">📳 Enabled</option>
-                        <option value="no">🔕 Disabled</option>
+                        <option value="yes" className="bg-slate-900 text-white">📳 Enabled</option>
+                        <option value="no" className="bg-slate-900 text-white">🔕 Disabled</option>
                       </select>
                     </div>
                   </div>
 
                   {/* Snooze Options */}
-                  <div className="flex items-center justify-between p-3.5 bg-slate-800/40 border border-slate-700/60 rounded-xl">
+                  <div className="flex items-center justify-between p-3.5 glass-card rounded-xl border border-white/10">
                     <div>
                       <h5 className="text-xs font-semibold text-white">Snooze Option</h5>
                       <p className="text-[11px] text-slate-400">Allow snoozing notifications</p>
@@ -588,17 +573,17 @@ export default function RoutineModal({
                       <select
                         value={snoozeDuration}
                         onChange={(e) => setSnoozeDuration(Number(e.target.value))}
-                        className="px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs"
+                        className="px-2.5 py-1 glass-input rounded-lg text-white text-xs"
                       >
-                        <option value={5}>5 min</option>
-                        <option value={10}>10 min</option>
-                        <option value={15}>15 min</option>
+                        <option value={5} className="bg-slate-900 text-white">5 min</option>
+                        <option value={10} className="bg-slate-900 text-white">10 min</option>
+                        <option value={15} className="bg-slate-900 text-white">15 min</option>
                       </select>
                     </div>
                   </div>
 
                   {/* Repeat notification until completed */}
-                  <div className="flex items-center justify-between p-3.5 bg-slate-800/40 border border-slate-700/60 rounded-xl">
+                  <div className="flex items-center justify-between p-3.5 glass-card rounded-xl border border-white/10">
                     <div>
                       <h5 className="text-xs font-semibold text-white">Repeat Until Completed</h5>
                       <p className="text-[11px] text-slate-400">Keep reminding every 15 mins until routine is marked complete</p>
@@ -610,7 +595,7 @@ export default function RoutineModal({
                         onChange={(e) => setRepeatUntilCompleted(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                      <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-650"></div>
                     </label>
                   </div>
                 </div>
@@ -619,18 +604,18 @@ export default function RoutineModal({
           )}
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center gap-2 disabled:opacity-50"
+              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-650 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center gap-2 disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span>Saving...</span>
