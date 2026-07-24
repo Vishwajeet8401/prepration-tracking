@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, InterviewIntelligenceQuestion, Subject } from './types';
+import { Topic, Question, JobApplication, Interview, Mistake, StudySession, AppNotification, InterviewIntelligenceQuestion, Subject, Routine, RoutineHistory, Habit, HabitLog, DailyReflection, RoutineGamification } from './types';
 
 export const initialSubjects: Subject[] = [
   {
@@ -567,4 +567,321 @@ export const initialMockPresetQuestions = [
     roundType: 'Behavioral'
   }
 ];
+
+// ── Daily Routine Planner Initial Data ──────────────────────────────────────
+
+const now = new Date();
+const todayStr = now.toISOString().split('T')[0];
+const yesterday = new Date(now.getTime() - 86400000);
+const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+export const initialRoutines: Routine[] = [
+  {
+    id: 'rt-1',
+    title: 'Morning Fitness & Meditation',
+    description: 'Light exercise, stretching, and 10 minutes of mindfulness meditation to kickstart the day.',
+    category: 'Exercise',
+    color: '#10B981', // emerald
+    icon: 'Dumbbell',
+    startTime: '06:00',
+    endTime: '06:45',
+    duration: 45,
+    repeatType: 'Daily',
+    repeatDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    alarmEnabled: true,
+    alarmMinutesBefore: 10,
+    notificationSound: 'energetic',
+    vibration: true,
+    snoozeEnabled: true,
+    snoozeDuration: 5,
+    repeatNotificationUntilCompleted: false,
+    status: 'Completed',
+    priority: 'High',
+    notes: 'Focus on core stability and 15 mins cardio.',
+    createdAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'rt-2',
+    title: 'Java Core & Multithreading Practice',
+    description: 'Solve 2 Java OOP / Concurrent HashMap coding questions and revise Memory Model.',
+    category: 'Java',
+    color: '#3B82F6', // blue
+    icon: 'Code',
+    startTime: '07:00',
+    endTime: '08:30',
+    duration: 90,
+    repeatType: 'Weekdays',
+    repeatDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    alarmEnabled: true,
+    alarmMinutesBefore: 15,
+    notificationSound: 'chime',
+    vibration: true,
+    snoozeEnabled: true,
+    snoozeDuration: 10,
+    status: 'Completed',
+    priority: 'High',
+    notes: 'Cover ReentrantLock vs Synchronized performance benchmarks.',
+    createdAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'rt-3',
+    title: 'DSA LeetCode Revision & Trees',
+    description: 'Solve 2 Medium DSA problems (Binary Tree Traversal, DFS/BFS, Dynamic Programming).',
+    category: 'DSA',
+    color: '#8B5CF6', // purple
+    icon: 'Brain',
+    startTime: '09:00',
+    endTime: '10:30',
+    duration: 90,
+    repeatType: 'Daily',
+    repeatDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    alarmEnabled: true,
+    alarmMinutesBefore: 5,
+    notificationSound: 'bell',
+    vibration: true,
+    snoozeEnabled: true,
+    snoozeDuration: 5,
+    status: 'Ongoing',
+    priority: 'High',
+    notes: 'Focus on time complexity optimization.',
+    createdAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'rt-4',
+    title: 'System Design Architecture',
+    description: 'Study Distributed Rate Limiting & Sliding Window Log algorithm in Redis.',
+    category: 'System Design',
+    color: '#EC4899', // pink
+    icon: 'Layers',
+    startTime: '11:00',
+    endTime: '12:30',
+    duration: 90,
+    repeatType: 'Weekdays',
+    repeatDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    alarmEnabled: true,
+    alarmMinutesBefore: 15,
+    notificationSound: 'default',
+    vibration: false,
+    snoozeEnabled: false,
+    snoozeDuration: 5,
+    status: 'Upcoming',
+    priority: 'High',
+    notes: 'Diagram API Gateway fallback topology.',
+    createdAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'rt-5',
+    title: 'Mock Interview Simulator',
+    description: 'Practice 1-on-1 AI Mock Interview on Spring Boot & Microservices patterns.',
+    category: 'Mock Interview',
+    color: '#F59E0B', // amber
+    icon: 'Video',
+    startTime: '15:00',
+    endTime: '16:00',
+    duration: 60,
+    repeatType: 'Weekly',
+    repeatDays: ['Fri'],
+    alarmEnabled: true,
+    alarmMinutesBefore: 30,
+    notificationSound: 'energetic',
+    vibration: true,
+    snoozeEnabled: true,
+    snoozeDuration: 10,
+    status: 'Upcoming',
+    priority: 'Medium',
+    notes: 'Record answer feedback & STAR story examples.',
+    createdAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'rt-6',
+    title: 'English Speaking & Vocabulary',
+    description: 'Practice behavioral interview responses aloud and read 5 new tech vocabulary items.',
+    category: 'English Speaking',
+    color: '#06B6D4', // cyan
+    icon: 'MessageSquare',
+    startTime: '17:00',
+    endTime: '17:45',
+    duration: 45,
+    repeatType: 'Daily',
+    repeatDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    alarmEnabled: false,
+    alarmMinutesBefore: 0,
+    notificationSound: 'default',
+    vibration: false,
+    snoozeEnabled: false,
+    snoozeDuration: 5,
+    status: 'Upcoming',
+    priority: 'Medium',
+    createdAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
+
+export const initialHabits: Habit[] = [
+  {
+    id: 'h-1',
+    title: 'Wake Up at 6:00 AM',
+    category: 'Health',
+    icon: 'Sun',
+    color: '#F59E0B',
+    targetFrequency: 'Daily',
+    createdAt: new Date(now.getTime() - 14 * 86400000).toISOString()
+  },
+  {
+    id: 'h-2',
+    title: 'Solve 2 DSA Problems',
+    category: 'Coding',
+    icon: 'Code',
+    color: '#8B5CF6',
+    targetFrequency: 'Daily',
+    createdAt: new Date(now.getTime() - 14 * 86400000).toISOString()
+  },
+  {
+    id: 'h-3',
+    title: 'Drink 3L Water',
+    category: 'Wellness',
+    icon: 'Droplet',
+    color: '#06B6D4',
+    targetFrequency: 'Daily',
+    createdAt: new Date(now.getTime() - 14 * 86400000).toISOString()
+  },
+  {
+    id: 'h-4',
+    title: 'Read 20 Pages of Tech Book',
+    category: 'Learning',
+    icon: 'BookOpen',
+    color: '#10B981',
+    targetFrequency: 'Daily',
+    createdAt: new Date(now.getTime() - 14 * 86400000).toISOString()
+  },
+  {
+    id: 'h-5',
+    title: 'Sleep Before 11:00 PM',
+    category: 'Health',
+    icon: 'Moon',
+    color: '#6366F1',
+    targetFrequency: 'Daily',
+    createdAt: new Date(now.getTime() - 14 * 86400000).toISOString()
+  }
+];
+
+export const initialHabitLogs: HabitLog[] = [
+  { id: `h-1_${todayStr}`, habitId: 'h-1', date: todayStr, completed: true },
+  { id: `h-2_${todayStr}`, habitId: 'h-2', date: todayStr, completed: true },
+  { id: `h-3_${todayStr}`, habitId: 'h-3', date: todayStr, completed: true },
+  { id: `h-4_${todayStr}`, habitId: 'h-4', date: todayStr, completed: false },
+  { id: `h-5_${todayStr}`, habitId: 'h-5', date: todayStr, completed: false },
+  { id: `h-1_${yesterdayStr}`, habitId: 'h-1', date: yesterdayStr, completed: true },
+  { id: `h-2_${yesterdayStr}`, habitId: 'h-2', date: yesterdayStr, completed: true },
+  { id: `h-3_${yesterdayStr}`, habitId: 'h-3', date: yesterdayStr, completed: true },
+  { id: `h-4_${yesterdayStr}`, habitId: 'h-4', date: yesterdayStr, completed: true },
+  { id: `h-5_${yesterdayStr}`, habitId: 'h-5', date: yesterdayStr, completed: true }
+];
+
+export const initialRoutineHistories: RoutineHistory[] = [
+  {
+    id: `rh-1_${todayStr}`,
+    routineId: 'rt-1',
+    routineTitle: 'Morning Fitness & Meditation',
+    category: 'Exercise',
+    date: todayStr,
+    plannedStartTime: '06:00',
+    plannedEndTime: '06:45',
+    actualStartTime: '06:02',
+    actualEndTime: '06:46',
+    completed: true,
+    missed: false,
+    skipped: false,
+    focusDuration: 44,
+    remarks: 'Great morning workout!'
+  },
+  {
+    id: `rh-2_${todayStr}`,
+    routineId: 'rt-2',
+    routineTitle: 'Java Core & Multithreading Practice',
+    category: 'Java',
+    date: todayStr,
+    plannedStartTime: '07:00',
+    plannedEndTime: '08:30',
+    actualStartTime: '07:00',
+    actualEndTime: '08:30',
+    completed: true,
+    missed: false,
+    skipped: false,
+    focusDuration: 90,
+    remarks: 'Revised ConcurrentHashMap and locks.'
+  },
+  {
+    id: `rh-1_${yesterdayStr}`,
+    routineId: 'rt-1',
+    routineTitle: 'Morning Fitness & Meditation',
+    category: 'Exercise',
+    date: yesterdayStr,
+    plannedStartTime: '06:00',
+    plannedEndTime: '06:45',
+    completed: true,
+    missed: false,
+    skipped: false,
+    focusDuration: 45
+  },
+  {
+    id: `rh-2_${yesterdayStr}`,
+    routineId: 'rt-2',
+    routineTitle: 'Java Core & Multithreading Practice',
+    category: 'Java',
+    date: yesterdayStr,
+    plannedStartTime: '07:00',
+    plannedEndTime: '08:30',
+    completed: true,
+    missed: false,
+    skipped: false,
+    focusDuration: 90
+  },
+  {
+    id: `rh-3_${yesterdayStr}`,
+    routineId: 'rt-3',
+    routineTitle: 'DSA LeetCode Revision & Trees',
+    category: 'DSA',
+    date: yesterdayStr,
+    plannedStartTime: '09:00',
+    plannedEndTime: '10:30',
+    completed: true,
+    missed: false,
+    skipped: false,
+    focusDuration: 90
+  }
+];
+
+export const initialDailyReflections: DailyReflection[] = [
+  {
+    id: `refl_${yesterdayStr}`,
+    date: yesterdayStr,
+    completedTasks: [
+      'Morning workout completed',
+      'Revised Java Collections & ConcurrentHashMap',
+      'Solved 2 Tree LeetCode Medium problems'
+    ],
+    biggestAchievement: 'Mastered sliding window rate limiter design logic and solved 2 Hard tree problems.',
+    biggestDistraction: 'Social media notifications during afternoon study session.',
+    mood: 'great',
+    energyLevel: 4,
+    tomorrowGoal: 'Complete System Design rate limiter architecture diagram and practice Spring Boot mock interview.',
+    createdAt: new Date(yesterday.getTime() - 1000).toISOString()
+  }
+];
+
+export const initialRoutineGamification: RoutineGamification = {
+  xp: 450,
+  coins: 120,
+  level: 5,
+  badges: ['Early Bird', 'DSA Warrior', 'Consistency Champion', '7-Day Streak'],
+  currentStreak: 7,
+  longestStreak: 12
+};
+
 

@@ -471,3 +471,115 @@ export interface CodeSubmission {
 }
 
 export type EditorTheme = 'vs-dark' | 'light' | 'dracula';
+
+// ── Daily Routine Planner Types ─────────────────────────────────────────────
+
+export type RoutineCategory =
+  | 'DSA'
+  | 'Java'
+  | 'Spring Boot'
+  | 'System Design'
+  | 'HR Interview'
+  | 'Aptitude'
+  | 'English Speaking'
+  | 'Vocabulary'
+  | 'Coding Practice'
+  | 'Mock Interview'
+  | 'Revision'
+  | 'Reading'
+  | 'Exercise'
+  | 'Meditation'
+  | 'Office'
+  | 'Break'
+  | 'Sleep'
+  | 'Custom';
+
+export type RoutineStatus = 'Upcoming' | 'Ongoing' | 'Completed' | 'Missed' | 'Skipped';
+
+export type RepeatType = 'One Time' | 'Daily' | 'Weekdays' | 'Weekends' | 'Weekly' | 'Monthly' | 'Custom Days';
+
+export interface Routine {
+  id: string;
+  userId?: string;
+  title: string;
+  description?: string;
+  category: RoutineCategory;
+  color: string; // Tailwind color class or hex code
+  icon: string;  // Lucide icon name string
+  startTime: string; // HH:mm format e.g. "07:00"
+  endTime: string;   // HH:mm format e.g. "08:30"
+  duration: number;  // duration in minutes (auto-calculated)
+  repeatType: RepeatType;
+  repeatDays?: string[]; // e.g. ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+  alarmEnabled: boolean;
+  alarmMinutesBefore: number; // 0 for at start time, 5, 10, 15, 30, 60, or custom
+  alarmTime?: string;
+  notificationSound: string; // 'default' | 'chime' | 'energetic' | 'bell' | 'gentle'
+  vibration: boolean;
+  snoozeEnabled: boolean;
+  snoozeDuration: number; // in minutes (5, 10, 15)
+  repeatNotificationUntilCompleted?: boolean;
+  status: RoutineStatus;
+  priority: 'High' | 'Medium' | 'Low';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoutineHistory {
+  id: string;
+  routineId: string;
+  routineTitle: string;
+  category: RoutineCategory;
+  date: string; // YYYY-MM-DD
+  plannedStartTime: string;
+  plannedEndTime: string;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  completed: boolean;
+  missed: boolean;
+  skipped: boolean;
+  focusDuration: number; // in minutes
+  remarks?: string;
+}
+
+export interface Habit {
+  id: string;
+  userId?: string;
+  title: string;
+  category: string;
+  icon: string;
+  color: string;
+  targetFrequency: 'Daily' | 'Weekdays' | 'Weekly';
+  createdAt: string;
+}
+
+export interface HabitLog {
+  id: string; // `${habitId}_${date}`
+  habitId: string;
+  date: string; // YYYY-MM-DD
+  completed: boolean;
+}
+
+export interface DailyReflection {
+  id: string;
+  userId?: string;
+  date: string; // YYYY-MM-DD
+  completedTasks: string[];
+  biggestAchievement: string;
+  biggestDistraction: string;
+  mood: 'great' | 'good' | 'okay' | 'tired' | 'stressed';
+  energyLevel: number; // 1 to 5
+  tomorrowGoal: string;
+  createdAt: string;
+}
+
+export interface RoutineGamification {
+  xp: number;
+  coins: number;
+  level: number;
+  badges: string[];
+  currentStreak: number;
+  longestStreak: number;
+}
+

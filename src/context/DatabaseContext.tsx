@@ -10,19 +10,22 @@ import {
   AppNotification, VoiceRecording, InterviewIntelligenceQuestion, ActivityPlan, 
   DailyTask, ActivityLog, ActivityCategory, Journal, Roadmap, MockInterview, 
   PersonalReminder, ReminderLog, PersonalReminderSettings, ReminderStatus, Subject, UserSettings, StarStory, MockPresetQuestion,
-  VocabularyWord, VocabularyStatus, WordDefinition, CodeQuestion, CodingProgress, ActiveTaskTimer
+  VocabularyWord, VocabularyStatus, WordDefinition, CodeQuestion, CodingProgress, ActiveTaskTimer,
+  Routine, RoutineHistory, Habit, HabitLog, DailyReflection, RoutineGamification, RoutineCategory, RoutineStatus
 } from '../types';
 import { playSuccessChime } from '../utils/audio';
 import { 
   initialTopics, initialQuestions, initialJobApplications, 
   initialInterviews, initialMistakes, initialStudySessions, initialNotifications, 
-  initialIntelliQuestions, initialSubjects, initialMockPresetQuestions
+  initialIntelliQuestions, initialSubjects, initialMockPresetQuestions,
+  initialRoutines, initialHabits, initialHabitLogs, initialRoutineHistories, initialDailyReflections, initialRoutineGamification
 } from '../initialData';
 import { useGlobalStats } from '../hooks/useGlobalStats';
 import { useUrgentTopics } from '../hooks/useUrgentTopics';
 import { requestNativeNotificationPermission, scheduleNativeNotification, cancelNativeNotification, triggerImmediateNativeNotification } from '../utils/mobileScheduler';
 import { saveLocalFile } from '../localFileStore';
 import { callAI } from '../utils/aiService';
+import { calculateDurationMinutes } from '../utils/routineUtils';
 
 export interface DatabaseContextType {
   subjects: Subject[];
@@ -133,6 +136,23 @@ export interface DatabaseContextType {
   handleLinkCodingQuestionToTopic: (questionId: string, topicId: string) => Promise<void>;
   activeTaskTimer: ActiveTaskTimer | null;
   setActiveTaskTimer: React.Dispatch<React.SetStateAction<ActiveTaskTimer | null>>;
+
+  // ── Daily Routine Planner Context ─────────────────────────────────────────
+  routines: Routine[];
+  routineHistories: RoutineHistory[];
+  habits: Habit[];
+  habitLogs: HabitLog[];
+  dailyReflections: DailyReflection[];
+  routineGamification: RoutineGamification;
+  handleAddRoutine: (newRoutine: Omit<Routine, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  handleUpdateRoutine: (updated: Routine) => Promise<void>;
+  handleDeleteRoutine: (id: string) => Promise<void>;
+  handleDuplicateRoutine: (id: string) => Promise<void>;
+  handleActionRoutine: (id: string, action: 'start' | 'pause' | 'resume' | 'complete' | 'skip' | 'reset', remarks?: string) => Promise<void>;
+  handleAddHabit: (newHabit: Omit<Habit, 'id' | 'createdAt'>) => Promise<void>;
+  handleToggleHabit: (habitId: string, date: string) => Promise<void>;
+  handleDeleteHabit: (id: string) => Promise<void>;
+  handleSaveReflection: (reflection: Omit<DailyReflection, 'id' | 'createdAt'>) => Promise<void>;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -168,6 +188,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [codingQuestions, setCodingQuestions] = useState<CodeQuestion[]>([]);
   const [codingProgress, setCodingProgress] = useState<CodingProgress[]>([]);
   const [activeTaskTimer, setActiveTaskTimer] = useState<ActiveTaskTimer | null>(null);
+
+  // ── Daily Routine Planner State ───────────────────────────────────────────
+  const [routines, setRoutines] = useState<Routine[]>(() => initialRoutines);
+  const [routineHistories, setRoutineHistories] = useState<RoutineHistory[]>(() => initialRoutineHistories);
+  const [habits, setHabits] = useState<Habit[]>(() => initialHabits);
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>(() => initialHabitLogs);
+  const [dailyReflections, setDailyReflections] = useState<DailyReflection[]>(() => initialDailyReflections);
+  const [routineGamification, setRoutineGamification] = useState<RoutineGamification>(() => initialRoutineGamification);
 
   const globalStats = useGlobalStats(user?.uid);
   const { urgentTopics } = useUrgentTopics(user?.uid);
@@ -481,6 +509,61 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, (error) => {
       console.error("Notifications snapshot error:", error);
     });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'routines'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Routine[] = [];
+      snapshot.forEach((doc) => list.push(doc.data() as Routine));
+      if (list.length > 0) setRoutines(list);
+    }, (err) => console.error("Routines snapshot error:", err));
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'routineHistory'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: RoutineHistory[] = [];
+      snapshot.forEach((doc) => list.push(doc.data() as RoutineHistory));
+      if (list.length > 0) setRoutineHistories(list);
+    }, (err) => console.error("RoutineHistory snapshot error:", err));
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'habits'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Habit[] = [];
+      snapshot.forEach((doc) => list.push(doc.data() as Habit));
+      if (list.length > 0) setHabits(list);
+    }, (err) => console.error("Habits snapshot error:", err));
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'habitLogs'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: HabitLog[] = [];
+      snapshot.forEach((doc) => list.push(doc.data() as HabitLog));
+      if (list.length > 0) setHabitLogs(list);
+    }, (err) => console.error("HabitLogs snapshot error:", err));
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'dailyReflections'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: DailyReflection[] = [];
+      snapshot.forEach((doc) => list.push(doc.data() as DailyReflection));
+      if (list.length > 0) setDailyReflections(list);
+    }, (err) => console.error("DailyReflections snapshot error:", err));
     return () => unsubscribe();
   }, [user]);
 
@@ -3145,6 +3228,234 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user, pushNotification]);
 
+  // ── Routine Planner Handlers ──────────────────────────────────────────────
+  const handleAddRoutine = useCallback(async (newRoutineData: Omit<Routine, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = `rt-${Date.now()}`;
+    const duration = calculateDurationMinutes(newRoutineData.startTime, newRoutineData.endTime);
+    const routine: Routine = {
+      ...newRoutineData,
+      id,
+      userId: user?.uid,
+      duration,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (user) {
+      try {
+        await setDoc(doc(db, 'routines', id), routine);
+      } catch (err) {
+        console.error("Error adding routine to Firestore:", err);
+      }
+    }
+    setRoutines(prev => [...prev, routine]);
+    await pushNotification({
+      title: 'Routine Created',
+      message: `"${routine.title}" scheduled for ${routine.startTime} - ${routine.endTime}.`,
+      type: 'daily'
+    });
+  }, [user, pushNotification]);
+
+  const handleUpdateRoutine = useCallback(async (updated: Routine) => {
+    const duration = calculateDurationMinutes(updated.startTime, updated.endTime);
+    const routine: Routine = {
+      ...updated,
+      duration,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (user) {
+      try {
+        await setDoc(doc(db, 'routines', routine.id), routine);
+      } catch (err) {
+        console.error("Error updating routine in Firestore:", err);
+      }
+    }
+    setRoutines(prev => prev.map(r => r.id === routine.id ? routine : r));
+  }, [user]);
+
+  const handleDeleteRoutine = useCallback(async (id: string) => {
+    if (user) {
+      try {
+        await deleteDoc(doc(db, 'routines', id));
+      } catch (err) {
+        console.error("Error deleting routine from Firestore:", err);
+      }
+    }
+    setRoutines(prev => prev.filter(r => r.id !== id));
+  }, [user]);
+
+  const handleDuplicateRoutine = useCallback(async (id: string) => {
+    const target = routines.find(r => r.id === id);
+    if (!target) return;
+    const { id: _, createdAt: __, updatedAt: ___, ...rest } = target;
+    await handleAddRoutine({
+      ...rest,
+      title: `${target.title} (Copy)`
+    });
+  }, [routines, handleAddRoutine]);
+
+  const handleActionRoutine = useCallback(async (
+    id: string, 
+    action: 'start' | 'pause' | 'resume' | 'complete' | 'skip' | 'reset',
+    remarks?: string
+  ) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const target = routines.find(r => r.id === id);
+    if (!target) return;
+
+    let newStatus: RoutineStatus = target.status;
+    if (action === 'start' || action === 'resume') newStatus = 'Ongoing';
+    if (action === 'pause') newStatus = 'Upcoming';
+    if (action === 'complete') newStatus = 'Completed';
+    if (action === 'skip') newStatus = 'Skipped';
+    if (action === 'reset') newStatus = 'Upcoming';
+
+    const updatedRoutine: Routine = {
+      ...target,
+      status: newStatus,
+      updatedAt: new Date().toISOString()
+    };
+
+    await handleUpdateRoutine(updatedRoutine);
+
+    if (action === 'complete' || action === 'skip') {
+      const historyId = `rh-${id}_${todayStr}`;
+      const historyRecord: RoutineHistory = {
+        id: historyId,
+        routineId: id,
+        routineTitle: target.title,
+        category: target.category,
+        date: todayStr,
+        plannedStartTime: target.startTime,
+        plannedEndTime: target.endTime,
+        completed: action === 'complete',
+        skipped: action === 'skip',
+        missed: false,
+        focusDuration: target.duration,
+        remarks: remarks || (action === 'complete' ? 'Routine completed successfully!' : 'Skipped routine.')
+      };
+
+      if (user) {
+        try {
+          await setDoc(doc(db, 'routineHistory', historyId), { ...historyRecord, userId: user.uid });
+        } catch (err) {
+          console.error("Error saving routine history:", err);
+        }
+      }
+      setRoutineHistories(prev => [historyRecord, ...prev.filter(h => h.id !== historyId)]);
+
+      if (action === 'complete') {
+        playSuccessChime();
+        setRoutineGamification(prev => ({
+          ...prev,
+          xp: prev.xp + 20,
+          coins: prev.coins + 5,
+          level: Math.floor((prev.xp + 20) / 100) + 1
+        }));
+        await pushNotification({
+          title: 'Routine Completed! 🎉',
+          message: `You earned +20 XP & +5 Coins for completing "${target.title}".`,
+          type: 'streak'
+        });
+      }
+    }
+  }, [routines, handleUpdateRoutine, user, pushNotification]);
+
+  const handleAddHabit = useCallback(async (newHabitData: Omit<Habit, 'id' | 'createdAt'>) => {
+    const id = `h-${Date.now()}`;
+    const habit: Habit = {
+      ...newHabitData,
+      id,
+      userId: user?.uid,
+      createdAt: new Date().toISOString()
+    };
+
+    if (user) {
+      try {
+        await setDoc(doc(db, 'habits', id), habit);
+      } catch (err) {
+        console.error("Error adding habit to Firestore:", err);
+      }
+    }
+    setHabits(prev => [...prev, habit]);
+  }, [user]);
+
+  const handleToggleHabit = useCallback(async (habitId: string, date: string) => {
+    const logId = `${habitId}_${date}`;
+    const existing = habitLogs.find(hl => hl.id === logId);
+    const newCompletedState = existing ? !existing.completed : true;
+
+    const updatedLog: HabitLog = {
+      id: logId,
+      habitId,
+      date,
+      completed: newCompletedState
+    };
+
+    if (user) {
+      try {
+        await setDoc(doc(db, 'habitLogs', logId), { ...updatedLog, userId: user.uid });
+      } catch (err) {
+        console.error("Error toggling habit log:", err);
+      }
+    }
+
+    setHabitLogs(prev => [...prev.filter(hl => hl.id !== logId), updatedLog]);
+
+    if (newCompletedState) {
+      playSuccessChime();
+      setRoutineGamification(prev => ({
+        ...prev,
+        xp: prev.xp + 10,
+        level: Math.floor((prev.xp + 10) / 100) + 1
+      }));
+    }
+  }, [habitLogs, user]);
+
+  const handleDeleteHabit = useCallback(async (id: string) => {
+    if (user) {
+      try {
+        await deleteDoc(doc(db, 'habits', id));
+      } catch (err) {
+        console.error("Error deleting habit:", err);
+      }
+    }
+    setHabits(prev => prev.filter(h => h.id !== id));
+  }, [user]);
+
+  const handleSaveReflection = useCallback(async (refData: Omit<DailyReflection, 'id' | 'createdAt'>) => {
+    const id = `refl_${refData.date}`;
+    const reflection: DailyReflection = {
+      ...refData,
+      id,
+      userId: user?.uid,
+      createdAt: new Date().toISOString()
+    };
+
+    if (user) {
+      try {
+        await setDoc(doc(db, 'dailyReflections', id), reflection);
+      } catch (err) {
+        console.error("Error saving daily reflection:", err);
+      }
+    }
+
+    setDailyReflections(prev => [reflection, ...prev.filter(r => r.id !== id)]);
+    playSuccessChime();
+    setRoutineGamification(prev => ({
+      ...prev,
+      xp: prev.xp + 50,
+      coins: prev.coins + 15,
+      level: Math.floor((prev.xp + 50) / 100) + 1
+    }));
+    await pushNotification({
+      title: 'Daily Reflection Saved! 🌟',
+      message: 'Great job reflecting on your progress today! +50 XP awarded.',
+      type: 'daily'
+    });
+  }, [user, pushNotification]);
+
   return (
     <DatabaseContext.Provider value={{
       subjects, topics, topicLimit, setTopicLimit, questions, questionLimit, setQuestionLimit,
@@ -3167,7 +3478,10 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       vocabularyWords, handleAddVocabularyWord, handleUpdateVocabularyWord, handleDeleteVocabularyWord,
       handleMarkWordReviewed, handleSearchWordDefinition,
       codingQuestions, codingProgress, handleAddCodingQuestion, handleUpdateCodingQuestion, handleDeleteCodingQuestion, handleRecordCodingRecall, handleLinkCodingQuestionToTopic,
-      activeTaskTimer, setActiveTaskTimer
+      activeTaskTimer, setActiveTaskTimer,
+      routines, routineHistories, habits, habitLogs, dailyReflections, routineGamification,
+      handleAddRoutine, handleUpdateRoutine, handleDeleteRoutine, handleDuplicateRoutine, handleActionRoutine,
+      handleAddHabit, handleToggleHabit, handleDeleteHabit, handleSaveReflection
     }}>
       {children}
     </DatabaseContext.Provider>

@@ -37,6 +37,7 @@ import CodeEditorPage from './pages/CodeEditorPage';
 import OnboardingGuide from './components/OnboardingGuide';
 import TourGuide from './components/TourGuide';
 import FloatingTimer from './components/FloatingTimer';
+import DailyRoutinePlanner from './components/DailyRoutinePlanner';
 
 // Firebase core integrations for logout
 import { auth } from './firebase';
@@ -49,7 +50,7 @@ import { Hand } from 'lucide-react';
 
 // Lucide Icon assets
 import { 
-  BookOpen, Sparkles, Award, ListTodo, Calendar, 
+  BookOpen, Sparkles, Award, ListTodo, Calendar, Clock,
   Settings, Flame, Activity, Compass, HelpCircle as HelpIcon, Bell, 
   BadgeCheck, Loader, LogOut, Layers, Smartphone, Gamepad2, Menu, ClipboardList, BookMarked,
   ArrowUp, ArrowLeft, Coffee, Code2
@@ -59,6 +60,7 @@ import { AppNotification } from './types';
 // ── Tab order for gesture swipe navigation ───────────────────────────────────
 const ALL_TABS = [
   'Home Dashboard',
+  'Daily Routine Planner',
   'AI Learning Assistant',
   'Study Topics & Revisions',
   'Flashcards & Practice',
@@ -365,6 +367,7 @@ export default function App() {
 
                     {[
                       { label: 'Home Dashboard', icon: Flame },
+                      { label: 'Daily Routine Planner', icon: Clock },
                       { label: 'AI Learning Assistant', icon: Sparkles },
                       { label: 'Study Topics & Revisions', icon: Compass },
                       { label: 'Flashcards & Practice', icon: HelpIcon },
@@ -448,6 +451,7 @@ export default function App() {
 
               {[
                 { label: 'Home Dashboard', icon: Flame },
+                { label: 'Daily Routine Planner', icon: Clock },
                 { label: 'AI Learning Assistant', icon: Sparkles },
                 { label: 'Study Topics & Revisions', icon: Compass },
                 { label: 'Flashcards & Practice', icon: HelpIcon },
@@ -610,6 +614,10 @@ export default function App() {
                   onPushNotification={pushNotification}
                 />
               </div>
+            )}
+
+            {activeTab === 'Daily Routine Planner' && (
+              <DailyRoutinePlanner />
             )}
 
             {activeTab === 'AI Learning Assistant' && (
